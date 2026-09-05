@@ -376,6 +376,8 @@ fun MailScreen(
     if (showMovePicker) {
         FolderPickerSheet(
             folders = state.moveTargets(),
+            accounts = state.accounts,
+            preferredAccountId = state.currentFolder?.accountId,
             onPick = {
                 showMovePicker = false
                 viewModel.moveSelection(it.id)

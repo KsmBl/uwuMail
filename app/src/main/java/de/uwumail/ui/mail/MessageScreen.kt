@@ -313,6 +313,8 @@ fun MessageScreen(
     if (showMove) {
         FolderPickerSheet(
             folders = state.moveTargets(),
+            accounts = state.accounts,
+            preferredAccountId = state.message?.accountId,
             onPick = { showMove = false; viewModel.moveTo(it.id) },
             onDismiss = { showMove = false }
         )

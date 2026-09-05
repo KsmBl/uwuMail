@@ -2,6 +2,7 @@ package de.uwumail.ui.mail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.AttachmentEntity
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageEntity
@@ -28,6 +29,7 @@ data class MessageUiState(
     val message: MessageEntity? = null,
     val attachments: List<AttachmentEntity> = emptyList(),
     val folders: List<FolderEntity> = emptyList(),
+    val accounts: List<AccountEntity> = emptyList(),
     val loading: Boolean = true,
     /** An action on this message is waiting on the server. */
     val busy: Boolean = false,
@@ -63,9 +65,9 @@ data class MessageUiState(
             minHeight = settings.minImageHeight
         )
 
+    /** Every account's folders, minus the one this message is already in. */
     fun moveTargets(): List<FolderEntity> = folders
-        .filter { it.selectable && it.id != message?.folderId }
-        .filter { message == null || it.accountId == message.accountId }
+        .filter { it.selectable && it.id != message?.folderId && !it.hidden }
 }
 
 /** What reading the body told us, computed once per body rather than per frame. */
@@ -105,15 +107,20 @@ class MessageViewModel(
         message,
         container.db.attachmentDao().observeFor(messageId),
         container.db.folderDao().observeAll(),
-        combine(container.settings.state, insights) { settings, parsed -> settings to parsed },
+        combine(
+            container.settings.state,
+            insights,
+            container.db.accountDao().observeAll()
+        ) { settings, parsed, accounts -> Triple(settings, parsed, accounts) },
         local
-    ) { message, attachments, folders, (settings, parsed), extra ->
+    ) { message, attachments, folders, (settings, parsed, accounts), extra ->
         extra.copy(
             message = message,
             attachments = attachments,
             folders = folders,
             settings = settings,
             insights = parsed,
+            accounts = accounts,
             // The row is hidden the instant a removal starts, so the view can
             // close then rather than waiting on the server.
             closed = extra.closed ||

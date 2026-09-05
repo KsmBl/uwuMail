@@ -74,14 +74,14 @@ data class MailUiState(
     /** Folders the drawer shows; hidden ones are kept out of every list. */
     val visibleFolders: List<FolderEntity> get() = folders.filter { !it.hidden }
 
-    /** Folders that can receive a move: every folder except the one we're in. */
-    fun moveTargets(): List<FolderEntity> {
-        val accountId = currentFolder?.accountId
-        return visibleFolders
-            .filter { it.selectable }
-            .filter { it.id != currentFolder?.id }
-            .filter { accountId == null || it.accountId == accountId }
-    }
+    /**
+     * Folders that can receive a move or a copy: every folder of every account
+     * except the one we are looking at. Mail can cross mailboxes, so the other
+     * accounts' folders belong in the list.
+     */
+    fun moveTargets(): List<FolderEntity> = visibleFolders
+        .filter { it.selectable }
+        .filter { it.id != currentFolder?.id }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

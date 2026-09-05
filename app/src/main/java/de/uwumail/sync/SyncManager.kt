@@ -509,6 +509,10 @@ class SyncManager(
         }
     }
 
+    /**
+     * Moves mail into [targetFolderId], which may belong to a different account
+     * than the mail is in now.
+     */
     suspend fun moveMessages(messageIds: List<Long>, targetFolderId: Long) {
         val target = db.folderDao().get(targetFolderId) ?: return
         if (target.isLocal) {
@@ -517,7 +521,111 @@ class SyncManager(
             return
         }
         val account = db.accountDao().get(target.accountId) ?: return
-        optimistically(messageIds) { moveMessagesToPath(account, messageIds, target.path) }
+        optimistically(messageIds) {
+            val messages = db.messageDao().getAll(messageIds)
+            val (sameMailbox, otherMailbox) = messages.partition { it.accountId == account.id }
+            if (sameMailbox.isNotEmpty()) {
+                moveMessagesToPath(account, sameMailbox.map { it.id }, target.path)
+            }
+            if (otherMailbox.isNotEmpty()) {
+                transferToMailbox(otherMailbox, account, target, keepSource = false)
+            }
+            // Show the mail where it landed rather than waiting for the next
+            // scheduled sync of that folder.
+            runCatching { syncFolder(target.id) }
+        }
+    }
+
+    /**
+     * Copies mail into [targetFolderId], leaving the originals alone. As with a
+     * move, the destination may belong to another account.
+     */
+    suspend fun copyMessages(messageIds: List<Long>, targetFolderId: Long) {
+        val target = db.folderDao().get(targetFolderId) ?: return
+        if (target.isLocal) {
+            copyToLocalFolder(messageIds, targetFolderId)
+            return
+        }
+        val account = db.accountDao().get(target.accountId) ?: return
+        val messages = db.messageDao().getAll(messageIds)
+        val (sameMailbox, otherMailbox) = messages.partition { it.accountId == account.id }
+        if (sameMailbox.isNotEmpty()) {
+            copyMessagesToPath(account, sameMailbox.map { it.id }, target.path)
+        }
+        if (otherMailbox.isNotEmpty()) {
+            transferToMailbox(otherMailbox, account, target, keepSource = true)
+        }
+        runCatching { syncFolder(target.id) }
+    }
+
+    /**
+     * Carries mail from one account to another.
+     *
+     * IMAP cannot copy between servers, so the message is downloaded whole and
+     * appended to the destination. The source copy is only removed once the
+     * append has been acknowledged, and a message whose source could not be
+     * fetched is left where it is: losing mail in transit is far worse than a
+     * move that did not happen.
+     */
+    private suspend fun transferToMailbox(
+        messages: List<MessageEntity>,
+        targetAccount: AccountEntity,
+        target: FolderEntity,
+        keepSource: Boolean
+    ) {
+        val failures = mutableListOf<String>()
+
+        messages.groupBy { it.folderId }.forEach { (folderId, group) ->
+            val source = db.folderDao().get(folderId) ?: return@forEach
+            val sourceAccount = db.accountDao().get(source.accountId) ?: return@forEach
+            val delivered = mutableListOf<MessageEntity>()
+
+            group.forEach { message ->
+                val raw = runCatching { rawSourceOf(sourceAccount, source, message) }.getOrNull()
+                if (raw == null) {
+                    failures += message.subject.ifBlank { "(no subject)" }
+                    return@forEach
+                }
+                val appended = runCatching {
+                    pool.use(targetAccount.id) { it.append(target.path, raw, message.seen) }
+                }
+                if (appended.isSuccess) delivered += message
+                else failures += message.subject.ifBlank { "(no subject)" }
+            }
+
+            if (keepSource || delivered.isEmpty()) return@forEach
+
+            // The mail is on the other server now, so it must not stay here.
+            val remoteUids = delivered.filter { !it.isLocal }.map { it.uid }
+            if (remoteUids.isNotEmpty()) {
+                runCatching { pool.use(sourceAccount.id) { it.deleteMessages(source.path, remoteUids) } }
+                    .onFailure {
+                        failures += "could not remove ${remoteUids.size} from ${source.displayName}"
+                        return@forEach
+                    }
+            }
+            delivered.mapNotNull { it.rawFilePath }.forEach { runCatching { File(it).delete() } }
+            db.messageDao().deleteAll(delivered.map { it.id })
+            delivered.forEach { notifier.cancel(it.id) }
+            db.folderDao().refreshCounts(folderId)
+        }
+
+        if (failures.isNotEmpty()) {
+            throw MailException(
+                "Could not transfer ${failures.size} message(s) to ${targetAccount.email}"
+            )
+        }
+    }
+
+    /** A message's full source, from the device when it is there and the server otherwise. */
+    private suspend fun rawSourceOf(
+        account: AccountEntity,
+        folder: FolderEntity,
+        message: MessageEntity
+    ): ByteArray? {
+        message.rawFilePath?.let(::File)?.takeIf { it.exists() }?.let { return it.readBytes() }
+        if (message.isLocal) return null
+        return pool.use(account.id) { it.fetchRaw(folder.path, message.uid) }
     }
 
     private suspend fun moveMessagesToPath(

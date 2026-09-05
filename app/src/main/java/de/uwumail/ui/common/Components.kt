@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -154,15 +155,47 @@ fun EmptyState(title: String, subtitle: String? = null, action: (@Composable () 
     }
 }
 
+/**
+ * How a folder is named wherever more than one account is in play: the mailbox
+ * it belongs to in brackets, then the folder itself. Mail can be moved between
+ * accounts, so the account is the part that disambiguates — every mailbox has
+ * an "Archive".
+ */
+fun folderLabel(folder: FolderEntity, accounts: List<AccountEntity>): String {
+    val account = accounts.firstOrNull { it.id == folder.accountId }
+    return if (account == null) folder.displayName
+    else "[${account.email}] ${folder.displayName}"
+}
+
+/**
+ * Picks a destination folder, across every account.
+ *
+ * Folders are grouped by mailbox with [preferredAccountId] — the one the mail
+ * is in now — first, since moving within the same account is the common case
+ * and moving between accounts is the deliberate one.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderPickerSheet(
     folders: List<FolderEntity>,
+    accounts: List<AccountEntity>,
     title: String = "Move to",
+    confirmLabel: String = "Move here",
+    preferredAccountId: Long? = null,
     onPick: (FolderEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selected by remember { mutableStateOf<FolderEntity?>(null) }
+    val ordered = remember(folders, accounts, preferredAccountId) {
+        folders.sortedWith(
+            compareBy(
+                { if (it.accountId == preferredAccountId) 0 else 1 },
+                { accounts.indexOfFirst { account -> account.id == it.accountId } },
+                { it.accountId }
+            )
+        )
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
             title,
@@ -170,10 +203,10 @@ fun FolderPickerSheet(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
         )
         LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(bottom = 24.dp)
+            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+            contentPadding = PaddingValues(bottom = 8.dp)
         ) {
-            items(folders, key = { it.id }) { folder ->
+            items(ordered, key = { it.id }) { folder ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -192,7 +225,10 @@ fun FolderPickerSheet(
                         modifier = Modifier.size(20.dp)
                     )
                     Column(Modifier.weight(1f)) {
-                        Text(folder.displayName, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            folderLabel(folder, accounts),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                         Text(
                             if (folder.isLocal) "on this device" else folder.path,
                             style = MaterialTheme.typography.bodySmall,
@@ -201,19 +237,17 @@ fun FolderPickerSheet(
                     }
                 }
             }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(24.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(
-                        onClick = { selected?.let { onPick(it) } },
-                        enabled = selected != null
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Text("  Move here")
-                    }
-                }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Button(
+                onClick = { selected?.let { onPick(it) } },
+                enabled = selected != null
+            ) {
+                Icon(Icons.Default.Check, contentDescription = null)
+                Text("  $confirmLabel")
             }
         }
     }
