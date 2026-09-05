@@ -67,6 +67,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -99,7 +100,7 @@ import de.uwumail.ui.common.formatListDate
 import de.uwumail.ui.containerViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MailScreen(
     onOpenMessage: (Long) -> Unit,
@@ -165,11 +166,17 @@ fun MailScreen(
         listState.scrollToItem(0)
     }
 
+    // Day headings, recomputed only when the list itself changes.
+    val sections = remember(state.messages) { groupByDay(state.messages) }
+
     // Pull the next page in once the user nears the end of the cached list.
     val nearEnd by remember {
         derivedStateOf {
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            state.messages.isNotEmpty() && last >= state.messages.size - 5
+            val info = listState.layoutInfo
+            val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            // Counted from the layout rather than from the message list, which
+            // no longer matches the row count now that days have headings.
+            info.totalItemsCount > 0 && last >= info.totalItemsCount - 5
         }
     }
     LaunchedEffect(nearEnd) {
@@ -346,21 +353,24 @@ fun MailScreen(
                         }
                     }
                     else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                        items(state.messages, key = { it.id }) { message ->
-                            MessageRow(
-                                message = message,
-                                selected = message.id in state.selection,
-                                selectionMode = state.inSelectionMode,
-                                accountColor = state.accounts
-                                    .firstOrNull { it.id == message.accountId }?.color,
-                                onClick = {
-                                    if (state.inSelectionMode) viewModel.toggleSelection(message.id)
-                                    else onOpenMessage(message.id)
-                                },
-                                onLongClick = { viewModel.toggleSelection(message.id) },
-                                onStar = { viewModel.toggleStar(message.id, !message.flagged) }
-                            )
-                            HorizontalDivider(thickness = 0.5.dp)
+                        sections.forEach { section ->
+                            stickyHeader(key = section.dayStart) { DayHeader(section.label) }
+                            items(section.messages, key = { it.id }) { message ->
+                                MessageRow(
+                                    message = message,
+                                    selected = message.id in state.selection,
+                                    selectionMode = state.inSelectionMode,
+                                    accountColor = state.accounts
+                                        .firstOrNull { it.id == message.accountId }?.color,
+                                    onClick = {
+                                        if (state.inSelectionMode) viewModel.toggleSelection(message.id)
+                                        else onOpenMessage(message.id)
+                                    },
+                                    onLongClick = { viewModel.toggleSelection(message.id) },
+                                    onStar = { viewModel.toggleStar(message.id, !message.flagged) }
+                                )
+                                HorizontalDivider(thickness = 0.5.dp)
+                            }
                         }
                         if (state.loadingMore) {
                             item {
@@ -480,6 +490,26 @@ private fun SelectionAppBar(
             }
         }
     )
+}
+
+/**
+ * The date a run of messages arrived on, pinned to the top of the list while
+ * that day is on screen so a long scroll always says which day it is showing.
+ */
+@Composable
+private fun DayHeader(label: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        )
+    }
 }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
