@@ -221,10 +221,13 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         transient.update { it.copy(refreshing = true) }
         viewModelScope.launch {
             try {
-                val folder = currentFolder.value
                 runCatching {
-                    if (folder != null) container.syncManager.syncFolder(folder.id)
-                    else container.syncManager.syncAll()
+                    when (val destination = target.value) {
+                        is MailTarget.Folder -> container.syncManager.syncFolder(destination.id)
+                        // syncAll would only cover folders marked for background
+                        // sync, which leaves the Sent and Trash views empty.
+                        is MailTarget.Unified -> container.syncManager.syncUnified(destination.type)
+                    }
                 }.onFailure { e ->
                     transient.update { it.copy(error = e.message ?: e.toString()) }
                 }

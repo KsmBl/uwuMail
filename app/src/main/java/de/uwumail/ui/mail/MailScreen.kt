@@ -47,7 +47,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.SyncDisabled
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
@@ -274,14 +273,38 @@ fun MailScreen(
                 modifier = Modifier.padding(padding).fillMaxSize()
             ) {
                 when {
-                    state.accounts.isEmpty() -> EmptyState(
-                        title = "No accounts yet",
-                        subtitle = "Add a mail account to get started."
-                    )
-                    state.messages.isEmpty() -> EmptyState(
-                        title = if (state.query.isBlank()) "Nothing here" else "No matches",
-                        subtitle = if (state.query.isBlank()) "Pull down to sync." else null
-                    )
+                    // Both empty states live inside a LazyColumn on purpose:
+                    // PullToRefreshBox detects the pull through nested scroll, so a
+                    // plain Column here would make the gesture impossible exactly
+                    // when it is needed most.
+                    state.accounts.isEmpty() -> LazyColumn(Modifier.fillMaxSize()) {
+                        item {
+                            Box(
+                                Modifier.fillParentMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                EmptyState(
+                                    title = "No accounts yet",
+                                    subtitle = "Add a mail account to get started."
+                                )
+                            }
+                        }
+                    }
+                    state.messages.isEmpty() -> LazyColumn(Modifier.fillMaxSize()) {
+                        item {
+                            Box(
+                                Modifier.fillParentMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                EmptyState(
+                                    title = if (state.query.isBlank()) "Nothing here"
+                                    else "No matches",
+                                    subtitle = if (state.query.isBlank()) "Pull down to sync."
+                                    else null
+                                )
+                            }
+                        }
+                    }
                     else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         items(state.messages, key = { it.id }) { message ->
                             MessageRow(
@@ -673,12 +696,14 @@ private fun FolderRow(
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.weight(1f)
             )
-            if (!folder.syncEnabled && !folder.isLocal) {
+            // Most folders are not background-synced, so marking the few that
+            // are keeps the list quiet.
+            if (folder.syncEnabled && !folder.isLocal) {
                 Icon(
-                    Icons.Default.SyncDisabled,
-                    contentDescription = "Not synced automatically",
+                    Icons.Default.Sync,
+                    contentDescription = "Synced in the background",
                     modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.width(6.dp))
             }

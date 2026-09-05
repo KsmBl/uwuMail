@@ -159,6 +159,29 @@ class SyncManager(
         }
     }
 
+    /**
+     * Syncs every folder playing [type] across all accounts — what the unified
+     * views need.
+     *
+     * Folder-level `syncEnabled` is deliberately ignored: it governs unattended
+     * background sync, and a pull-to-refresh is an explicit request for these
+     * folders right now. Sent and Trash are not background-synced by default, so
+     * honouring the flag here would leave those views permanently empty.
+     */
+    suspend fun syncUnified(type: FolderType) {
+        val accounts = db.accountDao().getAll()
+        accounts.forEach { account ->
+            runCatching {
+                refreshFolders(account.id)
+                db.folderDao().forAccount(account.id)
+                    .filter { !it.isLocal && it.selectable && !it.hidden && it.type == type.name }
+                    .forEach { folder -> runCatching { syncFolder(folder) } }
+            }.onFailure { error -> _state.update { it.copy(lastError = error.message) } }
+        }
+        db.folderDao().refreshAllCounts()
+        runCatching { sendOutbox() }
+    }
+
     suspend fun syncFolder(folderId: Long) {
         val folder = db.folderDao().get(folderId) ?: return
         if (folder.isLocal) return

@@ -61,6 +61,30 @@ class FoldersViewModel(
         }
     }
 
+    /** The folder manager lists hidden folders too, so this is the way back. */
+    fun setHidden(folder: FolderEntity, hidden: Boolean) {
+        viewModelScope.launch {
+            container.syncManager.setFolderHidden(folder.id, hidden)
+            transient.update {
+                it.copy(
+                    message = if (hidden) "\"${folder.displayName}\" hidden from the folder list"
+                    else "\"${folder.displayName}\" shown again"
+                )
+            }
+        }
+    }
+
+    fun move(folder: FolderEntity, delta: Int) {
+        viewModelScope.launch { container.syncManager.moveFolder(folder.id, delta) }
+    }
+
+    fun resetOrder() {
+        viewModelScope.launch {
+            container.syncManager.resetFolderOrder(accountId)
+            transient.update { it.copy(message = "Folder order reset") }
+        }
+    }
+
     fun clearMessage() = transient.update { it.copy(message = null) }
 
     private fun guarded(success: String, block: suspend () -> Unit) {

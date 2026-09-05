@@ -28,10 +28,15 @@ engine that can act on mail before it ever reaches your notification shade.
 
 **Folders**
 - Unified views across every account: **All inboxes**, **All outboxes** (the Sent
-  folders) and **All deleted mails**.
+  folders) and **All deleted mails**. Pull to refresh in any of them syncs that
+  folder across every account, whether or not those folders are set to sync in
+  the background.
 - Long-press any folder in the drawer to reorder it, hide it on this device,
-  mark it all read, or stop syncing it. Hiding leaves the folder untouched on
-  the server; the order is per-device and can be reset.
+  mark it all read, or toggle background sync. Hiding leaves the folder
+  untouched on the server; the order is per-device and can be reset. Hidden
+  folders stay listed in the folder manager, which is where you unhide them.
+- Folders that are synced in the background are marked; the rest are not, since
+  background sync is off by default for everything but the inbox.
 - The inbox always sorts first, then Drafts/Sent/Archive/Spam/Trash, then custom
   folders A-Z, then device folders.
 - Create, rename and delete IMAP folders on the server, including nested paths.

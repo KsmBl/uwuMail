@@ -7,15 +7,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -124,7 +128,7 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
             return@Scaffold
         }
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {
-            items(state.folders, key = { it.id }) { folder ->
+            itemsIndexed(state.folders, key = { _, folder -> folder.id }) { index, folder ->
                 ListItem(
                     leadingContent = {
                         Icon(
@@ -139,6 +143,8 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
                                 append(if (folder.isLocal) "device folder" else folder.path)
                                 append(" · ${folder.totalCount} messages")
                                 if (folder.unreadCount > 0) append(", ${folder.unreadCount} unread")
+                                if (folder.syncEnabled && !folder.isLocal) append(" · synced")
+                                if (folder.hidden) append(" · hidden")
                             },
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -146,7 +152,12 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
                     trailingContent = {
                         FolderActions(
                             folder = folder,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < state.folders.lastIndex,
+                            onMove = { viewModel.move(folder, it) },
                             onToggleSync = { viewModel.setSyncEnabled(folder, it) },
+                            onToggleHidden = { viewModel.setHidden(folder, it) },
+                            onResetOrder = viewModel::resetOrder,
                             onRename = { renaming = folder },
                             onDelete = { deleting = folder }
                         )
@@ -204,7 +215,12 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
 @Composable
 private fun FolderActions(
     folder: FolderEntity,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMove: (Int) -> Unit,
     onToggleSync: (Boolean) -> Unit,
+    onToggleHidden: (Boolean) -> Unit,
+    onResetOrder: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -214,6 +230,33 @@ private fun FolderActions(
             Icon(Icons.Default.DriveFileRenameOutline, "Folder actions")
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text("Move up") },
+                enabled = canMoveUp,
+                leadingIcon = { Icon(Icons.Default.ArrowUpward, null) },
+                onClick = { menu = false; onMove(-1) }
+            )
+            DropdownMenuItem(
+                text = { Text("Move down") },
+                enabled = canMoveDown,
+                leadingIcon = { Icon(Icons.Default.ArrowDownward, null) },
+                onClick = { menu = false; onMove(1) }
+            )
+            DropdownMenuItem(
+                text = { Text("Reset order") },
+                onClick = { menu = false; onResetOrder() }
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(if (folder.hidden) "Show in folder list" else "Hide from folder list") },
+                leadingIcon = {
+                    Icon(
+                        if (folder.hidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        null
+                    )
+                },
+                onClick = { menu = false; onToggleHidden(!folder.hidden) }
+            )
             if (!folder.isLocal) {
                 DropdownMenuItem(
                     text = { Text("Sync automatically") },
