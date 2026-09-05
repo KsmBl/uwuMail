@@ -156,7 +156,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
             }
 
-                    item { HorizontalDivider(); SectionHeader("Spam lists") }
+            item { HorizontalDivider(); SectionHeader("When to check for mail") }
+            item { SyncWindowSection() }
+
+            item { HorizontalDivider(); SectionHeader("Spam lists") }
             item {
                 SpamListsSection { message ->
                     scope.launch { snackbarHost.showSnackbar(message) }

@@ -13,6 +13,14 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         val container = (applicationContext as UwuMailApp).container
         val accountId = inputData.getLong(KEY_ACCOUNT_ID, -1L)
+
+        // Outside the hours the user set, unattended checks do not run at all.
+        // The work is dropped rather than retried: by the next period it will
+        // either be inside the window or still deliberately outside it.
+        if (!container.settings.current.syncAllowedAt(System.currentTimeMillis())) {
+            return Result.success()
+        }
+
         return try {
             if (accountId > 0) {
                 container.syncManager.syncAccount(accountId)

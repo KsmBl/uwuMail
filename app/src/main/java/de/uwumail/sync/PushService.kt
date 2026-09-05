@@ -17,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import de.uwumail.R
 import de.uwumail.UwuMailApp
 import de.uwumail.core.FolderType
+import de.uwumail.data.settings.SettingsStore
 import de.uwumail.mail.ImapClient
 import de.uwumail.notify.Notifier
 import kotlinx.coroutines.CancellationException
@@ -111,6 +112,11 @@ class PushService : LifecycleService() {
                 while (isActive) {
                     var client: ImapClient? = null
                     try {
+                        // Holding IDLE open outside the hours the user set would
+                        // be checking for mail, so the connection is dropped and
+                        // the watcher waits for the window to come round.
+                        waitForSyncWindow(container.settings)
+
                         val inbox = container.db.folderDao()
                             .forAccount(account.id)
                             .firstOrNull { it.type == FolderType.INBOX.name }
@@ -124,7 +130,9 @@ class PushService : LifecycleService() {
                         client = container.imapPool.newClient(account.id, forIdle = true)
                         backoffSeconds = INITIAL_BACKOFF_SECONDS
 
-                        while (isActive) {
+                        while (isActive && container.settings.current
+                                .syncAllowedAt(System.currentTimeMillis())
+                        ) {
                             // Blocks until the server reports a change on the mailbox.
                             client.idle(inbox.path)
                             // Hold the CPU across the fetch: IDLE can return while the
@@ -145,6 +153,18 @@ class PushService : LifecycleService() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Blocks until background checks are allowed again.
+     *
+     * Polled rather than scheduled to the minute: the window can be edited, and
+     * the clock can move under us across a DST change or a time-zone change.
+     */
+    private suspend fun waitForSyncWindow(settings: SettingsStore) {
+        while (!settings.current.syncAllowedAt(System.currentTimeMillis())) {
+            delay(WINDOW_POLL_MILLIS)
         }
     }
 
@@ -189,6 +209,7 @@ class PushService : LifecycleService() {
         private const val INITIAL_BACKOFF_SECONDS = 5L
         private const val MAX_BACKOFF_SECONDS = 300L
         private const val POLL_INTERVAL_MILLIS = 1_000L
+        private const val WINDOW_POLL_MILLIS = 5 * 60 * 1000L
 
         /** Whether the service is currently up, for the settings screen to report. */
         @Volatile
