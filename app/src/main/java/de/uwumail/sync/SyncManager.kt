@@ -255,6 +255,7 @@ class SyncManager(
         val setFlagged = mutableListOf<Long>()
         val clearFlagged = mutableListOf<Long>()
         val toLocal = mutableMapOf<String, MutableList<Long>>()
+        val copyToLocal = mutableMapOf<String, MutableList<Long>>()
         val relocatedUids = mutableSetOf<Long>()
         val plans = mutableMapOf<Long, RulePlan>()
 
@@ -287,8 +288,10 @@ class SyncManager(
 
             plan.copies.forEach { action ->
                 val target = action.arg ?: return@forEach
-                if (action.type == ActionType.COPY_TO_FOLDER) {
-                    copies.getOrPut(target) { mutableListOf() } += message.uid
+                when (action.type) {
+                    ActionType.COPY_TO_FOLDER -> copies.getOrPut(target) { mutableListOf() } += message.uid
+                    ActionType.COPY_TO_LOCAL -> copyToLocal.getOrPut(target) { mutableListOf() } += message.uid
+                    else -> Unit
                 }
             }
 
@@ -372,6 +375,12 @@ class SyncManager(
         // up on its next sync; drop the copies sitting in this folder's cache.
         if (relocatedUids.isNotEmpty()) {
             db.messageDao().deleteUids(folder.id, relocatedUids.toList())
+        }
+
+        // Local copies are taken before the moves, so a message that a rule both
+        // copies and moves still has a server copy to download here.
+        copyToLocal.forEach { (localName, uids) ->
+            runCatching { copyUidsToLocal(account, folder, uids, localName) }
         }
 
         toLocal.forEach { (localName, uids) ->
@@ -540,6 +549,31 @@ class SyncManager(
         db.folderDao().getByPath(account.id, targetPath)?.let { db.folderDao().refreshCounts(it.id) }
     }
 
+    /** Server-side copy, leaving the originals where they are. */
+    private suspend fun copyMessagesToPath(
+        account: AccountEntity,
+        messageIds: List<Long>,
+        targetPath: String
+    ) {
+        val messages = db.messageDao().getAll(messageIds).filter { it.accountId == account.id }
+
+        messages.filter { !it.isLocal }.groupBy { it.folderId }.forEach { (folderId, group) ->
+            val folder = db.folderDao().get(folderId) ?: return@forEach
+            if (folder.path == targetPath) return@forEach
+            pool.use(account.id) { it.copyMessages(folder.path, group.map { m -> m.uid }, targetPath) }
+        }
+
+        // A device-only message has no server copy to duplicate, so its stored
+        // source is uploaded instead.
+        messages.filter { it.isLocal }.forEach { message ->
+            val raw = message.rawFilePath?.let(::File)?.takeIf { it.exists() }?.readBytes()
+                ?: return@forEach
+            pool.use(account.id) { it.append(targetPath, raw, message.seen) }
+        }
+
+        db.folderDao().getByPath(account.id, targetPath)?.let { db.folderDao().refreshCounts(it.id) }
+    }
+
     suspend fun deletePermanently(messageIds: List<Long>) =
         optimistically(messageIds) { removeFromServer(messageIds) }
 
@@ -667,17 +701,24 @@ class SyncManager(
     suspend fun moveToLocalFolder(messageIds: List<Long>, localFolderId: Long) {
         val target = db.folderDao().get(localFolderId) ?: return
         if (!target.isLocal) return
-        val messages = db.messageDao().getAll(messageIds).filter { !it.isLocal }
-        messages.groupBy { it.folderId }.forEach { (folderId, group) ->
+        val all = db.messageDao().getAll(messageIds).filter { it.folderId != localFolderId }
+
+        // Mail already on the device only needs its row and its file to change
+        // hands; there is no server copy left to fetch or delete.
+        all.filter { it.isLocal }.forEach { message ->
+            runCatching { relocateLocalFile(message, target) }
+        }
+
+        all.filter { !it.isLocal }.groupBy { it.folderId }.forEach { (folderId, group) ->
             val source = db.folderDao().get(folderId) ?: return@forEach
             val account = db.accountDao().get(source.accountId) ?: return@forEach
             // Only remove the server copy of messages whose full source actually
             // landed on disk; a failed download must not lose the mail.
             val archived = group.mapNotNull { message ->
-                runCatching { archiveOneLocally(account, source, target, message) }
-                    .getOrDefault(false)
-                    .takeIf { it }
-                    ?.let { message.uid }
+                val stored = runCatching { storeLocally(account, source, target, message) }
+                    .getOrNull() ?: return@mapNotNull null
+                db.messageDao().update(stored.copy(id = message.id))
+                message.uid
             }
             if (archived.isNotEmpty()) {
                 runCatching {
@@ -689,15 +730,48 @@ class SyncManager(
         db.folderDao().refreshCounts(localFolderId)
     }
 
-    /** Returns true only when the full message source reached local storage. */
-    private suspend fun archiveOneLocally(
+    /**
+     * Puts a copy in a local folder and leaves the server copy where it is.
+     *
+     * The copy is a row of its own, so reading, flagging or deleting it does
+     * not touch the original.
+     */
+    suspend fun copyToLocalFolder(messageIds: List<Long>, localFolderId: Long) {
+        val target = db.folderDao().get(localFolderId) ?: return
+        if (!target.isLocal) return
+        db.messageDao().getAll(messageIds)
+            .filter { it.folderId != localFolderId }
+            .groupBy { it.folderId }
+            .forEach { (folderId, group) ->
+                val source = db.folderDao().get(folderId) ?: return@forEach
+                val account = db.accountDao().get(source.accountId) ?: return@forEach
+                group.forEach { message ->
+                    runCatching {
+                        val stored = if (message.isLocal) duplicateLocally(message, target)
+                        else storeLocally(account, source, target, message)
+                        stored?.let { db.messageDao().insert(it.copy(id = 0)) }
+                    }
+                }
+            }
+        db.folderDao().refreshCounts(localFolderId)
+    }
+
+    /**
+     * Downloads a message in full and writes its .eml under [target].
+     *
+     * Returns the row the caller should persist — with the id left at the
+     * original's, so a move updates and a copy inserts — or null when the full
+     * source could not be fetched, which is what stops a failed download from
+     * losing the mail.
+     */
+    private suspend fun storeLocally(
         account: AccountEntity,
         source: FolderEntity,
         target: FolderEntity,
         message: MessageEntity
-    ): Boolean {
+    ): MessageEntity? {
         val raw = pool.use(account.id) { it.fetchRaw(source.path, message.uid) }
-            ?: return false
+            ?: return null
         val body = message.takeIf { it.bodyDownloaded }
             ?: pool.use(account.id) { client ->
                 client.fetchBody(source.path, message.uid)?.let { fetched ->
@@ -714,17 +788,56 @@ class SyncManager(
         file.parentFile?.mkdirs()
         file.writeBytes(raw)
 
-        val nextUid = (db.messageDao().minUid(target.id) ?: 0L) - 1
+        return body.copy(
+            folderId = target.id,
+            uid = nextLocalUid(target.id),
+            isLocal = true,
+            rawFilePath = file.absolutePath
+        )
+    }
+
+    /** Moves an already-local message's row and its stored .eml to another local folder. */
+    private suspend fun relocateLocalFile(message: MessageEntity, target: FolderEntity) {
+        val existing = message.rawFilePath?.let(::File)?.takeIf { it.exists() }
+        val moved = existing?.let { from ->
+            val to = File(localFolderDir(target), from.name)
+            to.parentFile?.mkdirs()
+            if (from.renameTo(to)) to else from.copyTo(to, overwrite = true).also { from.delete() }
+        }
         db.messageDao().update(
-            body.copy(
+            message.copy(
                 folderId = target.id,
-                uid = if (nextUid < 0) nextUid else -1L,
-                isLocal = true,
-                rawFilePath = file.absolutePath
+                uid = nextLocalUid(target.id),
+                rawFilePath = moved?.absolutePath ?: message.rawFilePath
             )
         )
-        return true
+        db.folderDao().refreshCounts(message.folderId)
     }
+
+    /** A second copy of an already-local message, with its own .eml on disk. */
+    private suspend fun duplicateLocally(
+        message: MessageEntity,
+        target: FolderEntity
+    ): MessageEntity? {
+        val from = message.rawFilePath?.let(::File)?.takeIf { it.exists() } ?: return null
+        val to = File(localFolderDir(target), "${System.currentTimeMillis()}_${from.name}")
+        to.parentFile?.mkdirs()
+        from.copyTo(to, overwrite = true)
+        return message.copy(
+            folderId = target.id,
+            uid = nextLocalUid(target.id),
+            isLocal = true,
+            rawFilePath = to.absolutePath
+        )
+    }
+
+    /**
+     * Local rows carry a negative uid so they cannot collide with a server's.
+     * The folder's (folderId, uid) index is unique, so each one has to be lower
+     * than every uid already in that folder.
+     */
+    private suspend fun nextLocalUid(folderId: Long): Long =
+        ((db.messageDao().minUid(folderId) ?: 0L) - 1).coerceAtMost(-1L)
 
     /** Writes a message's raw source to the app's files dir and returns the file. */
     suspend fun downloadRaw(messageId: Long): File? = withContext(Dispatchers.IO) {
@@ -869,6 +982,19 @@ class SyncManager(
         if (plan.markRead) setSeen(listOf(message.id), true)
         if (plan.markUnread) setSeen(listOf(message.id), false)
         plan.flag?.let { setFlagged(listOf(message.id), it) }
+        // Copies run before the relocation below, which may take the message
+        // off the server entirely.
+        plan.copies.forEach { action ->
+            val arg = action.arg ?: return@forEach
+            when (action.type) {
+                ActionType.COPY_TO_FOLDER ->
+                    runCatching { copyMessagesToPath(account, listOf(message.id), arg) }
+                ActionType.COPY_TO_LOCAL -> localFolderFor(account.id, arg)?.let { target ->
+                    runCatching { copyToLocalFolder(listOf(message.id), target.id) }
+                }
+                else -> Unit
+            }
+        }
         plan.relocation?.let { action ->
             when (action.type) {
                 ActionType.ARCHIVE -> account.archiveFolder?.let {
@@ -880,7 +1006,7 @@ class SyncManager(
                     moveMessagesToPath(account, listOf(message.id), it)
                 }
                 ActionType.MOVE_TO_LOCAL -> action.arg?.let { name ->
-                    db.folderDao().getByPath(account.id, localPath(name))?.let { target ->
+                    localFolderFor(account.id, name)?.let { target ->
                         moveToLocalFolder(listOf(message.id), target.id)
                     }
                 }
@@ -912,12 +1038,29 @@ class SyncManager(
         uids: List<Long>,
         localName: String
     ) {
-        val target = db.folderDao().getByPath(account.id, localPath(localName))
-            ?: db.folderDao().get(createLocalFolder(account.id, localName))
-            ?: return
+        val target = localFolderFor(account.id, localName) ?: return
         val ids = uids.mapNotNull { db.messageDao().getByUid(folder.id, it)?.id }
         moveToLocalFolder(ids, target.id)
     }
+
+    private suspend fun copyUidsToLocal(
+        account: AccountEntity,
+        folder: FolderEntity,
+        uids: List<Long>,
+        localName: String
+    ) {
+        val target = localFolderFor(account.id, localName) ?: return
+        val ids = uids.mapNotNull { db.messageDao().getByUid(folder.id, it)?.id }
+        copyToLocalFolder(ids, target.id)
+    }
+
+    /**
+     * The account's local folder of that name, created on demand: a rule
+     * naming a folder that has since been deleted should still work.
+     */
+    private suspend fun localFolderFor(accountId: Long, name: String): FolderEntity? =
+        db.folderDao().getByPath(accountId, localPath(name))
+            ?: db.folderDao().get(createLocalFolder(accountId, name))
 
     private suspend fun forEachRemoteGroup(
         messageIds: List<Long>,

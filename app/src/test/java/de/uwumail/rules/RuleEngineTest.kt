@@ -223,4 +223,66 @@ class RuleEngineTest {
         val disabled = entry.copy(rule = entry.rule.copy(enabled = false))
         assertFalse(RuleEngine.evaluate(context(), listOf(disabled)).matched)
     }
+
+    @Test
+    fun `a local copy is planned without relocating the message`() {
+        val rules = listOf(
+            rule(
+                conditions = listOf(
+                    condition(RuleField.FROM, RuleOperator.DOMAIN_IS, "github.com")
+                ),
+                actions = listOf(ActionType.COPY_TO_LOCAL),
+                actionArg = "Receipts"
+            )
+        )
+        val plan = RuleEngine.evaluate(context(), rules)
+
+        assertEquals(1, plan.copies.size)
+        assertEquals(ActionType.COPY_TO_LOCAL, plan.copies.first().type)
+        assertEquals("Receipts", plan.copies.first().arg)
+        // Copying leaves the original where it is.
+        assertEquals(null, plan.relocation)
+    }
+
+    @Test
+    fun `a move to a local folder counts as the relocation`() {
+        val rules = listOf(
+            rule(
+                conditions = listOf(
+                    condition(RuleField.FROM, RuleOperator.DOMAIN_IS, "github.com")
+                ),
+                actions = listOf(ActionType.MOVE_TO_LOCAL),
+                actionArg = "Archive 2026"
+            )
+        )
+        val plan = RuleEngine.evaluate(context(), rules)
+
+        assertEquals(ActionType.MOVE_TO_LOCAL, plan.relocation?.type)
+        assertEquals("Archive 2026", plan.relocation?.arg)
+        assertTrue(plan.copies.isEmpty())
+    }
+
+    @Test
+    fun `both kinds of copy are planned together`() {
+        val rules = listOf(
+            rule(
+                id = 1,
+                conditions = listOf(condition(RuleField.SUBJECT, RuleOperator.CONTAINS, "CI")),
+                actions = listOf(ActionType.COPY_TO_FOLDER),
+                actionArg = "Backup"
+            ),
+            rule(
+                id = 2,
+                conditions = listOf(condition(RuleField.SUBJECT, RuleOperator.CONTAINS, "CI")),
+                actions = listOf(ActionType.COPY_TO_LOCAL),
+                actionArg = "On phone"
+            )
+        )
+        val plan = RuleEngine.evaluate(context(), rules)
+
+        assertEquals(
+            listOf(ActionType.COPY_TO_FOLDER, ActionType.COPY_TO_LOCAL),
+            plan.copies.map { it.type }
+        )
+    }
 }
