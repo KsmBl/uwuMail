@@ -27,7 +27,13 @@ import javax.mail.internet.MimeMessage
 class ImapClient(
     private val account: AccountEntity,
     /** Password, or an OAuth access token when the account uses OAUTH2. */
-    private val secret: String
+    private val secret: String,
+    /**
+     * Socket read timeout. IDLE parks on a read, so a connection used for push
+     * needs one longer than the server's idle limit — otherwise it tears down
+     * and reconnects every [DEFAULT_READ_TIMEOUT_MILLIS].
+     */
+    private val readTimeoutMillis: Int = DEFAULT_READ_TIMEOUT_MILLIS
 ) : Closeable {
 
     private var store: IMAPStore? = null
@@ -48,7 +54,7 @@ class ImapClient(
             put("mail.$protocol.host", account.imapHost)
             put("mail.$protocol.port", account.imapPort.toString())
             put("mail.$protocol.connectiontimeout", "20000")
-            put("mail.$protocol.timeout", "40000")
+            put("mail.$protocol.timeout", readTimeoutMillis.toString())
             put("mail.$protocol.writetimeout", "40000")
             // Keep \Seen untouched while syncing; the user decides what is read.
             put("mail.$protocol.peek", "true")
@@ -320,6 +326,17 @@ class ImapClient(
     fun idle(path: String) {
         val folder = open(path, Folder.READ_ONLY)
         folder.idle(true)
+    }
+
+    companion object {
+        const val DEFAULT_READ_TIMEOUT_MILLIS = 40_000
+
+        /**
+         * RFC 2177 tells clients to re-issue IDLE at least every 29 minutes, and
+         * servers drop it around then anyway. Timing out just under that keeps a
+         * half-open socket from parking forever without churning the connection.
+         */
+        const val IDLE_READ_TIMEOUT_MILLIS = 28 * 60 * 1000
     }
 
     // --------------------------------------------------------------- internals

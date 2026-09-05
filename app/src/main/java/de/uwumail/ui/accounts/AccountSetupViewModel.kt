@@ -35,7 +35,7 @@ data class AccountSetupState(
     val useIdentityAsEnvelopeSender: Boolean = true,
     val syncEnabled: Boolean = true,
     val syncIntervalMinutes: String = "15",
-    val pushEnabled: Boolean = false,
+    val pushEnabled: Boolean = true,
     val notificationsEnabled: Boolean = true,
     val signature: String = "",
     val identities: List<IdentityEntity> = emptyList(),

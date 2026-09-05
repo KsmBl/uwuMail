@@ -28,7 +28,7 @@ class UwuMailApp : Application() {
             val accounts = container.db.accountDao().getAll()
             container.notifier.ensureChannels(accounts)
             SyncScheduler.scheduleAll(this@UwuMailApp, accounts)
-            if (accounts.any { it.pushEnabled }) PushService.start(this@UwuMailApp)
+            PushService.ensureRunning(this@UwuMailApp, accounts.any { it.pushEnabled })
         }
     }
 

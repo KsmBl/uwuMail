@@ -105,11 +105,22 @@ have.
 - Matching is done in the list query against an indexed sender domain, so
   toggling a list takes effect immediately without rewriting cached mail.
 
-**Sync and notifications**
-- Periodic background sync per account through WorkManager (Android enforces a
-  15 minute floor).
-- Optional push: a foreground service holding an IMAP IDLE connection per
-  push-enabled account, with exponential backoff on failure.
+**Background mail and notifications**
+- Push is **on by default**: a foreground service holds an IMAP IDLE connection
+  per account, so new mail notifies you without the app being opened. IMAP has
+  no push service to delegate to the way FCM-based messengers do, so the app
+  holds the connection itself — the same approach Thunderbird and K-9 take.
+- The service restarts after a reboot, after an app update, and after being
+  killed; it wakes early when the network returns instead of waiting out its
+  backoff, and holds a wake lock across the fetch so a sync started during Doze
+  is not suspended half-way.
+- Periodic WorkManager sync per account runs alongside it as a safety net
+  (Android enforces a 15 minute floor) and restarts the service if it died.
+- **Settings → Background mail** reports whether the connection is up and offers
+  the battery-optimisation exemption. Without that exemption Doze suspends the
+  connection while the screen is off, which is the usual reason background mail
+  stops arriving. Manufacturer battery managers (Samsung, Xiaomi, OnePlus) sit
+  on top of Android's and may need the app marked unrestricted there too.
 - One notification channel group per account, with default / silent / high
   channels so rules can downgrade or mute specific mail.
 
@@ -236,7 +247,11 @@ app/src/main/java/de/uwumail/
 - Message moves use `COPY` + `\Deleted` + `UID EXPUNGE`, which every IMAP server
   supports, rather than depending on RFC 6851 `MOVE`.
 - Android 15 caps `dataSync` foreground services at 6 hours per day, so push may
-  pause on very long uptimes; periodic sync continues regardless.
+  pause on very long uptimes; periodic sync continues regardless and the worker
+  restarts the service on its next run.
+- The IDLE connection uses a 28 minute socket read timeout, just under the point
+  RFC 2177 tells clients to re-issue IDLE and where servers drop it, so a
+  half-open socket is noticed without churning the connection.
 - Attachments can be sent from files already on disk; the composer does not yet
   have a file picker.
 - OAuth2 is implemented for Google. The provider definition in

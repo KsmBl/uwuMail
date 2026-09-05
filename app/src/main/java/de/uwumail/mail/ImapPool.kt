@@ -50,12 +50,21 @@ class ImapPool(
         return block(client)
     }
 
-    /** A fresh, unpooled client — for IMAP IDLE, which parks the connection. */
-    suspend fun newClient(accountId: Long): ImapClient = withContext(Dispatchers.IO) {
-        val account = accountDao.get(accountId)
-            ?: throw MailException("Account $accountId no longer exists")
-        ImapClient(account, tokenStore.imapSecret(account)).also { it.connect() }
-    }
+    /**
+     * A fresh, unpooled client — for IMAP IDLE, which parks the connection.
+     * [forIdle] gives it a read timeout long enough to sit in IDLE.
+     */
+    suspend fun newClient(accountId: Long, forIdle: Boolean = false): ImapClient =
+        withContext(Dispatchers.IO) {
+            val account = accountDao.get(accountId)
+                ?: throw MailException("Account $accountId no longer exists")
+            ImapClient(
+                account,
+                tokenStore.imapSecret(account),
+                if (forIdle) ImapClient.IDLE_READ_TIMEOUT_MILLIS
+                else ImapClient.DEFAULT_READ_TIMEOUT_MILLIS
+            ).also { it.connect() }
+        }
 
     private suspend fun shouldRetryWithNewToken(accountId: Long, error: Throwable): Boolean {
         val account = accountDao.get(accountId) ?: return false

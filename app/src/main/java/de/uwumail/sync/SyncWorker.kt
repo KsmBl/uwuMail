@@ -20,6 +20,12 @@ class SyncWorker(
             } else {
                 container.syncManager.syncAll()
             }
+            // Watchdog: if the push service was killed and not restarted, this
+            // brings it back. Only succeeds while the app is exempt from the
+            // background foreground-service restriction, which is one more
+            // reason the battery-optimisation exemption matters.
+            val accounts = container.db.accountDao().getAll()
+            PushService.ensureRunning(applicationContext, accounts.any { it.pushEnabled })
             Result.success()
         } catch (e: Throwable) {
             // Transient network and server hiccups are the common case here.

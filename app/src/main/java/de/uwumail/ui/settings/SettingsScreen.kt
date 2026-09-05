@@ -115,6 +115,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
             }
 
+            item { HorizontalDivider(); SectionHeader("Background mail") }
+            item {
+                BackgroundSection { message ->
+                    scope.launch { snackbarHost.showSnackbar(message) }
+                }
+            }
+
             item { HorizontalDivider(); SectionHeader("Sync") }
             item {
                 ListItem(

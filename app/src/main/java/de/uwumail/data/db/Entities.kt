@@ -34,8 +34,12 @@ data class AccountEntity(
 
     val syncEnabled: Boolean = true,
     val syncIntervalMinutes: Int = 15,
-    /** Keep an IMAP IDLE connection open in a foreground service. */
-    val pushEnabled: Boolean = false,
+    /**
+     * Keep an IMAP IDLE connection open in a foreground service, so new mail
+     * arrives without the app being opened. On by default: WorkManager's
+     * 15-minute floor plus Doze makes polling alone useless for notifications.
+     */
+    val pushEnabled: Boolean = true,
     val notificationsEnabled: Boolean = true,
 
     /** Appended to new messages composed from this account. */
