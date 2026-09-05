@@ -55,6 +55,13 @@ class RuleWizardViewModel(
     private val _state = MutableStateFlow(WizardState())
     val state = _state.asStateFlow()
 
+    /**
+     * Match contexts for everything outside the selection, parsed once.
+     * Re-deriving these on every checkbox tap would re-read and re-parse
+     * thousands of rows for a single toggle.
+     */
+    private var otherContexts: List<MatchContext> = emptyList()
+
     init {
         viewModelScope.launch {
             val samples = container.db.messageDao().getAll(messageIds)
@@ -62,9 +69,13 @@ class RuleWizardViewModel(
                 container.db.accountDao().getAll().flatMap { dao.forAccount(it.id) }
             }
             val pathById = folders.associate { it.id to it.path }
+            val corpus = container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
 
             val report = withContext(Dispatchers.Default) {
-                val corpus = container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
+                val selectedIds = samples.mapTo(HashSet()) { it.id }
+                otherContexts = corpus
+                    .filter { it.id !in selectedIds }
+                    .map { MatchContext.of(it, pathById[it.folderId].orEmpty()) }
                 container.ruleSuggester.analyse(samples, corpus) { pathById[it.folderId].orEmpty() }
             }
 
@@ -146,15 +157,9 @@ class RuleWizardViewModel(
                 _state.update { it.copy(matchedOthers = 0) }
                 return@launch
             }
-            val pathById = current.folders.associate { it.id to it.path }
-            val selectedIds = current.samples.mapTo(HashSet()) { it.id }
+            val contexts = otherContexts
             val count = withContext(Dispatchers.Default) {
-                container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
-                    .filter { it.id !in selectedIds }
-                    .count { message ->
-                        val ctx = MatchContext.of(message, pathById[message.folderId].orEmpty())
-                        conditions.all { RuleMatcher.matches(it, ctx) }
-                    }
+                contexts.count { ctx -> conditions.all { RuleMatcher.matches(it, ctx) } }
             }
             _state.update { it.copy(matchedOthers = count) }
         }

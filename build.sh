@@ -84,6 +84,15 @@ cp -f "$APK" "$OUT"
 SIZE="$(du -h "$OUT" | cut -f1)"
 echo "==> $OUT ($SIZE)"
 
+case "$APK" in
+  *unsigned*)
+    echo "    note: this build is unsigned and will not install as-is." >&2
+    echo "    Add a signingConfig to app/build.gradle.kts, or sign it manually:" >&2
+    echo "      \$ANDROID_HOME/build-tools/35.0.0/apksigner sign --ks <keystore> \\" >&2
+    echo "          --out uwuMail-release-signed.apk \"$OUT\"" >&2
+    ;;
+esac
+
 if [ "$INSTALL" -eq 1 ]; then
   ADB="${ANDROID_HOME}/platform-tools/adb"
   [ -x "$ADB" ] || ADB="adb"
