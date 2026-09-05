@@ -48,9 +48,7 @@ object RemoteImageInterceptor {
             val declared = connection.contentLength
             if (declared > RemoteImagePolicy.MAX_BYTES) return null
 
-            val bytes = connection.inputStream.use { stream ->
-                stream.readNBytes(RemoteImagePolicy.MAX_BYTES)
-            }
+            val bytes = connection.inputStream.use { it.readAtMost(RemoteImagePolicy.MAX_BYTES) }
             if (bytes.isEmpty()) return blocked()
 
             if (policy.filterTiny) {
@@ -70,6 +68,21 @@ object RemoteImageInterceptor {
         } finally {
             runCatching { connection.disconnect() }
         }
+    }
+
+    /**
+     * Reads up to [limit] bytes. Written out rather than using readNBytes,
+     * which only exists from API 33 and this app runs from 31.
+     */
+    private fun java.io.InputStream.readAtMost(limit: Int): ByteArray {
+        val buffer = java.io.ByteArrayOutputStream(DEFAULT_BUFFER_SIZE)
+        val chunk = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (buffer.size() < limit) {
+            val read = read(chunk, 0, minOf(chunk.size, limit - buffer.size()))
+            if (read <= 0) break
+            buffer.write(chunk, 0, read)
+        }
+        return buffer.toByteArray()
     }
 
     private const val TIMEOUT_MILLIS = 15_000

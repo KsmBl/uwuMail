@@ -215,8 +215,13 @@ fun MessageScreen(
         if (state.gravity) {
             // The whole reading area becomes the floor, so the letters land at
             // the bottom of the screen rather than inside a scrolling box.
+            // htmlToText runs jsoup over the whole body, so it is done once
+            // per message rather than once per frame.
+            val letters = remember(message.id, message.bodyHtml, message.bodyPlain) {
+                gravityTextOf(message)
+            }
             GravityBody(
-                text = gravityTextOf(message),
+                text = letters,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(padding)
             )

@@ -16,10 +16,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 /**
@@ -81,10 +81,13 @@ fun GravityBody(
         }
     }
 
-    Canvas(modifier.fillMaxSize()) {
-        val current = size
-        val measured = IntSize(current.width.roundToInt(), current.height.roundToInt())
-        if (measured != canvasSize) canvasSize = measured
+    // Measured through onSizeChanged rather than from the draw scope: writing
+    // state while drawing is what makes a frame invalidate itself forever.
+    Canvas(
+        modifier
+            .fillMaxSize()
+            .onSizeChanged { canvasSize = it }
+    ) {
         val simulation = world ?: return@Canvas
 
         @Suppress("UNUSED_EXPRESSION")
