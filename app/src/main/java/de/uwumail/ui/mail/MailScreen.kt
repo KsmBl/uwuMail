@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DriveFileMove
@@ -83,10 +82,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
 import de.uwumail.ui.common.EmptyState
@@ -605,8 +606,8 @@ private fun MailDrawer(
                         SectionHeader(account.displayName, Modifier.weight(1f))
                         IconButton(onClick = { onManageFolders(account.id) }) {
                             Icon(
-                                Icons.Default.CreateNewFolder,
-                                contentDescription = "Manage folders",
+                                painterResource(R.drawable.ic_folder_edit),
+                                contentDescription = "Edit folders",
                                 modifier = Modifier.size(20.dp)
                             )
                         }
