@@ -1,6 +1,7 @@
 package de.uwumail.ui.mail
 
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import de.uwumail.mail.RemoteImagePolicy
 
 /**
  * Renders an HTML mail body.
@@ -28,9 +30,12 @@ fun HtmlBody(
     html: String,
     allowRemoteImages: Boolean,
     allowJavaScript: Boolean,
+    imagePolicy: RemoteImagePolicy,
     onLink: (String) -> Unit
 ) {
     val currentOnLink by rememberUpdatedState(onLink)
+    val currentPolicy by rememberUpdatedState(imagePolicy)
+    val currentImages by rememberUpdatedState(allowRemoteImages)
     // What the view currently shows, so a recomposition does not reload the
     // body and throw the reader's scroll position away.
     val loaded = remember { mutableStateOf<Triple<String, Boolean, Boolean>?>(null) }
@@ -48,6 +53,14 @@ fun HtmlBody(
                         return true
                     }
 
+                    override fun shouldInterceptRequest(
+                        view: WebView?,
+                        request: WebResourceRequest?
+                    ): WebResourceResponse? {
+                        if (!currentImages) return null
+                        val url = request?.url?.toString() ?: return null
+                        return RemoteImageInterceptor.intercept(url, currentPolicy)
+                    }
                 }
                 settings.allowFileAccess = false
                 settings.allowContentAccess = false

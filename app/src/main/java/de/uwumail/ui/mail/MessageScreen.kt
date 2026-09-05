@@ -297,6 +297,7 @@ fun MessageScreen(
                     html = html,
                     allowRemoteImages = !state.settings.blockRemoteImages || state.imagesUnblocked,
                     allowJavaScript = state.settings.allowJavaScript,
+                    imagePolicy = state.imagePolicy,
                     onLink = ::follow
                 )
             } else {

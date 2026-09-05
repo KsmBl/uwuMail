@@ -25,6 +25,11 @@ data class AppSettings(
     /** JavaScript in mail bodies. Off is the only safe setting; it is exposed anyway. */
     val allowJavaScript: Boolean = false,
 
+    /** Drop images below [minImageWidth] x [minImageHeight] — tracking pixels. */
+    val filterTinyImages: Boolean = true,
+    val minImageWidth: Int = 10,
+    val minImageHeight: Int = 10,
+
     /** Set by the easter egg; until then the gravity menu entry does not exist. */
     val gravityUnlocked: Boolean = false,
 

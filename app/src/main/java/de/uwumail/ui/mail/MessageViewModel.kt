@@ -8,6 +8,7 @@ import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
 import de.uwumail.core.Json
+import de.uwumail.mail.RemoteImagePolicy
 import de.uwumail.mail.Unsubscribe
 import de.uwumail.mail.UnsubscribeTarget
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,13 @@ data class MessageUiState(
     /** Whether the body is holding back remote images the user could ask for. */
     val imagesBlocked: Boolean
         get() = settings.blockRemoteImages && !imagesUnblocked && insights.remoteImageCount > 0
+
+    val imagePolicy: RemoteImagePolicy
+        get() = RemoteImagePolicy(
+            filterTiny = settings.filterTinyImages,
+            minWidth = settings.minImageWidth,
+            minHeight = settings.minImageHeight
+        )
 
     fun moveTargets(): List<FolderEntity> = folders
         .filter { it.selectable && it.id != message?.folderId }
