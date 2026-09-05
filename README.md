@@ -3,13 +3,16 @@
 A multi-account IMAP mail client for Android 12+ (API 31), built around a rules
 engine that can act on mail before it ever reaches your notification shade.
 
-| Message list | Reading a message |
-|---|---|
-| ![The message list, grouped by day](docs/screenshots/message-list.png) | ![A message with the unsubscribe and blocked-image banners](docs/screenshots/message-banners.png) |
-
-| Move and copy across mailboxes | Reading settings |
-|---|---|
-| ![The folder picker, listing every account's folders](docs/screenshots/folder-picker.png) | ![The reading and image settings](docs/screenshots/settings-reading.png) |
+<p align="center">
+  <img src="docs/screenshots/message-list.png" width="235"
+       alt="The message list, grouped by day">
+  <img src="docs/screenshots/message-banners.png" width="235"
+       alt="A message showing the unsubscribe and blocked-image banners">
+  <img src="docs/screenshots/folder-picker.png" width="235"
+       alt="The folder picker, listing every account's folders">
+  <img src="docs/screenshots/settings-reading.png" width="235"
+       alt="The reading, image and script settings">
+</p>
 
 <sup>Sender addresses and subjects are blurred in these screenshots; nothing in
 the app is.</sup>
@@ -201,7 +204,10 @@ have.
 - One notification channel group per account, with default / silent / high
   channels so rules can downgrade or mute specific mail.
 
-![Choosing the days and hours mail is checked](docs/screenshots/sync-window.png)
+<p align="center">
+  <img src="docs/screenshots/sync-window.png" width="300"
+       alt="Choosing the days and the hours mail is checked">
+</p>
 
 ## Building
 
@@ -288,7 +294,7 @@ to read and to run rules against.
 
 ## Tests
 
-114 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+119 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
