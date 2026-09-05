@@ -1,6 +1,7 @@
 package de.uwumail.ui.settings
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Unsubscribe
 import androidx.compose.runtime.Composable
@@ -28,5 +29,14 @@ fun PrivacySection() {
         icon = Icons.Default.Link,
         checked = settings.askStripTracking,
         onChange = { value -> container.settings.update { it.copy(askStripTracking = value) } }
+    )
+
+    SettingSwitch(
+        title = "Preload unread mail",
+        subtitle = "Fetch the bodies of unread mail while the list is open, so it " +
+            "opens instantly and reads offline",
+        icon = Icons.Default.DownloadForOffline,
+        checked = settings.preloadUnread,
+        onChange = { value -> container.settings.update { it.copy(preloadUnread = value) } }
     )
 }

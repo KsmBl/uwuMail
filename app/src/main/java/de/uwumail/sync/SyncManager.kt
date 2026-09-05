@@ -26,6 +26,7 @@ import de.uwumail.rules.MatchContext
 import de.uwumail.rules.RuleEngine
 import de.uwumail.rules.RulePlan
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -743,6 +744,24 @@ class SyncManager(
         file
     }
 
+    /**
+     * Fetches the bodies of [messageIds] one at a time, so opening any of them
+     * is instant and works offline.
+     *
+     * Runs at the back of the queue by design: [ImapPool] hands the connection
+     * out in order, so releasing it between messages and pausing in between
+     * leaves a user-initiated fetch waiting for one message at most. Failures
+     * are swallowed — a preload that does not happen costs nothing.
+     */
+    suspend fun prefetchBodies(messageIds: List<Long>) {
+        for (id in messageIds) {
+            val message = db.messageDao().get(id) ?: continue
+            if (message.bodyDownloaded || message.isLocal) continue
+            runCatching { ensureBody(id) }
+            delay(PREFETCH_GAP_MILLIS)
+        }
+    }
+
     /** Loads the body (and attachment list) on demand when a message is opened. */
     suspend fun ensureBody(messageId: Long): MessageEntity? {
         val message = db.messageDao().get(messageId) ?: return null
@@ -927,6 +946,9 @@ class SyncManager(
         const val INITIAL_FETCH = 100
         const val INCREMENTAL_FETCH = 200
         const val PAGE_SIZE = 50
+        /** How many unread messages the list screen preloads ahead of the user. */
+        const val PREFETCH_LIMIT = 30
+        private const val PREFETCH_GAP_MILLIS = 400L
         private const val FLAG_WINDOW = 200
 
         fun localPath(name: String) = "local/$name"

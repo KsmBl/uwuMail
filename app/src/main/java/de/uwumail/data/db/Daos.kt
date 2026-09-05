@@ -209,6 +209,23 @@ interface MessageDao {
     )
     suspend fun unreadIdsIn(folderId: Long): List<Long>
 
+    /** Unread mail whose body is not cached yet, newest first — what preloading works through. */
+    @Query(
+        """SELECT id FROM messages
+           WHERE folderId = :folderId AND seen = 0 AND bodyDownloaded = 0
+             AND isLocal = 0 AND pendingRemoval = 0
+           ORDER BY receivedAt DESC LIMIT :limit"""
+    )
+    suspend fun unreadWithoutBody(folderId: Long, limit: Int): List<Long>
+
+    @Query(
+        """SELECT id FROM messages
+           WHERE seen = 0 AND bodyDownloaded = 0 AND isLocal = 0 AND pendingRemoval = 0
+             AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+           ORDER BY receivedAt DESC LIMIT :limit"""
+    )
+    suspend fun unreadWithoutBodyUnified(type: String, limit: Int): List<Long>
+
     @Query("SELECT uid FROM messages WHERE folderId = :folderId")
     suspend fun uidsIn(folderId: Long): List<Long>
 

@@ -7,16 +7,21 @@ import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
 import de.uwumail.di.AppContainer
+import de.uwumail.sync.SyncManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Actions offered when a folder in the drawer is long-pressed. */
@@ -154,6 +159,34 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             container.syncManager.alerts.collect { alert ->
                 transient.update { it.copy(error = alert) }
             }
+        }
+
+        // Pull the bodies of unread mail down while the list is on screen, so
+        // opening any of it is instant and works with no connection.
+        //
+        // The trigger is the folder plus the newest message rather than the
+        // list of candidates: each fetched body would otherwise change the
+        // candidate list and restart the run it came from.
+        viewModelScope.launch {
+            state.map { it.target to it.messages.firstOrNull()?.id }
+                .distinctUntilChanged()
+                .collectLatest { (destination, newest) ->
+                    if (newest == null || !container.settings.current.preloadUnread) {
+                        return@collectLatest
+                    }
+                    // Let the folder settle, and leave the connection to
+                    // whatever the user does in the first moments after it opens.
+                    delay(PREFETCH_DELAY_MILLIS)
+                    val ids = when (destination) {
+                        is MailTarget.Folder -> container.db.messageDao()
+                            .unreadWithoutBody(destination.id, SyncManager.PREFETCH_LIMIT)
+                        is MailTarget.Unified -> container.db.messageDao()
+                            .unreadWithoutBodyUnified(
+                                destination.type.name, SyncManager.PREFETCH_LIMIT
+                            )
+                    }
+                    container.syncManager.prefetchBodies(ids)
+                }
         }
     }
 
@@ -326,5 +359,6 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     companion object {
         private const val PAGE = 300
+        private const val PREFETCH_DELAY_MILLIS = 1_500L
     }
 }
