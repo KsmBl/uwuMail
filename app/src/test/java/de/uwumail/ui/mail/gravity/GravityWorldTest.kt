@@ -194,4 +194,35 @@ class GravityWorldTest {
         world.step(1f / 60f)
         assertTrue("a hair of drift should not restart it", world.settled)
     }
+
+    @Test
+    fun `letters of different widths still collide correctly`() {
+        // An i is a small box and an M a large one, so the broad phase has to
+        // cope with a range of sizes rather than a uniform grid of one.
+        val world = world()
+        val random = Random(21)
+        repeat(300) {
+            val side = 8f + random.nextFloat() * 34f
+            world.add(
+                'x',
+                random.nextFloat() * (width - side),
+                random.nextFloat() * (height - side),
+                side
+            )
+        }
+        world.run(900)
+
+        for (i in 0 until world.count) {
+            val side = world.size[i]
+            assertTrue(world.x[i] >= -0.5f && world.x[i] + side <= width + 0.5f)
+            assertTrue(world.y[i] >= -0.5f && world.y[i] + side <= height + 0.5f)
+        }
+        // Letters in a heap do overlap, and a heap of text should look like
+        // one. What must not happen is a small letter disappearing inside a
+        // large one, which is what an unweighted split used to produce.
+        assertTrue(
+            "a letter was buried ${world.worstRelativeOverlap()} deep in another",
+            world.worstRelativeOverlap() < 1f
+        )
+    }
 }

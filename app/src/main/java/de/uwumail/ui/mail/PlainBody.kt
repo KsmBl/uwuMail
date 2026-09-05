@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import de.uwumail.ui.mail.gravity.GravityGlyph
 
+/** Stops a full stop or a thin space becoming a degenerate body. */
+private const val MIN_BOX = 3f
+
 /**
  * A plain-text mail body.
  *
@@ -77,8 +80,9 @@ fun PlainBody(
             if (character.isWhitespace() || character.isSurrogate()) continue
             val box = runCatching { layout.getBoundingBox(offset) }.getOrNull() ?: continue
             if (box.width <= 0f || box.height <= 0f) continue
-            // A square around the character, centred where the character was.
-            val side = maxOf(box.width, box.height)
+            // The square is the character's own width, so an i is a small box
+            // and an M a large one.
+            val side = box.width.coerceAtLeast(MIN_BOX)
             glyphs += GravityGlyph(
                 char = character,
                 x = position.x + box.left + (box.width - side) * 0.5f,

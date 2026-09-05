@@ -227,11 +227,22 @@ class GravityWorld(
             wake(j)
         }
 
-        // Both letters give ground equally. Pinning settled ones instead is
-        // tempting and wrong: a letter that lands between two of them would be
-        // wedged with nowhere to go and stay half inside both for good.
-        val shareI = 0.5f
-        val shareJ = 0.5f
+        // Ground is given in proportion to weight, and a letter weighs what it
+        // covers: an i shoved against an M mostly moves the i. Splitting it
+        // evenly instead leaves the heavy letters visibly barged around, and
+        // converges worse where the sizes are far apart.
+        //
+        // Settled letters are deliberately not pinned, tempting as it is: one
+        // that lands between two of them would be wedged with nowhere to go and
+        // stay half inside both for good.
+        // The split is capped: at the extremes of a mail's type sizes an
+        // unclamped ratio makes the small letter take almost the whole
+        // correction and the whole bounce with it, and it never stops twitching.
+        val lightnessI = 1f / size[i]
+        val lightnessJ = 1f / size[j]
+        val shareI = (lightnessI / (lightnessI + lightnessJ))
+            .coerceIn(MIN_SHARE, 1f - MIN_SHARE)
+        val shareJ = 1f - shareI
         val movableI = 1f
         val movableJ = 1f
 
@@ -350,6 +361,27 @@ class GravityWorld(
         restFrames[i] = 0
     }
 
+    /**
+     * Deepest overlap between any two letters as a fraction of the smaller of
+     * the two, which is the measure that means the same thing whatever sizes
+     * the letters are. Used by the tests.
+     */
+    fun worstRelativeOverlap(): Float {
+        var worst = 0f
+        for (i in 0 until count) {
+            for (j in i + 1 until count) {
+                val overlapX = (size[i] + size[j]) * 0.5f -
+                    abs((x[j] + size[j] * 0.5f) - (x[i] + size[i] * 0.5f))
+                if (overlapX <= 0f) continue
+                val overlapY = (size[i] + size[j]) * 0.5f -
+                    abs((y[j] + size[j] * 0.5f) - (y[i] + size[i] * 0.5f))
+                if (overlapY <= 0f) continue
+                worst = maxOf(worst, min(overlapX, overlapY) / min(size[i], size[j]))
+            }
+        }
+        return worst
+    }
+
     /** Largest overlap between any two letters, in pixels. Used by the tests. */
     fun worstOverlap(): Float {
         var worst = 0f
@@ -386,6 +418,8 @@ class GravityWorld(
         private const val REST_DISTANCE = 0.25f
         /** Below this a direction change is sensor noise, not the phone turning. */
         private const val DIRECTION_EPSILON = 0.08f
+        /** Neither letter of a pair ever gives less than this much ground. */
+        private const val MIN_SHARE = 0.2f
         private const val SLEEP_FRAMES = 24
     }
 }

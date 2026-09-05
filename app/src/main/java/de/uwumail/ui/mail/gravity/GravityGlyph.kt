@@ -71,8 +71,10 @@ object GlyphReader {
                 }
             }
 
-            // A square around the character, centred where the character was.
-            val box = maxOf(width, height)
+            // The square is the character's own width, so an i is a small box
+            // and an M a large one, and centred on where the character was so
+            // that nothing moves on the first frame.
+            val box = width.coerceAtLeast(MIN_BOX)
             glyphs += GravityGlyph(
                 char = character,
                 x = offsetX + left + (width - box) * 0.5f,
@@ -83,6 +85,9 @@ object GlyphReader {
         }
         return glyphs
     }
+
+    /** Stops a full stop or a thin space becoming a degenerate body. */
+    private const val MIN_BOX = 3f
 
     private fun key(colour: Int, size: Float, family: String, weight: Int, italic: Boolean) =
         colour * 31 + size.toInt() * 131 + family.hashCode() * 17 + weight * 7 + if (italic) 1 else 0
