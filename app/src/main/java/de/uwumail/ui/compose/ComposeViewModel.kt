@@ -32,6 +32,7 @@ data class ComposeUiState(
     val showCcBcc: Boolean = false,
     val sending: Boolean = false,
     val sent: Boolean = false,
+    val status: String? = null,
     val error: String? = null
 ) {
     val account: AccountEntity? get() = accounts.firstOrNull { it.id == accountId }
@@ -206,22 +207,57 @@ class ComposeViewModel(
     fun setBody(value: String) = _state.update { it.copy(body = value) }
     fun toggleCcBcc() = _state.update { it.copy(showCcBcc = !it.showCcBcc) }
     fun clearError() = _state.update { it.copy(error = null) }
+    fun clearStatus() = _state.update { it.copy(status = null, error = null) }
+
+    /** True when the address in the From field is already saved on this account. */
+    fun savedIdentityFor(email: String): IdentityEntity? = _state.value.accountIdentities
+        .firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
+
+    fun deleteIdentity(identity: IdentityEntity) {
+        viewModelScope.launch {
+            runCatching {
+                container.accountRepository.deleteIdentity(identity)
+                reloadIdentities()
+            }.onSuccess {
+                _state.update { it.copy(status = "Removed ${identity.email}") }
+            }.onFailure { e ->
+                _state.update { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
+    private suspend fun reloadIdentities() {
+        val identities = container.db.accountDao().getAll()
+            .flatMap { container.db.identityDao().forAccount(it.id) }
+        _state.update { it.copy(identities = identities) }
+    }
 
     /** Saves the current From address as a reusable identity on the account. */
     fun saveCurrentAsIdentity() {
         val current = _state.value
         viewModelScope.launch {
             runCatching {
+                // Bookmarking the same address twice would otherwise pile up
+                // duplicates that then have to be deleted one by one.
+                val existing = savedIdentityFor(current.fromAddress)
                 container.accountRepository.saveIdentity(
-                    de.uwumail.data.db.IdentityEntity(
+                    IdentityEntity(
+                        id = existing?.id ?: 0,
                         accountId = current.accountId,
                         displayName = current.fromName.ifBlank { current.fromAddress },
-                        email = current.fromAddress
+                        email = current.fromAddress.trim(),
+                        isDefault = existing?.isDefault ?: false
                     )
                 )
-                val identities = container.db.accountDao().getAll()
-                    .flatMap { container.db.identityDao().forAccount(it.id) }
-                _state.update { it.copy(identities = identities) }
+                reloadIdentities()
+                existing != null
+            }.onSuccess { updated ->
+                _state.update {
+                    it.copy(
+                        status = if (updated) "Updated ${current.fromAddress}"
+                        else "Saved ${current.fromAddress}"
+                    )
+                }
             }.onFailure { e -> _state.update { it.copy(error = e.message) } }
         }
     }

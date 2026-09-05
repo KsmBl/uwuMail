@@ -15,7 +15,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -44,6 +46,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
+import de.uwumail.data.db.IdentityEntity
+import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.containerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,12 +68,14 @@ fun ComposeScreen(
 
     var accountMenu by remember { mutableStateOf(false) }
     var identityMenu by remember { mutableStateOf(false) }
+    var identityToDelete by remember { mutableStateOf<IdentityEntity?>(null) }
 
     LaunchedEffect(state.sent) { if (state.sent) onDone() }
-    LaunchedEffect(state.error) {
-        state.error?.let {
-            snackbarHost.showSnackbar("Send failed: $it")
-            viewModel.clearError()
+    LaunchedEffect(state.error, state.status) {
+        val message = state.error?.let { "Failed: $it" } ?: state.status
+        if (message != null) {
+            snackbarHost.showSnackbar(message)
+            viewModel.clearStatus()
         }
     }
 
@@ -151,6 +157,20 @@ fun ComposeScreen(
                                             )
                                         }
                                     },
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = {
+                                                identityMenu = false
+                                                identityToDelete = identity
+                                            }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Delete ${identity.email}",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
                                     onClick = {
                                         identityMenu = false
                                         viewModel.setIdentity(identity)
@@ -159,11 +179,18 @@ fun ComposeScreen(
                             }
                         }
                     }
+                    val alreadySaved = state.accountIdentities.any {
+                        it.email.equals(state.fromAddress.trim(), ignoreCase = true)
+                    }
                     IconButton(
                         onClick = viewModel::saveCurrentAsIdentity,
                         enabled = state.fromAddress.contains('@')
                     ) {
-                        Icon(Icons.Default.BookmarkAdd, "Save as identity")
+                        Icon(
+                            if (alreadySaved) Icons.Default.Bookmark else Icons.Default.BookmarkAdd,
+                            contentDescription = if (alreadySaved) "Update this identity"
+                            else "Save as identity"
+                        )
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -241,5 +268,17 @@ fun ComposeScreen(
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
         }
+    }
+
+    identityToDelete?.let { identity ->
+        ConfirmDialog(
+            title = "Delete identity?",
+            message = "\"${identity.email}\" is removed from this account's saved " +
+                "addresses. Mail already sent from it is not affected.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = { viewModel.deleteIdentity(identity) },
+            onDismiss = { identityToDelete = null }
+        )
     }
 }

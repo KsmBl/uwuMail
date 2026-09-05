@@ -344,6 +344,17 @@ class AccountSetupViewModel(
         }
     }
 
+    /**
+     * Makes [identity] the address new messages start from. Without this,
+     * deleting the default would leave the composer picking an arbitrary one.
+     */
+    fun setDefaultIdentity(identity: IdentityEntity) {
+        viewModelScope.launch {
+            container.accountRepository.saveIdentity(identity.copy(isDefault = true))
+            _state.update { it.copy(identities = container.db.identityDao().forAccount(accountId)) }
+        }
+    }
+
     fun deleteIdentity(identity: IdentityEntity) {
         viewModelScope.launch {
             container.accountRepository.deleteIdentity(identity)

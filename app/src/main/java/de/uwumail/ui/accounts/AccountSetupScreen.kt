@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
@@ -55,6 +57,8 @@ import androidx.core.net.toUri
 import androidx.browser.customtabs.CustomTabsIntent
 import de.uwumail.core.Security
 import de.uwumail.mail.oauth.OAuthProvider
+import de.uwumail.data.db.IdentityEntity
+import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.LabeledField
 import de.uwumail.ui.common.SectionHeader
 import de.uwumail.ui.common.TextPromptDialog
@@ -70,6 +74,7 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
     val context = LocalContext.current
     var showPassword by remember { mutableStateOf(false) }
     var addIdentity by remember { mutableStateOf(false) }
+    var identityToDelete by remember { mutableStateOf<IdentityEntity?>(null) }
 
     LaunchedEffect(state.saved) { if (state.saved) onDone() }
 
@@ -253,15 +258,49 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
 
             if (!state.isNew) {
                 SectionHeader("Identities")
+                Text(
+                    "Addresses you can send as from this account. The default is used " +
+                        "for new messages.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
                 state.identities.forEach { identity ->
                     ListItem(
                         headlineContent = { Text(identity.email) },
                         supportingContent = { Text(identity.displayName) },
+                        leadingContent = {
+                            IconButton(
+                                onClick = { viewModel.setDefaultIdentity(identity) },
+                                enabled = !identity.isDefault
+                            ) {
+                                Icon(
+                                    if (identity.isDefault) Icons.Default.Star
+                                    else Icons.Default.StarBorder,
+                                    contentDescription = if (identity.isDefault) "Default address"
+                                    else "Use as default",
+                                    tint = if (identity.isDefault) MaterialTheme.colorScheme.tertiary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
                         trailingContent = {
-                            IconButton(onClick = { viewModel.deleteIdentity(identity) }) {
-                                Icon(Icons.Default.Delete, "Remove identity")
+                            IconButton(onClick = { identityToDelete = identity }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    "Remove identity",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
+                    )
+                }
+                if (state.identities.isEmpty()) {
+                    Text(
+                        "None saved — the account address is used.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
                 TextButton(
@@ -308,6 +347,18 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                 }
             }
         }
+    }
+
+    identityToDelete?.let { identity ->
+        ConfirmDialog(
+            title = "Delete identity?",
+            message = "\"${identity.email}\" is removed from this account's saved " +
+                "addresses. Nothing on the server changes.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = { viewModel.deleteIdentity(identity) },
+            onDismiss = { identityToDelete = null }
+        )
     }
 
     if (addIdentity) {

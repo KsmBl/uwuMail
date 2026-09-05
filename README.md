@@ -21,7 +21,9 @@ engine that can act on mail before it ever reaches your notification shade.
   addresses. Type `xyz@mail.de` and that is what goes on the wire — your server
   decides whether to accept it.
 - Frequently used addresses can be saved as *identities* per account and picked
-  from a menu.
+  from a menu in the composer, where they can also be deleted. Account settings
+  lists them too, and is where you choose which one new messages start from.
+  Saving an address that is already saved updates it rather than duplicating it.
 - `Envelope sender follows the From address` (per account) controls whether
   `MAIL FROM` tracks the From header or stays on the account address, since some
   servers require one or the other.
