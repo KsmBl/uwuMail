@@ -5,7 +5,11 @@ import androidx.lifecycle.viewModelScope
 import de.uwumail.data.db.AttachmentEntity
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageEntity
+import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
+import de.uwumail.core.Json
+import de.uwumail.mail.Unsubscribe
+import de.uwumail.mail.UnsubscribeTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,12 +28,30 @@ data class MessageUiState(
     val busy: Boolean = false,
     val showHtml: Boolean = true,
     val showHeaders: Boolean = false,
+    val settings: AppSettings = AppSettings(),
+    /**
+     * Remote content stays blocked until it is asked for here. The flag lives
+     * in the view model, which dies with the screen, so reopening a message
+     * blocks its images again.
+     */
+    val imagesUnblocked: Boolean = false,
     val status: String? = null,
     val error: String? = null,
     val closed: Boolean = false,
     /** Set once the message has been seen at least once, so a later null means gone. */
     val everLoaded: Boolean = false
 ) {
+    /** The unsubscribe link this message advertises, when the banner is enabled. */
+    val unsubscribe: UnsubscribeTarget?
+        get() {
+            if (!settings.unsubscribeBanner || message == null) return null
+            return Unsubscribe.find(
+                Json.decodeHeaders(message.headersJson),
+                message.bodyHtml,
+                message.bodyPlain
+            )
+        }
+
     fun moveTargets(): List<FolderEntity> = folders
         .filter { it.selectable && it.id != message?.folderId }
         .filter { message == null || it.accountId == message.accountId }
@@ -48,12 +70,14 @@ class MessageViewModel(
         container.db.messageDao().observeFull(messageId),
         container.db.attachmentDao().observeFor(messageId),
         container.db.folderDao().observeAll(),
+        container.settings.state,
         local
-    ) { message, attachments, folders, extra ->
+    ) { message, attachments, folders, settings, extra ->
         extra.copy(
             message = message,
             attachments = attachments,
             folders = folders,
+            settings = settings,
             // The row is hidden the instant a removal starts, so the view can
             // close then rather than waiting on the server.
             closed = extra.closed ||
@@ -76,6 +100,7 @@ class MessageViewModel(
     }
 
     fun toggleHtml() = local.update { it.copy(showHtml = !it.showHtml) }
+    fun showRemoteImages() = local.update { it.copy(imagesUnblocked = true) }
     fun toggleHeaders() = local.update { it.copy(showHeaders = !it.showHeaders) }
     fun clearStatus() = local.update { it.copy(status = null, error = null) }
 

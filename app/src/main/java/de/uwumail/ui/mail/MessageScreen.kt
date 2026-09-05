@@ -192,6 +192,10 @@ fun MessageScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            state.unsubscribe?.let { target ->
+                UnsubscribeBanner(target) { openLink(context, target.url) }
+            }
+
             Column(Modifier.padding(16.dp)) {
                 Text(
                     message.subject.ifBlank { "(no subject)" },

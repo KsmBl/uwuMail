@@ -5,6 +5,7 @@ import de.uwumail.data.crypto.CredentialStore
 import de.uwumail.data.db.AppDatabase
 import de.uwumail.data.repo.AccountRepository
 import de.uwumail.data.repo.BlocklistRepository
+import de.uwumail.data.settings.SettingsStore
 import de.uwumail.mail.ImapPool
 import de.uwumail.mail.SmtpSender
 import de.uwumail.mail.oauth.OAuthClient
@@ -30,6 +31,7 @@ class AppContainer(private val context: Context) {
 
     val db: AppDatabase by lazy { AppDatabase.build(context) }
     val credentials: CredentialStore by lazy { CredentialStore(context) }
+    val settings: SettingsStore by lazy { SettingsStore(context) }
     val notifier: Notifier by lazy { Notifier(context) }
 
     val oauthClient: OAuthClient by lazy { OAuthClient() }
