@@ -203,6 +203,12 @@ fun MessageScreen(
             state.unsubscribe?.let { target ->
                 UnsubscribeBanner(target) { follow(target.url) }
             }
+            if (state.imagesBlocked) {
+                BlockedImagesBanner(
+                    blockedCount = state.insights.remoteImageCount,
+                    onShow = viewModel::showRemoteImages
+                )
+            }
 
             Column(Modifier.padding(16.dp)) {
                 Text(
@@ -287,7 +293,12 @@ fun MessageScreen(
                 ?: message.preview
 
             if (state.showHtml && !html.isNullOrBlank()) {
-                HtmlBody(html, onLink = ::follow)
+                HtmlBody(
+                    html = html,
+                    allowRemoteImages = !state.settings.blockRemoteImages || state.imagesUnblocked,
+                    allowJavaScript = state.settings.allowJavaScript,
+                    onLink = ::follow
+                )
             } else {
                 Text(
                     plain.ifBlank { if (state.loading) "Loading…" else "(empty message)" },

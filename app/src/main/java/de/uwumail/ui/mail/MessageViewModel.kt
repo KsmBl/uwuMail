@@ -10,10 +10,14 @@ import de.uwumail.di.AppContainer
 import de.uwumail.core.Json
 import de.uwumail.mail.Unsubscribe
 import de.uwumail.mail.UnsubscribeTarget
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,6 +33,8 @@ data class MessageUiState(
     val showHtml: Boolean = true,
     val showHeaders: Boolean = false,
     val settings: AppSettings = AppSettings(),
+    /** Parsed off the main thread from the body; see [BodyInsights]. */
+    val insights: BodyInsights = BodyInsights(),
     /**
      * Remote content stays blocked until it is asked for here. The flag lives
      * in the view model, which dies with the screen, so reopening a message
@@ -43,19 +49,22 @@ data class MessageUiState(
 ) {
     /** The unsubscribe link this message advertises, when the banner is enabled. */
     val unsubscribe: UnsubscribeTarget?
-        get() {
-            if (!settings.unsubscribeBanner || message == null) return null
-            return Unsubscribe.find(
-                Json.decodeHeaders(message.headersJson),
-                message.bodyHtml,
-                message.bodyPlain
-            )
-        }
+        get() = insights.unsubscribe.takeIf { settings.unsubscribeBanner }
+
+    /** Whether the body is holding back remote images the user could ask for. */
+    val imagesBlocked: Boolean
+        get() = settings.blockRemoteImages && !imagesUnblocked && insights.remoteImageCount > 0
 
     fun moveTargets(): List<FolderEntity> = folders
         .filter { it.selectable && it.id != message?.folderId }
         .filter { message == null || it.accountId == message.accountId }
 }
+
+/** What reading the body told us, computed once per body rather than per frame. */
+data class BodyInsights(
+    val unsubscribe: UnsubscribeTarget? = null,
+    val remoteImageCount: Int = 0
+)
 
 class MessageViewModel(
     private val container: AppContainer,
@@ -66,18 +75,37 @@ class MessageViewModel(
         MessageUiState(loading = true)
     )
 
+    private val message = container.db.messageDao().observeFull(messageId)
+
+    /**
+     * Parsing a body with jsoup is far too slow to do while composing a frame,
+     * so it happens once per body on a worker thread and the result is carried
+     * in the state.
+     */
+    private val insights = message
+        .map { Triple(it?.headersJson, it?.bodyHtml, it?.bodyPlain) }
+        .distinctUntilChanged()
+        .map { (headersJson, html, plain) ->
+            BodyInsights(
+                unsubscribe = Unsubscribe.find(Json.decodeHeaders(headersJson), html, plain),
+                remoteImageCount = countRemoteImages(html)
+            )
+        }
+        .flowOn(Dispatchers.Default)
+
     val state: StateFlow<MessageUiState> = combine(
-        container.db.messageDao().observeFull(messageId),
+        message,
         container.db.attachmentDao().observeFor(messageId),
         container.db.folderDao().observeAll(),
-        container.settings.state,
+        combine(container.settings.state, insights) { settings, parsed -> settings to parsed },
         local
-    ) { message, attachments, folders, settings, extra ->
+    ) { message, attachments, folders, (settings, parsed), extra ->
         extra.copy(
             message = message,
             attachments = attachments,
             folders = folders,
             settings = settings,
+            insights = parsed,
             // The row is hidden the instant a removal starts, so the view can
             // close then rather than waiting on the server.
             closed = extra.closed ||
@@ -133,6 +161,17 @@ class MessageViewModel(
         val attachment = container.db.attachmentDao().get(attachmentId)
         if (file != null && attachment != null) onReady(file, attachment.mimeType)
         else local.update { it.copy(error = "Could not download the attachment") }
+    }
+
+    /** How many images the body would fetch from the network if it were allowed to. */
+    private fun countRemoteImages(html: String?): Int {
+        if (html.isNullOrBlank()) return 0
+        return runCatching {
+            org.jsoup.Jsoup.parse(html).select("img[src]").count { element ->
+                val src = element.attr("src")
+                src.startsWith("http://", true) || src.startsWith("https://", true)
+            }
+        }.getOrDefault(0)
     }
 
     private fun guarded(block: suspend () -> Unit) {

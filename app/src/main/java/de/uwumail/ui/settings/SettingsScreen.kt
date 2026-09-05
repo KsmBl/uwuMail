@@ -125,6 +125,9 @@ fun SettingsScreen(onBack: () -> Unit) {
             item { HorizontalDivider(); SectionHeader("Reading mail") }
             item { PrivacySection() }
 
+            item { HorizontalDivider(); SectionHeader("Images and scripts") }
+            item { ImagesSection() }
+
             item { HorizontalDivider(); SectionHeader("Sync") }
             item {
                 ListItem(

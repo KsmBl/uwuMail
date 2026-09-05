@@ -31,9 +31,6 @@ class SettingsStore(context: Context) {
             putBoolean(PRELOAD, next.preloadUnread)
             putBoolean(BLOCK_IMAGES, next.blockRemoteImages)
             putBoolean(ALLOW_JS, next.allowJavaScript)
-            putBoolean(FILTER_TINY, next.filterTinyImages)
-            putInt(MIN_WIDTH, next.minImageWidth)
-            putInt(MIN_HEIGHT, next.minImageHeight)
             putBoolean(GRAVITY, next.gravityUnlocked)
             putBoolean(WINDOW_ON, next.syncWindowEnabled)
             putStringSet(WINDOW_DAYS, next.syncDays.map(Int::toString).toSet())
@@ -51,9 +48,6 @@ class SettingsStore(context: Context) {
             preloadUnread = prefs.getBoolean(PRELOAD, defaults.preloadUnread),
             blockRemoteImages = prefs.getBoolean(BLOCK_IMAGES, defaults.blockRemoteImages),
             allowJavaScript = prefs.getBoolean(ALLOW_JS, defaults.allowJavaScript),
-            filterTinyImages = prefs.getBoolean(FILTER_TINY, defaults.filterTinyImages),
-            minImageWidth = prefs.getInt(MIN_WIDTH, defaults.minImageWidth),
-            minImageHeight = prefs.getInt(MIN_HEIGHT, defaults.minImageHeight),
             gravityUnlocked = prefs.getBoolean(GRAVITY, defaults.gravityUnlocked),
             syncWindowEnabled = prefs.getBoolean(WINDOW_ON, defaults.syncWindowEnabled),
             syncDays = prefs.getStringSet(WINDOW_DAYS, null)
@@ -71,9 +65,6 @@ class SettingsStore(context: Context) {
         const val PRELOAD = "preload_unread"
         const val BLOCK_IMAGES = "block_remote_images"
         const val ALLOW_JS = "allow_javascript"
-        const val FILTER_TINY = "filter_tiny_images"
-        const val MIN_WIDTH = "min_image_width"
-        const val MIN_HEIGHT = "min_image_height"
         const val GRAVITY = "gravity_unlocked"
         const val WINDOW_ON = "sync_window_enabled"
         const val WINDOW_DAYS = "sync_window_days"
