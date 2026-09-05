@@ -329,6 +329,13 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     fun clearStatus() = transient.update { it.copy(status = null, error = null) }
 
+    /** Returns true only the first time, so the screen knows when to say so. */
+    fun unlockGravity(): Boolean {
+        if (container.settings.current.gravityUnlocked) return false
+        container.settings.update { it.copy(gravityUnlocked = true) }
+        return true
+    }
+
     // ------------------------------------------------------------ internals
 
     /**

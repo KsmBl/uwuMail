@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import de.uwumail.core.Json
 import de.uwumail.mail.MimeUtil
+import de.uwumail.ui.mail.gravity.GravityBody
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.FolderPickerSheet
 import de.uwumail.ui.common.formatFullDate
@@ -176,6 +178,15 @@ fun MessageScreen(
                             text = { Text(if (state.showHeaders) "Hide headers" else "Show headers") },
                             onClick = { overflow = false; viewModel.toggleHeaders() }
                         )
+                        if (state.settings.gravityUnlocked) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(if (state.gravity) "Disable gravity" else "Enable gravity")
+                                },
+                                leadingIcon = { Icon(Icons.Default.ArrowDownward, null) },
+                                onClick = { overflow = false; viewModel.toggleGravity() }
+                            )
+                        }
                         HorizontalDivider()
                         DropdownMenuItem(
                             text = {
@@ -198,6 +209,17 @@ fun MessageScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) { CircularProgressIndicator() }
+            return@Scaffold
+        }
+
+        if (state.gravity) {
+            // The whole reading area becomes the floor, so the letters land at
+            // the bottom of the screen rather than inside a scrolling box.
+            GravityBody(
+                text = gravityTextOf(message),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(padding)
+            )
             return@Scaffold
         }
 
@@ -357,6 +379,19 @@ fun MessageScreen(
             onDismiss = { confirmDelete = false }
         )
     }
+}
+
+/** Everything the message shows, as plain text for the letters to be cut from. */
+private fun gravityTextOf(message: de.uwumail.data.db.MessageEntity): String = buildString {
+    append(message.subject.ifBlank { "(no subject)" })
+    append("  ")
+    append(message.fromName?.takeIf { it.isNotBlank() } ?: message.fromAddress.orEmpty())
+    append("  ")
+    append(
+        message.bodyPlain?.takeIf { it.isNotBlank() }
+            ?: message.bodyHtml?.let { MimeUtil.htmlToText(it) }
+            ?: message.preview
+    )
 }
 
 private fun shareFile(context: android.content.Context, file: File, mimeType: String) {

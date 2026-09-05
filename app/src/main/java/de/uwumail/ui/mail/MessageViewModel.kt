@@ -44,6 +44,11 @@ data class MessageUiState(
      * blocks its images again.
      */
     val imagesUnblocked: Boolean = false,
+    /**
+     * Lives here and nowhere else, so closing the message and opening it again
+     * puts the letters back where they belong.
+     */
+    val gravity: Boolean = false,
     val status: String? = null,
     val error: String? = null,
     val closed: Boolean = false,
@@ -144,6 +149,7 @@ class MessageViewModel(
 
     fun toggleHtml() = local.update { it.copy(showHtml = !it.showHtml) }
     fun showRemoteImages() = local.update { it.copy(imagesUnblocked = true) }
+    fun toggleGravity() = local.update { it.copy(gravity = !it.gravity) }
     fun toggleHeaders() = local.update { it.copy(showHeaders = !it.showHeaders) }
     fun clearStatus() = local.update { it.copy(status = null, error = null) }
 

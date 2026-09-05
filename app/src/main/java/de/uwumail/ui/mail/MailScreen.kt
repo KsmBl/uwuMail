@@ -77,6 +77,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -85,6 +88,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -98,7 +102,12 @@ import de.uwumail.ui.common.FolderPickerSheet
 import de.uwumail.ui.common.SectionHeader
 import de.uwumail.ui.common.formatListDate
 import de.uwumail.ui.containerViewModel
+import android.widget.Toast
+import de.uwumail.ui.mail.gravity.rememberUpsideDown
 import kotlinx.coroutines.launch
+
+private const val TAPS_TO_UNLOCK = 5
+private const val TAP_GAP_MILLIS = 1_500L
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -113,6 +122,7 @@ fun MailScreen(
 ) {
     val viewModel = containerViewModel { MailViewModel(it) }
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHost = remember { SnackbarHostState() }
@@ -188,6 +198,12 @@ fun MailScreen(
         drawerContent = {
             MailDrawer(
                 state = state,
+                drawerOpen = drawerState.isOpen,
+                onUnlocked = {
+                    if (viewModel.unlockGravity()) {
+                        Toast.makeText(context, "Gravity unlocked", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onOpen = {
                     viewModel.open(it)
                     scope.launch { drawerState.close() }
@@ -651,6 +667,8 @@ private fun MessageRow(
 @Composable
 private fun MailDrawer(
     state: MailUiState,
+    drawerOpen: Boolean,
+    onUnlocked: () -> Unit,
     onOpen: (MailTarget) -> Unit,
     onFolderAction: (FolderEntity, FolderAction) -> Unit,
     onManageRules: () -> Unit,
@@ -658,13 +676,34 @@ private fun MailDrawer(
     onManageAccounts: () -> Unit,
     onSettings: () -> Unit
 ) {
+    val upsideDown by rememberUpsideDown(active = drawerOpen)
+    var taps by remember { mutableIntStateOf(0) }
+    var lastTapAt by remember { mutableLongStateOf(0L) }
+
+    // The run of taps only counts while the phone is held that way, and a
+    // pause between taps starts it over.
+    LaunchedEffect(upsideDown) { if (!upsideDown) taps = 0 }
+
     ModalDrawerSheet {
         LazyColumn {
             item {
                 Text(
                     "uwuMail",
                     style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            val now = System.currentTimeMillis()
+                            taps = if (upsideDown && now - lastTapAt < TAP_GAP_MILLIS) taps + 1 else 1
+                            lastTapAt = now
+                            if (upsideDown && taps >= TAPS_TO_UNLOCK) {
+                                taps = 0
+                                onUnlocked()
+                            }
+                        }
+                        .padding(24.dp)
                 )
             }
 
