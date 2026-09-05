@@ -1,7 +1,18 @@
-z# uwuMail
+# uwuMail
 
 A multi-account IMAP mail client for Android 12+ (API 31), built around a rules
 engine that can act on mail before it ever reaches your notification shade.
+
+| Message list | Reading a message |
+|---|---|
+| ![The message list, grouped by day](docs/screenshots/message-list.png) | ![A message with the unsubscribe and blocked-image banners](docs/screenshots/message-banners.png) |
+
+| Move and copy across mailboxes | Reading settings |
+|---|---|
+| ![The folder picker, listing every account's folders](docs/screenshots/folder-picker.png) | ![The reading and image settings](docs/screenshots/settings-reading.png) |
+
+<sup>Sender addresses and subjects are blurred in these screenshots; nothing in
+the app is.</sup>
 
 ## What it does
 
@@ -44,11 +55,57 @@ engine that can act on mail before it ever reaches your notification shade.
 - Create, rename and delete IMAP folders on the server, including nested paths.
 - **Device folders**: a local folder that lives only on the phone. Moving mail
   into one downloads the full message as `.eml`, stores it in app storage, and
-  deletes the server copy. Moving a message back out re-uploads it via `APPEND`.
-- Move, copy, archive, trash, delete permanently, and save any message as `.eml`.
+  deletes the server copy — only once the download has actually landed, so a
+  failed fetch cannot lose the mail. Moving a message back out re-uploads it
+  via `APPEND`. Copying into one takes a row and an `.eml` of its own, so
+  reading or deleting the copy leaves the original alone, and mail can be moved
+  between device folders. Rules can move or copy into them too.
+- **Move and copy across mailboxes.** The picker lists every account's folders
+  as `[address] Folder`, with the mail's own mailbox first — every mailbox has
+  an Archive, so the account is the part that tells them apart. IMAP cannot
+  copy between servers, so a cross-mailbox move downloads the message whole and
+  appends it to the destination; the source copy is removed only once that
+  append has been acknowledged, and a message whose source could not be fetched
+  stays where it is. The destination folder is synced straight afterwards, so
+  the mail shows up where it landed.
+- Archive, trash, delete permanently, and save any message as `.eml`.
 - Removals are optimistic: the message disappears from the list at once and the
   server catches up in the background. If the server refuses, the message comes
   back and the failure is reported rather than the mail going quietly missing.
+
+**Reading mail**
+
+A mail body is untrusted input that would like to know when it was opened, so
+uwuMail starts closed and offers to open up. Everything here is a setting, and
+each one starts where it is described.
+
+- **Unsubscribe banner** (on). When a message says how to unsubscribe, a strip
+  above it does it in one tap. `List-Unsubscribe` is the authority and its
+  HTTPS entry beats its `mailto:` entry; senders that skip the header almost
+  always still put a link in the body, so that is scanned as a fallback in
+  English, German, French, Spanish, Portuguese, Italian, Dutch and Swedish.
+  A one-click sender (RFC 8058) is named as one.
+- **Ask before opening tracked links** (on). Links in a body always leave for
+  the browser rather than navigating inside the message. One carrying `utm_*`,
+  `fbclid`, `gclid`, `mc_eid`, `mkt_tok` and the like first offers to open a
+  cleaned copy of itself; both answers open the link, the question is only
+  which version. Only query parameters are ever removed. Path segments are left
+  alone, because senders routinely encode the real destination in the path and
+  a broken link is worse than a leaked click.
+- **Preload unread mail** (on). While a list is on screen, the bodies of up to
+  30 unread messages are fetched in the background, one at a time with a pause
+  between them, so opening them is instant and works with no connection.
+- **Block remote images** (on). Each message says how many remote images it is
+  holding back and loads them on request, for that one viewing — reopening the
+  message blocks them again.
+- **Skip tiny images** (on, 10x10). An image smaller than this in either
+  dimension is never shown: that is what a tracking pixel is, and a 1x600
+  spacer reports an open just as reliably as a 1x1. uwuMail fetches the image
+  itself to measure it, which also keeps the request out of the WebView's
+  cookie store and sends no referrer, and refuses anything that is not an image
+  so a body cannot fetch a remote stylesheet or font either. An image the
+  decoder cannot measure, such as SVG, is always shown.
+- **JavaScript** (off). Nothing a mail needs to be read requires scripts.
 
 **Rules**
 Each rule is a set of conditions plus a set of actions.
@@ -106,6 +163,11 @@ have.
   toggling a list takes effect immediately without rewriting cached mail.
 
 **Message list**
+- **Grouped by day.** Every run of mail from one day sits under a heading like
+  *Tuesday, 01.09.2026*, pinned to the top of the list while that day is on
+  screen, so a long scroll always says how much time it has covered. The
+  headings carry the full date rather than *Today* and *Yesterday*: two
+  relative labels among absolute ones make that harder to read, not easier.
 - New mail lands above what is on screen. If you are already at the top the list
   follows it up so the new message is visible; if you had scrolled down, your
   place is kept and nothing jumps. It also will not move during a fling, in a
@@ -127,8 +189,19 @@ have.
   connection while the screen is off, which is the usual reason background mail
   stops arriving. Manufacturer battery managers (Samsung, Xiaomi, OnePlus) sit
   on top of Android's and may need the app marked unrestricted there too.
+- **Only check at set times** (off by default). Pick the weekdays and a start
+  and stop time — 06:00 to 18:00, say — and unattended checking is confined to
+  them. It governs both the periodic worker and the IDLE connection, since
+  holding a socket open outside the window would be checking for mail; the
+  watcher drops the connection and waits for the window to come round. A window
+  whose end is at or before its start reads as spanning midnight, so 22:00-06:00
+  means the night, and the part after midnight belongs to the day it opened on.
+  Anything you ask for yourself — opening the app, pulling to refresh, sending —
+  is never held back.
 - One notification channel group per account, with default / silent / high
   channels so rules can downgrade or mute specific mail.
+
+![Choosing the days and hours mail is checked](docs/screenshots/sync-window.png)
 
 ## Building
 
@@ -215,19 +288,30 @@ to read and to run rules against.
 
 ## Tests
 
-51 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+114 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
-  invalid regex), the regex builder, and the similarity suggester, including a
-  GitHub-CI-shaped scenario asserting the wizard's recommendation catches the
-  selected mails and none of the sibling notifications from the same sender and
-  mailing list.
+  invalid regex, copies alongside a move), the regex builder, and the
+  similarity suggester, including a GitHub-CI-shaped scenario asserting the
+  wizard's recommendation catches the selected mails and none of the sibling
+  notifications from the same sender and mailing list.
+- `mail/UnsubscribeTest` — `List-Unsubscribe` parsing (HTTPS over `mailto:`,
+  one-click, comment text outside the brackets), the body-link fallback in
+  several languages, and refusing to follow a `javascript:` href.
+- `mail/TrackingParamsTest` — which parameters go and which stay, fragments,
+  case, and the path being left alone even when it is obviously a redirect.
+- `mail/RemoteImagePolicyTest` — the tracking-pixel threshold in either
+  dimension, custom limits, images that could not be measured, and refusing
+  anything that is not an image.
 - `mail/oauth/` — PKCE challenge derivation against RFC 7636, token response
   parsing, expiry handling, and id_token address extraction.
 - `mail/FolderClassifierTest` — INBOX detection across casings and nesting,
   SPECIAL-USE attributes, delimiter handling, and folder ordering.
+- `data/settings/SyncWindowTest` — the checking window, including overnight
+  windows and which day their small hours belong to.
 - `data/repo/BlocklistParserTest` — blocklist line parsing, including the
   entries that must be rejected because they would match everything.
+- `ui/` — day grouping of the message list, and `[mailbox] folder` labelling.
 
 ## Layout
 
@@ -236,6 +320,7 @@ app/src/main/java/de/uwumail/
   core/        enums (fields, operators, actions) and JSON helpers
   data/db/     Room entities, DAOs, database
   data/crypto/ keystore-backed credential storage
+  data/settings/ app-wide preferences
   data/repo/   account + identity repository, blocklists, connection testing
   mail/        IMAP client, connection pool, SMTP sender, MIME parsing, autoconfig
   mail/oauth/  OAuth2 + PKCE, token refresh, provider definitions
@@ -249,7 +334,9 @@ app/src/main/java/de/uwumail/
 ## Notes and limits
 
 - HTML bodies render in a WebView with JavaScript, remote loads and file access
-  all disabled — mail is untrusted input.
+  all disabled — mail is untrusted input. Remote images load only when the
+  banner in that message is tapped, and uwuMail fetches them itself so it can
+  refuse the ones that are only there to report the open.
 - Message moves use `COPY` + `\Deleted` + `UID EXPUNGE`, which every IMAP server
   supports, rather than depending on RFC 6851 `MOVE`.
 - Android 15 caps `dataSync` foreground services at 6 hours per day, so push may

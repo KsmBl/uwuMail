@@ -2,6 +2,7 @@ package de.uwumail.ui.mail
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,7 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import de.uwumail.core.Json
 import de.uwumail.mail.MimeUtil
-import de.uwumail.ui.mail.gravity.GravityBody
+import de.uwumail.ui.mail.gravity.GravityGlyph
+import de.uwumail.ui.mail.gravity.GravityOverlay
+import de.uwumail.ui.mail.gravity.MAX_GRAVITY_LETTERS
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.FolderPickerSheet
 import de.uwumail.ui.common.formatFullDate
@@ -84,6 +87,9 @@ fun MessageScreen(
     // Set when a tapped link carries tracking parameters and the user has asked
     // to be consulted; the dialog is what actually opens it.
     var trackingLink by remember { mutableStateOf<String?>(null) }
+    // The characters the body handed over, once gravity is on.
+    var glyphs by remember { mutableStateOf<List<GravityGlyph>>(emptyList()) }
+    LaunchedEffect(state.gravity) { if (!state.gravity) glyphs = emptyList() }
 
     fun follow(url: String) {
         if (state.settings.askStripTracking && de.uwumail.mail.TrackingParams.hasTracking(url)) {
@@ -212,31 +218,14 @@ fun MessageScreen(
             return@Scaffold
         }
 
-        if (state.gravity) {
-            // The whole reading area becomes the floor, so the letters land at
-            // the bottom of the screen rather than inside a scrolling box.
-            // htmlToText runs jsoup over the whole body, so it is done once
-            // per message rather than once per frame.
-            val letters = remember(message.id, message.bodyHtml, message.bodyPlain) {
-                gravityTextOf(message)
-            }
-            // The same style the body is read in, so only the physics changes.
-            val bodyStyle = MaterialTheme.typography.bodyMedium
-            GravityBody(
-                text = letters,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = bodyStyle.fontSize,
-                fontFamily = bodyStyle.fontFamily,
-                modifier = Modifier.padding(padding)
-            )
-            return@Scaffold
-        }
-
+        // The message is drawn exactly as it always is. Under gravity the
+        // letters are lifted off it into the overlay below, which is why the
+        // first frame of the fall is indistinguishable from it sitting still.
+        Box(Modifier.padding(padding).fillMaxSize()) {
         Column(
             Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), enabled = !state.gravity)
         ) {
             state.unsubscribe?.let { target ->
                 UnsubscribeBanner(target) { follow(target.url) }
@@ -336,15 +325,26 @@ fun MessageScreen(
                     allowRemoteImages = !state.settings.blockRemoteImages || state.imagesUnblocked,
                     allowJavaScript = state.settings.allowJavaScript,
                     imagePolicy = state.imagePolicy,
-                    onLink = ::follow
+                    onLink = ::follow,
+                    handOverGlyphs = state.gravity,
+                    glyphLimit = MAX_GRAVITY_LETTERS,
+                    onGlyphs = { glyphs = it }
                 )
             } else {
-                Text(
-                    plain.ifBlank { if (state.loading) "Loading…" else "(empty message)" },
+                PlainBody(
+                    text = plain.ifBlank { if (state.loading) "Loading…" else "(empty message)" },
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(16.dp)
+                    color = MaterialTheme.colorScheme.onSurface,
+                    handOverGlyphs = state.gravity,
+                    glyphLimit = MAX_GRAVITY_LETTERS,
+                    onGlyphs = { glyphs = it }
                 )
             }
+        }
+
+        if (state.gravity && glyphs.isNotEmpty()) {
+            GravityOverlay(glyphs, Modifier.fillMaxSize())
+        }
         }
     }
 
@@ -388,19 +388,6 @@ fun MessageScreen(
             onDismiss = { confirmDelete = false }
         )
     }
-}
-
-/** Everything the message shows, as plain text for the letters to be cut from. */
-private fun gravityTextOf(message: de.uwumail.data.db.MessageEntity): String = buildString {
-    append(message.subject.ifBlank { "(no subject)" })
-    append("  ")
-    append(message.fromName?.takeIf { it.isNotBlank() } ?: message.fromAddress.orEmpty())
-    append("  ")
-    append(
-        message.bodyPlain?.takeIf { it.isNotBlank() }
-            ?: message.bodyHtml?.let { MimeUtil.htmlToText(it) }
-            ?: message.preview
-    )
 }
 
 private fun shareFile(context: android.content.Context, file: File, mimeType: String) {
