@@ -42,6 +42,13 @@ data class AppSettings(
     val syncEndMinutes: Int = 18 * 60
 ) {
 
+    /** What a message body is allowed to fetch, as the image code wants it. */
+    fun imagePolicy() = de.uwumail.mail.RemoteImagePolicy(
+        filterTiny = filterTinyImages,
+        minWidth = minImageWidth,
+        minHeight = minImageHeight
+    )
+
     /**
      * Whether background mail checks may run at [millis].
      *

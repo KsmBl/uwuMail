@@ -11,6 +11,13 @@ import java.net.URL
  * Fetches a remote image on the WebView's behalf so its size can be checked
  * before it is handed over.
  *
+ * This is the second line of defence, not the first. Anything that declares
+ * itself a beacon in the markup — a `width="1"`, a `display:none` — is taken
+ * out of the body by [de.uwumail.mail.ImagePrefilter] before the page loads,
+ * because a request made to measure an image has already told the sender the
+ * mail was opened. What is left here are the images that only reveal their size
+ * in their own bytes, and the ones that turn out not to be images at all.
+ *
  * uwuMail does the request itself rather than letting the WebView do it: the
  * decision needs the pixel dimensions, and those are only knowable once some
  * bytes have arrived. Doing the fetch here also keeps it out of the WebView's

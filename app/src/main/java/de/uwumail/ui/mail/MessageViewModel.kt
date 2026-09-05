@@ -9,6 +9,7 @@ import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
 import de.uwumail.core.Json
+import de.uwumail.mail.ImagePrefilter
 import de.uwumail.mail.RemoteImagePolicy
 import de.uwumail.mail.Unsubscribe
 import de.uwumail.mail.UnsubscribeTarget
@@ -63,12 +64,7 @@ data class MessageUiState(
     val imagesBlocked: Boolean
         get() = settings.blockRemoteImages && !imagesUnblocked && insights.remoteImageCount > 0
 
-    val imagePolicy: RemoteImagePolicy
-        get() = RemoteImagePolicy(
-            filterTiny = settings.filterTinyImages,
-            minWidth = settings.minImageWidth,
-            minHeight = settings.minImageHeight
-        )
+    val imagePolicy: RemoteImagePolicy get() = settings.imagePolicy()
 
     /** Every account's folders, minus the one this message is already in. */
     fun moveTargets(): List<FolderEntity> = folders
@@ -78,6 +74,12 @@ data class MessageUiState(
 /** What reading the body told us, computed once per body rather than per frame. */
 data class BodyInsights(
     val unsubscribe: UnsubscribeTarget? = null,
+    /**
+     * The body with its tracking pixels taken out, which is what actually gets
+     * rendered — a beacon left in the markup is a beacon that gets fetched.
+     */
+    val displayHtml: String? = null,
+    /** Remote images the body would still fetch, after the beacons are gone. */
     val remoteImageCount: Int = 0
 )
 
@@ -93,17 +95,23 @@ class MessageViewModel(
     private val message = container.db.messageDao().observeFull(messageId)
 
     /**
-     * Parsing a body with jsoup is far too slow to do while composing a frame,
+     * Reading a body with jsoup is far too slow to do while composing a frame,
      * so it happens once per body on a worker thread and the result is carried
-     * in the state.
+     * in the state. Stripping the beacons has to happen here too: the rendered
+     * markup is what decides which requests the page makes.
      */
-    private val insights = message
-        .map { Triple(it?.headersJson, it?.bodyHtml, it?.bodyPlain) }
-        .distinctUntilChanged()
-        .map { (headersJson, html, plain) ->
+    private val insights = combine(
+        message.map { Triple(it?.headersJson, it?.bodyHtml, it?.bodyPlain) }
+            .distinctUntilChanged(),
+        container.settings.state.map { it.imagePolicy() }.distinctUntilChanged()
+    ) { body, policy -> body to policy }
+        .map { (body, policy) ->
+            val (headersJson, html, plain) = body
+            val filtered = html?.takeIf { it.isNotBlank() }?.let { ImagePrefilter.strip(it, policy) }
             BodyInsights(
                 unsubscribe = Unsubscribe.find(Json.decodeHeaders(headersJson), html, plain),
-                remoteImageCount = countRemoteImages(html)
+                displayHtml = filtered?.html,
+                remoteImageCount = filtered?.remoteRemaining ?: 0
             )
         }
         .flowOn(Dispatchers.Default)
@@ -187,17 +195,6 @@ class MessageViewModel(
         val attachment = container.db.attachmentDao().get(attachmentId)
         if (file != null && attachment != null) onReady(file, attachment.mimeType)
         else local.update { it.copy(error = "Could not download the attachment") }
-    }
-
-    /** How many images the body would fetch from the network if it were allowed to. */
-    private fun countRemoteImages(html: String?): Int {
-        if (html.isNullOrBlank()) return 0
-        return runCatching {
-            org.jsoup.Jsoup.parse(html).select("img[src]").count { element ->
-                val src = element.attr("src")
-                src.startsWith("http://", true) || src.startsWith("https://", true)
-            }
-        }.getOrDefault(0)
     }
 
     private fun guarded(block: suspend () -> Unit) {

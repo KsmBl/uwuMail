@@ -361,7 +361,9 @@ fun MessageScreen(
 
             if (state.showHtml && !html.isNullOrBlank()) {
                 HtmlBody(
-                    html = html,
+                    // The stripped body, so the beacons are not merely hidden
+                    // but never requested.
+                    html = state.insights.displayHtml ?: html,
                     allowRemoteImages = !state.settings.blockRemoteImages || state.imagesUnblocked,
                     allowJavaScript = state.settings.allowJavaScript,
                     imagePolicy = state.imagePolicy,
