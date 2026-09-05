@@ -61,6 +61,8 @@ fun HtmlBody(
 
     var view by remember { mutableStateOf<WebView?>(null) }
     var loadedPages by remember { mutableStateOf(0) }
+    // Whether this page is currently drawing its text in nothing.
+    var textHidden by remember { mutableStateOf(false) }
     var position by remember { mutableStateOf(Offset.Zero) }
     // What the view currently shows, so a recomposition does not reload the
     // body and throw the reader's scroll position away.
@@ -70,8 +72,14 @@ fun HtmlBody(
         val web = view ?: return@LaunchedEffect
         if (loadedPages == 0) return@LaunchedEffect
         if (!handOverGlyphs) {
-            if (web.settings.javaScriptEnabled || loaded.value != null) {
-                web.evaluateJavascript(PageGlyphs.showText, null)
+            if (textHidden) {
+                // evaluateJavascript does nothing at all while scripting is
+                // off, so putting the text back has to switch it on for the
+                // one call, exactly as taking the text away did.
+                web.settings.javaScriptEnabled = true
+                web.evaluate(PageGlyphs.showText)
+                web.settings.javaScriptEnabled = allowJavaScript
+                textHidden = false
             }
             return@LaunchedEffect
         }
@@ -91,7 +99,10 @@ fun HtmlBody(
             GlyphReader.parse(array.toString(), ratio, position.x, position.y, glyphLimit)
         }.orEmpty()
 
-        if (glyphs.isNotEmpty()) web.evaluate(PageGlyphs.hideText)
+        if (glyphs.isNotEmpty()) {
+            web.evaluate(PageGlyphs.hideText)
+            textHidden = true
+        }
         web.settings.javaScriptEnabled = allowJavaScript
         currentOnGlyphs(glyphs)
     }
@@ -143,6 +154,8 @@ fun HtmlBody(
             web.settings.loadsImagesAutomatically = allowRemoteImages
             web.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
             loaded.value = stamp
+            // A fresh document draws its own text again.
+            textHidden = false
         }
     )
 }
