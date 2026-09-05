@@ -1,47 +1,53 @@
 package de.uwumail.ui.mail.gravity
 
+import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.Typeface
 import org.json.JSONArray
 
 /**
- * One character as it is actually drawn on screen: where it sits, and the paint
- * that reproduces it exactly.
+ * One thing that falls: a character, or a picture.
  *
- * The point of measuring rather than re-typesetting is that the first frame of
- * the fall has to be indistinguishable from the message sitting still.
+ * Both arrive measured from whatever drew them, so the first frame of the fall
+ * is the message exactly as it was sitting. A letter is square; a picture is
+ * whatever shape it was on the page.
  */
-data class GravityGlyph(
-    val char: Char,
+data class FallingPiece(
     /** Device pixels, relative to the falling area. */
     val x: Float,
     val y: Float,
-    val size: Float,
-    val paint: Paint
+    val width: Float,
+    val height: Float,
+    val char: Char = ' ',
+    /** Set for a letter: the paint that reproduces it exactly. */
+    val paint: Paint? = null,
+    /** Set for a picture: the pixels lifted off the page. */
+    val bitmap: Bitmap? = null
 )
 
-/**
- * Turns the measurements taken inside the page into glyphs.
- *
- * The page reports CSS pixels; [scale] converts those to device pixels, and
- * [offsetX]/[offsetY] place the page inside the area the letters fall in.
- */
+/** Turns the measurements taken inside the page into things that can fall. */
 object GlyphReader {
 
-    /** Reads the JSON the measuring script returns. */
-    fun parse(
-        json: String,
+    /** Stops a full stop or a thin space becoming a degenerate body. */
+    private const val MIN_BOX = 3f
+
+    /**
+     * Reads the character measurements. The page reports CSS pixels; [scale]
+     * converts those to device pixels, and [offsetX]/[offsetY] place the page
+     * inside the area things fall in.
+     */
+    fun parseGlyphs(
+        array: JSONArray,
         scale: Float,
         offsetX: Float,
         offsetY: Float,
         limit: Int
-    ): List<GravityGlyph> {
-        val array = runCatching { JSONArray(json) }.getOrNull() ?: return emptyList()
+    ): List<FallingPiece> {
         val paints = HashMap<Int, Paint>()
-        val glyphs = ArrayList<GravityGlyph>(minOf(array.length(), limit))
+        val pieces = ArrayList<FallingPiece>(minOf(array.length(), limit))
 
         for (i in 0 until array.length()) {
-            if (glyphs.size >= limit) break
+            if (pieces.size >= limit) break
             val entry = array.optJSONArray(i) ?: continue
             val text = entry.optString(0)
             if (text.isEmpty()) continue
@@ -75,19 +81,32 @@ object GlyphReader {
             // and an M a large one, and centred on where the character was so
             // that nothing moves on the first frame.
             val box = width.coerceAtLeast(MIN_BOX)
-            glyphs += GravityGlyph(
-                char = character,
+            pieces += FallingPiece(
                 x = offsetX + left + (width - box) * 0.5f,
                 y = offsetY + top + (height - box) * 0.5f,
-                size = box,
+                width = box,
+                height = box,
+                char = character,
                 paint = paint
             )
         }
-        return glyphs
+        return pieces
     }
 
-    /** Stops a full stop or a thin space becoming a degenerate body. */
-    private const val MIN_BOX = 3f
+    /** The rectangles the page reported for its pictures, in device pixels. */
+    fun parseImageRects(array: JSONArray, scale: Float): List<FloatArray> =
+        (0 until array.length()).mapNotNull { i ->
+            val entry = array.optJSONArray(i) ?: return@mapNotNull null
+            val left = entry.optDouble(0, 0.0).toFloat() * scale
+            val top = entry.optDouble(1, 0.0).toFloat() * scale
+            val width = entry.optDouble(2, 0.0).toFloat() * scale
+            val height = entry.optDouble(3, 0.0).toFloat() * scale
+            if (width < MIN_IMAGE || height < MIN_IMAGE) null
+            else floatArrayOf(left, top, width, height)
+        }
+
+    /** Below this a picture is a spacer or a rule, and falling it looks like a glitch. */
+    const val MIN_IMAGE = 8f
 
     private fun key(colour: Int, size: Float, family: String, weight: Int, italic: Boolean) =
         colour * 31 + size.toInt() * 131 + family.hashCode() * 17 + weight * 7 + if (italic) 1 else 0

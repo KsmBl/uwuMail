@@ -19,15 +19,17 @@ import kotlin.math.min
  * No Android types are used here, so the whole simulation is testable.
  */
 class GravityWorld(
-    private var width: Float,
-    private var height: Float,
+    private var viewWidth: Float,
+    private var viewHeight: Float,
     private val capacity: Int
 ) {
 
     val chars = CharArray(capacity)
     val x = FloatArray(capacity)
     val y = FloatArray(capacity)
-    val size = FloatArray(capacity)
+    /** Bodies are rectangles: a letter happens to be a square, a picture is not. */
+    val width = FloatArray(capacity)
+    val height = FloatArray(capacity)
     val angle = FloatArray(capacity)
 
     private val vx = FloatArray(capacity)
@@ -61,14 +63,23 @@ class GravityWorld(
     private var cellCursor = IntArray(1)
     private var cellItems = IntArray(capacity)
 
-    /** [x] and [y] are the letter's top-left corner. */
-    fun add(char: Char, x: Float, y: Float, size: Float, vx: Float = 0f, vy: Float = 0f) {
+    /** [x] and [y] are the body's top-left corner. */
+    fun add(
+        char: Char,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        vx: Float = 0f,
+        vy: Float = 0f
+    ) {
         if (count >= capacity) return
         val i = count++
         chars[i] = char
         this.x[i] = x
         this.y[i] = y
-        this.size[i] = size
+        this.width[i] = width
+        this.height[i] = height
         this.vx[i] = vx
         this.vy[i] = vy
         angle[i] = 0f
@@ -78,9 +89,13 @@ class GravityWorld(
         previousY[i] = y
     }
 
+    /** A square body, which is what a letter is. */
+    fun add(char: Char, x: Float, y: Float, size: Float, vx: Float = 0f, vy: Float = 0f) =
+        add(char, x, y, size, size, vx, vy)
+
     fun resize(width: Float, height: Float) {
-        this.width = width
-        this.height = height
+        viewWidth = width
+        viewHeight = height
     }
 
     /**
@@ -93,6 +108,11 @@ class GravityWorld(
         downX = x
         downY = y
         for (i in 0 until count) restFrames[i] = 0
+        // The count has to go with them. Callers stop stepping the world once
+        // it reports itself settled, and only a step recomputes this — so
+        // leaving it stale means a heap that has come to rest never falls
+        // again, however far the phone is turned.
+        sleeping = 0
     }
 
     /**
@@ -138,10 +158,10 @@ class GravityWorld(
 
     private fun buildGrid() {
         var largest = 1f
-        for (i in 0 until count) largest = maxOf(largest, size[i])
+        for (i in 0 until count) largest = maxOf(largest, maxOf(width[i], height[i]))
         cellSize = largest
-        columns = ((width / cellSize).toInt() + 1).coerceAtLeast(1)
-        rows = ((height / cellSize).toInt() + 3).coerceAtLeast(1)
+        columns = ((viewWidth / cellSize).toInt() + 1).coerceAtLeast(1)
+        rows = ((viewHeight / cellSize).toInt() + 3).coerceAtLeast(1)
 
         val cells = columns * rows
         if (cellStart.size < cells + 1) {
@@ -163,10 +183,10 @@ class GravityWorld(
     }
 
     private fun cellOf(i: Int): Int {
-        val column = ((x[i] + size[i] * 0.5f) / cellSize).toInt().coerceIn(0, columns - 1)
+        val column = ((x[i] + width[i] * 0.5f) / cellSize).toInt().coerceIn(0, columns - 1)
         // Letters start above the top of the view, so the row is clamped rather
         // than assumed to be on screen.
-        val row = ((y[i] + size[i] * 0.5f) / cellSize).toInt().coerceIn(0, rows - 1)
+        val row = ((y[i] + height[i] * 0.5f) / cellSize).toInt().coerceIn(0, rows - 1)
         return row * columns + column
     }
 
@@ -207,16 +227,18 @@ class GravityWorld(
 
     /** Separates two overlapping squares along whichever axis they overlap least. */
     private fun resolvePair(i: Int, j: Int) {
-        val halfI = size[i] * 0.5f
-        val halfJ = size[j] * 0.5f
-        val dx = (x[j] + halfJ) - (x[i] + halfI)
-        val dy = (y[j] + halfJ) - (y[i] + halfI)
+        val halfWidthI = width[i] * 0.5f
+        val halfWidthJ = width[j] * 0.5f
+        val halfHeightI = height[i] * 0.5f
+        val halfHeightJ = height[j] * 0.5f
+        val dx = (x[j] + halfWidthJ) - (x[i] + halfWidthI)
+        val dy = (y[j] + halfHeightJ) - (y[i] + halfHeightI)
         // Letters in a settled heap rest a hair inside one another. Treating
         // that as a collision would have every letter shoving its neighbours
         // awake forever, so contact only counts past a slop.
-        val overlapX = (halfI + halfJ) - abs(dx)
+        val overlapX = (halfWidthI + halfWidthJ) - abs(dx)
         if (overlapX <= SLOP) return
-        val overlapY = (halfI + halfJ) - abs(dy)
+        val overlapY = (halfHeightI + halfHeightJ) - abs(dy)
         if (overlapY <= SLOP) return
 
         // Waking comes first: two letters that fell asleep still inside one
@@ -238,8 +260,8 @@ class GravityWorld(
         // The split is capped: at the extremes of a mail's type sizes an
         // unclamped ratio makes the small letter take almost the whole
         // correction and the whole bounce with it, and it never stops twitching.
-        val lightnessI = 1f / size[i]
-        val lightnessJ = 1f / size[j]
+        val lightnessI = 1f / (width[i] * height[i])
+        val lightnessJ = 1f / (width[j] * height[j])
         val shareI = (lightnessI / (lightnessI + lightnessJ))
             .coerceIn(MIN_SHARE, 1f - MIN_SHARE)
         val shareJ = 1f - shareI
@@ -291,7 +313,6 @@ class GravityWorld(
      */
     private fun solveBounds() {
         for (i in 0 until count) {
-            val extent = size[i]
             if (x[i] < 0f) {
                 if (-x[i] > WAKE_SLOP) wake(i)
                 x[i] = 0f
@@ -299,9 +320,9 @@ class GravityWorld(
                     vx[i] = -vx[i] * RESTITUTION
                     vy[i] *= FRICTION
                 }
-            } else if (x[i] + extent > width) {
-                if (x[i] + extent - width > WAKE_SLOP) wake(i)
-                x[i] = width - extent
+            } else if (x[i] + width[i] > viewWidth) {
+                if (x[i] + width[i] - viewWidth > WAKE_SLOP) wake(i)
+                x[i] = viewWidth - width[i]
                 if (vx[i] > 0f) {
                     vx[i] = -vx[i] * RESTITUTION
                     vy[i] *= FRICTION
@@ -314,9 +335,9 @@ class GravityWorld(
                     vy[i] = -vy[i] * RESTITUTION
                     vx[i] *= FRICTION
                 }
-            } else if (y[i] + extent > height) {
-                if (y[i] + extent - height > WAKE_SLOP) wake(i)
-                y[i] = height - extent
+            } else if (y[i] + height[i] > viewHeight) {
+                if (y[i] + height[i] - viewHeight > WAKE_SLOP) wake(i)
+                y[i] = viewHeight - height[i]
                 if (vy[i] > 0f) {
                     vy[i] = -vy[i] * RESTITUTION
                     vx[i] *= FRICTION
@@ -370,13 +391,14 @@ class GravityWorld(
         var worst = 0f
         for (i in 0 until count) {
             for (j in i + 1 until count) {
-                val overlapX = (size[i] + size[j]) * 0.5f -
-                    abs((x[j] + size[j] * 0.5f) - (x[i] + size[i] * 0.5f))
+                val overlapX = (width[i] + width[j]) * 0.5f -
+                    abs((x[j] + width[j] * 0.5f) - (x[i] + width[i] * 0.5f))
                 if (overlapX <= 0f) continue
-                val overlapY = (size[i] + size[j]) * 0.5f -
-                    abs((y[j] + size[j] * 0.5f) - (y[i] + size[i] * 0.5f))
+                val overlapY = (height[i] + height[j]) * 0.5f -
+                    abs((y[j] + height[j] * 0.5f) - (y[i] + height[i] * 0.5f))
                 if (overlapY <= 0f) continue
-                worst = maxOf(worst, min(overlapX, overlapY) / min(size[i], size[j]))
+                val smallest = minOf(width[i], width[j], height[i], height[j])
+                worst = maxOf(worst, min(overlapX, overlapY) / smallest)
             }
         }
         return worst
@@ -387,11 +409,11 @@ class GravityWorld(
         var worst = 0f
         for (i in 0 until count) {
             for (j in i + 1 until count) {
-                val overlapX = (size[i] + size[j]) * 0.5f -
-                    abs((x[j] + size[j] * 0.5f) - (x[i] + size[i] * 0.5f))
+                val overlapX = (width[i] + width[j]) * 0.5f -
+                    abs((x[j] + width[j] * 0.5f) - (x[i] + width[i] * 0.5f))
                 if (overlapX <= 0f) continue
-                val overlapY = (size[i] + size[j]) * 0.5f -
-                    abs((y[j] + size[j] * 0.5f) - (y[i] + size[i] * 0.5f))
+                val overlapY = (height[i] + height[j]) * 0.5f -
+                    abs((y[j] + height[j] * 0.5f) - (y[i] + height[i] * 0.5f))
                 if (overlapY <= 0f) continue
                 worst = maxOf(worst, min(overlapX, overlapY))
             }

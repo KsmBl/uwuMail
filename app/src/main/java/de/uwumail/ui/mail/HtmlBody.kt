@@ -1,5 +1,7 @@
 package de.uwumail.ui.mail
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Rect
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -19,8 +21,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.viewinterop.AndroidView
 import de.uwumail.mail.RemoteImagePolicy
+import de.uwumail.ui.mail.gravity.FallingPiece
 import de.uwumail.ui.mail.gravity.GlyphReader
-import de.uwumail.ui.mail.gravity.GravityGlyph
 import de.uwumail.ui.mail.gravity.PageGlyphs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -52,7 +54,7 @@ fun HtmlBody(
     onLink: (String) -> Unit,
     handOverGlyphs: Boolean = false,
     glyphLimit: Int = 0,
-    onGlyphs: (List<GravityGlyph>) -> Unit = {}
+    onGlyphs: (List<FallingPiece>) -> Unit = {}
 ) {
     val currentOnLink by rememberUpdatedState(onLink)
     val currentPolicy by rememberUpdatedState(imagePolicy)
@@ -96,15 +98,23 @@ fun HtmlBody(
         val payload = runCatching { JSONObject(unquote(report)) }.getOrNull()
         val ratio = payload?.optDouble("dpr", 1.0)?.toFloat() ?: 1f
         val glyphs = payload?.optJSONArray("glyphs")?.let { array ->
-            GlyphReader.parse(array.toString(), ratio, position.x, position.y, glyphLimit)
+            GlyphReader.parseGlyphs(array, ratio, position.x, position.y, glyphLimit)
         }.orEmpty()
 
-        if (glyphs.isNotEmpty()) {
+        // The pictures are lifted as pixels, taken off the page as it stands.
+        // There is no other way to get at them: what is on screen is the only
+        // place the rendered, scaled image exists.
+        val pictures = payload?.optJSONArray("images")?.let { array ->
+            val rects = GlyphReader.parseImageRects(array, ratio)
+            if (rects.isEmpty()) emptyList() else cutOut(web, visible, rects, position)
+        }.orEmpty()
+
+        if (glyphs.isNotEmpty() || pictures.isNotEmpty()) {
             web.evaluate(PageGlyphs.hideText)
             textHidden = true
         }
         web.settings.javaScriptEnabled = allowJavaScript
-        currentOnGlyphs(glyphs)
+        currentOnGlyphs(glyphs + pictures)
     }
 
     AndroidView(
@@ -158,6 +168,52 @@ fun HtmlBody(
             textHidden = false
         }
     )
+}
+
+/**
+ * Copies each picture's pixels out of the rendered page.
+ *
+ * The view is drawn once into a bitmap of the visible area and the rectangles
+ * are cut from that, so a picture falls looking exactly as it did — at the size
+ * the page gave it, with whatever scaling the page applied.
+ */
+private fun cutOut(
+    web: WebView,
+    visible: Rect,
+    rects: List<FloatArray>,
+    position: Offset
+): List<FallingPiece> {
+    if (visible.width() <= 0 || visible.height() <= 0) return emptyList()
+    val page = runCatching {
+        Bitmap.createBitmap(visible.width(), visible.height(), Bitmap.Config.ARGB_8888).also {
+            val canvas = Canvas(it)
+            canvas.translate(-visible.left.toFloat(), -visible.top.toFloat())
+            web.draw(canvas)
+        }
+    }.getOrNull() ?: return emptyList()
+
+    val pieces = rects.mapNotNull { rect ->
+        val left = (rect[0] - visible.left).toInt()
+        val top = (rect[1] - visible.top).toInt()
+        val width = rect[2].toInt()
+        val height = rect[3].toInt()
+        // Anything not wholly on screen is left in the page rather than falling
+        // as a half picture.
+        if (left < 0 || top < 0) return@mapNotNull null
+        if (left + width > page.width || top + height > page.height) return@mapNotNull null
+        if (width <= 0 || height <= 0) return@mapNotNull null
+        val cut = runCatching { Bitmap.createBitmap(page, left, top, width, height) }
+            .getOrNull() ?: return@mapNotNull null
+        FallingPiece(
+            x = position.x + rect[0],
+            y = position.y + rect[1],
+            width = rect[2],
+            height = rect[3],
+            bitmap = cut
+        )
+    }
+    page.recycle()
+    return pieces
 }
 
 private suspend fun WebView.evaluate(script: String): String =

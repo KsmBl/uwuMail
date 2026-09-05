@@ -30,7 +30,7 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun GravityOverlay(
-    glyphs: List<GravityGlyph>,
+    pieces: List<FallingPiece>,
     modifier: Modifier = Modifier
 ) {
     var size by remember { mutableStateOf(IntSize.Zero) }
@@ -39,15 +39,15 @@ fun GravityOverlay(
     // a frame costs a redraw rather than a recomposition of the tree.
     var tick by remember { mutableIntStateOf(0) }
 
-    // Glyph positions are in root coordinates; this view may not start there.
-    val placed = remember(glyphs, origin) {
-        glyphs.map { it.copy(x = it.x - origin.x, y = it.y - origin.y) }
+    // Positions are in root coordinates; this view may not start there.
+    val placed = remember(pieces, origin) {
+        pieces.map { it.copy(x = it.x - origin.x, y = it.y - origin.y) }
     }
 
     val world = remember(placed, size) {
         if (size.width == 0 || size.height == 0 || placed.isEmpty()) null
         else GravityWorld(size.width.toFloat(), size.height.toFloat(), placed.size).apply {
-            placed.forEach { add(it.char, it.x, it.y, it.size) }
+            placed.forEach { add(it.char, it.x, it.y, it.width, it.height) }
         }
     }
 
@@ -104,24 +104,35 @@ fun GravityOverlay(
         drawIntoCanvas { canvas ->
             val native = canvas.nativeCanvas
             val glyph = CharArray(1)
+            val target = android.graphics.RectF()
             for (i in 0 until simulation.count) {
-                val paint = placed[i].paint
-                val half = simulation.size[i] * 0.5f
-                val centreX = simulation.x[i] + half
-                val centreY = simulation.y[i] + half
-                // Sitting the glyph on its own baseline is what keeps the first
-                // frame identical to the page it was lifted from.
-                val baseline = centreY - (paint.ascent() + paint.descent()) / 2f
-                glyph[0] = simulation.chars[i]
+                val piece = placed[i]
+                val centreX = simulation.x[i] + simulation.width[i] * 0.5f
+                val centreY = simulation.y[i] + simulation.height[i] * 0.5f
                 val tilt = simulation.angle[i]
-                if (tilt != 0f) {
+                val turned = tilt != 0f
+                if (turned) {
                     native.save()
                     native.rotate(Math.toDegrees(tilt.toDouble()).toFloat(), centreX, centreY)
-                    native.drawText(glyph, 0, 1, centreX, baseline, paint)
-                    native.restore()
-                } else {
+                }
+                val bitmap = piece.bitmap
+                if (bitmap != null) {
+                    target.set(
+                        simulation.x[i],
+                        simulation.y[i],
+                        simulation.x[i] + simulation.width[i],
+                        simulation.y[i] + simulation.height[i]
+                    )
+                    native.drawBitmap(bitmap, null, target, null)
+                } else if (piece.paint != null) {
+                    // Sitting the glyph on its own baseline is what keeps the
+                    // first frame identical to the page it was lifted from.
+                    val paint = piece.paint
+                    val baseline = centreY - (paint.ascent() + paint.descent()) / 2f
+                    glyph[0] = simulation.chars[i]
                     native.drawText(glyph, 0, 1, centreX, baseline, paint)
                 }
+                if (turned) native.restore()
             }
         }
     }
@@ -133,7 +144,8 @@ private const val MAX_OWED = 0.1f
 private const val SETTLED_POLL_MILLIS = 100L
 
 /**
- * Enough for a screenful of text. Past this the heap is deeper than the screen
- * anyway, and the frame budget is what pays for it.
+ * Enough for a screenful of text, which is what decides it: text that is on
+ * screen and over the budget is left where it is rather than lifted, so the
+ * number wants to be comfortably above a screenful of a dense message.
  */
-const val MAX_GRAVITY_LETTERS = 600
+const val MAX_GRAVITY_LETTERS = 900

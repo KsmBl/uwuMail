@@ -213,9 +213,8 @@ class GravityWorldTest {
         world.run(900)
 
         for (i in 0 until world.count) {
-            val side = world.size[i]
-            assertTrue(world.x[i] >= -0.5f && world.x[i] + side <= width + 0.5f)
-            assertTrue(world.y[i] >= -0.5f && world.y[i] + side <= height + 0.5f)
+            assertTrue(world.x[i] >= -0.5f && world.x[i] + world.width[i] <= width + 0.5f)
+            assertTrue(world.y[i] >= -0.5f && world.y[i] + world.height[i] <= height + 0.5f)
         }
         // Letters in a heap do overlap, and a heap of text should look like
         // one. What must not happen is a small letter disappearing inside a
@@ -224,5 +223,53 @@ class GravityWorldTest {
             "a letter was buried ${world.worstRelativeOverlap()} deep in another",
             world.worstRelativeOverlap() < 1f
         )
+    }
+
+    @Test
+    fun `a new direction unsettles the heap straight away`() {
+        // Callers stop stepping a settled world, so this has to be true before
+        // the next step rather than because of it.
+        val world = world()
+        repeat(40) { i -> world.add('s', 100f + (i % 20) * letter, 200f, letter) }
+        world.run(600)
+        assertTrue(world.settled)
+
+        world.setDown(1f, 0f)
+        assertFalse("turning the phone must wake the heap at once", world.settled)
+    }
+
+    @Test
+    fun `a wide picture falls flat and holds letters up`() {
+        val world = world()
+        // A banner: far wider than it is tall, which a square body cannot model.
+        world.add(' ', 100f, 900f, width = 700f, height = 90f)
+        repeat(30) { i -> world.add('o', 150f + (i % 15) * letter, 300f + (i / 15) * letter, letter) }
+        world.run(900)
+
+        val picture = 0
+        assertEquals(700f, world.width[picture], 0.01f)
+        assertEquals(90f, world.height[picture], 0.01f)
+        assertEquals(height - 90f, world.y[picture], 1.5f)
+
+        // The letters landed on top of it rather than through it.
+        val pictureTop = world.y[picture]
+        for (i in 1 until world.count) {
+            assertTrue(
+                "a letter at ${world.y[i]} went through the picture at $pictureTop",
+                world.y[i] + world.height[i] <= pictureTop + letter
+            )
+        }
+    }
+
+    @Test
+    fun `a tall picture is held by the side walls, not by its width`() {
+        val world = world()
+        world.add(' ', 0f, 100f, width = 60f, height = 600f)
+        world.setDown(-1f, 0f)
+        world.run(600)
+        // Pushed to the left edge, still its own shape.
+        assertEquals(0f, world.x[0], 1f)
+        assertEquals(60f, world.width[0], 0.01f)
+        assertEquals(600f, world.height[0], 0.01f)
     }
 }

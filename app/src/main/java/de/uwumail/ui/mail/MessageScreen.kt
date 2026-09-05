@@ -1,6 +1,9 @@
 package de.uwumail.ui.mail
 
+import android.app.Activity
+import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +45,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,7 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import de.uwumail.core.Json
 import de.uwumail.mail.MimeUtil
-import de.uwumail.ui.mail.gravity.GravityGlyph
+import de.uwumail.ui.mail.gravity.FallingPiece
 import de.uwumail.ui.mail.gravity.GravityOverlay
 import de.uwumail.ui.mail.gravity.MAX_GRAVITY_LETTERS
 import de.uwumail.ui.common.ConfirmDialog
@@ -90,11 +94,25 @@ fun MessageScreen(
     var trackingLink by remember { mutableStateOf<String?>(null) }
     // Every part of the message hands its characters over separately; the
     // overlay wants them as one list.
-    val lifted = remember { mutableStateMapOf<String, List<GravityGlyph>>() }
+    val lifted = remember { mutableStateMapOf<String, List<FallingPiece>>() }
     val glyphs = remember(lifted.size, lifted.values.sumOf { it.size }) {
         lifted.entries.sortedBy { it.key }.flatMap { it.value }
     }
     LaunchedEffect(state.gravity) { if (!state.gravity) lifted.clear() }
+
+    // While the letters are loose the screen must not rotate with the phone:
+    // the whole point is that turning it changes which way they fall, and a
+    // layout that turns with it would simply put "down" back at the bottom.
+    DisposableEffect(state.gravity) {
+        val activity = context.findActivity()
+        val previous = activity?.requestedOrientation
+        if (state.gravity && activity != null) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
+        }
+        onDispose {
+            if (previous != null) activity?.requestedOrientation = previous
+        }
+    }
 
     fun follow(url: String) {
         if (state.settings.askStripTracking && de.uwumail.mail.TrackingParams.hasTracking(url)) {
@@ -411,6 +429,16 @@ fun MessageScreen(
             onDismiss = { confirmDelete = false }
         )
     }
+}
+
+/** The Activity behind a Compose context, for the few things only it can do. */
+private fun android.content.Context.findActivity(): Activity? {
+    var context: android.content.Context? = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
 }
 
 /** The subject and sender are short; the body is what needs a budget. */

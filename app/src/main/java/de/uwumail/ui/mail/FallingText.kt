@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
-import de.uwumail.ui.mail.gravity.GravityGlyph
+import de.uwumail.ui.mail.gravity.FallingPiece
 
 /** Stops a full stop or a thin space becoming a degenerate body. */
 private const val MIN_BOX = 3f
@@ -44,7 +44,7 @@ fun FallingText(
     modifier: Modifier = Modifier,
     handOverGlyphs: Boolean = false,
     glyphLimit: Int = 0,
-    onGlyphs: (List<GravityGlyph>) -> Unit = {}
+    onGlyphs: (List<FallingPiece>) -> Unit = {}
 ) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -75,7 +75,7 @@ fun FallingText(
             )
         }
 
-        val glyphs = ArrayList<GravityGlyph>(minOf(text.length, glyphLimit))
+        val glyphs = ArrayList<FallingPiece>(minOf(text.length, glyphLimit))
         for (offset in text.indices) {
             if (glyphs.size >= glyphLimit) break
             val character = text[offset]
@@ -85,11 +85,12 @@ fun FallingText(
             // The square is the character's own width, so an i is a small box
             // and an M a large one, centred on where the character was.
             val side = box.width.coerceAtLeast(MIN_BOX)
-            glyphs += GravityGlyph(
-                char = character,
+            glyphs += FallingPiece(
                 x = position.x + box.left + (box.width - side) * 0.5f,
                 y = position.y + box.top + (box.height - side) * 0.5f,
-                size = side,
+                width = side,
+                height = side,
+                char = character,
                 paint = paint
             )
         }
