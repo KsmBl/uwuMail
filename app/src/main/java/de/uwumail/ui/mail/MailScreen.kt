@@ -77,6 +77,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -125,6 +126,41 @@ fun MailScreen(
             snackbarHost.showSnackbar(message)
             viewModel.clearStatus()
         }
+    }
+
+    // Whether the list is parked at the very top. Recomputed only when a user
+    // scroll settles, so a row arriving above the viewport cannot flip it: the
+    // LazyColumn keeps the anchored row in place and shifts the index instead.
+    var pinnedToTop by remember { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .collect { scrolling ->
+                if (!scrolling) {
+                    pinnedToTop = listState.firstVisibleItemIndex == 0 &&
+                        listState.firstVisibleItemScrollOffset == 0
+                }
+            }
+    }
+
+    // New mail lands above whatever is on screen. If the user was already at the
+    // top, follow it up so the new message is visible; if they had scrolled down,
+    // leave their place alone.
+    LaunchedEffect(state.messages.firstOrNull()?.id) {
+        if (pinnedToTop &&
+            state.messages.isNotEmpty() &&
+            !state.inSelectionMode &&
+            // Never yank the list out from under an in-progress fling.
+            !listState.isScrollInProgress
+        ) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
+    // The list state outlives a folder change, so without this a new folder
+    // opens at the previous one's scroll offset.
+    LaunchedEffect(state.target) {
+        pinnedToTop = true
+        listState.scrollToItem(0)
     }
 
     // Pull the next page in once the user nears the end of the cached list.

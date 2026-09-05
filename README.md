@@ -105,6 +105,12 @@ have.
 - Matching is done in the list query against an indexed sender domain, so
   toggling a list takes effect immediately without rewriting cached mail.
 
+**Message list**
+- New mail lands above what is on screen. If you are already at the top the list
+  follows it up so the new message is visible; if you had scrolled down, your
+  place is kept and nothing jumps. It also will not move during a fling, in a
+  selection, or while you are reading further down.
+
 **Background mail and notifications**
 - Push is **on by default**: a foreground service holds an IMAP IDLE connection
   per account, so new mail notifies you without the app being opened. IMAP has
