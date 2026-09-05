@@ -2,8 +2,7 @@ package de.uwumail.ui.mail
 
 import android.graphics.Paint
 import android.graphics.Typeface
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,26 +19,25 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Text
 import de.uwumail.ui.mail.gravity.GravityGlyph
 
 /** Stops a full stop or a thin space becoming a degenerate body. */
 private const val MIN_BOX = 3f
 
 /**
- * A plain-text mail body.
+ * Text that can hand its characters over.
  *
- * When [handOverGlyphs] is set it measures its own characters with the same
- * text engine that drew them and reports them in root coordinates, then draws
- * itself in nothing so that whoever asked for them can take over without the
- * text appearing to move.
+ * With [handOverGlyphs] set it measures itself with the same text engine that
+ * drew it, reports every character in root coordinates, and then draws itself
+ * in nothing — so the letters can be taken over by something else without
+ * appearing to move, and without the layout around them shifting.
  */
 @Composable
-fun PlainBody(
+fun FallingText(
     text: String,
     style: TextStyle,
     color: Color,
@@ -55,8 +53,8 @@ fun PlainBody(
     var size by remember { mutableStateOf(IntSize.Zero) }
     var position by remember { mutableStateOf(Offset.Zero) }
 
-    LaunchedEffect(handOverGlyphs, text, size, position, color) {
-        if (!handOverGlyphs || size.width == 0) {
+    LaunchedEffect(handOverGlyphs, text, size, position, color, glyphLimit) {
+        if (!handOverGlyphs || size.width == 0 || glyphLimit <= 0) {
             if (!handOverGlyphs) currentOnGlyphs(emptyList())
             return@LaunchedEffect
         }
@@ -65,12 +63,16 @@ fun PlainBody(
             style = style.copy(color = color),
             constraints = Constraints(maxWidth = size.width)
         )
-        val fontSizePx = with(density) { style.fontSize.toPx() }
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color.toArgb()
-            textSize = fontSizePx
+            textSize = with(density) { style.fontSize.toPx() }
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.SANS_SERIF
+            typeface = Typeface.create(
+                Typeface.SANS_SERIF,
+                if ((style.fontWeight?.weight ?: FontWeight.Normal.weight) >= 600) {
+                    Typeface.BOLD
+                } else Typeface.NORMAL
+            )
         }
 
         val glyphs = ArrayList<GravityGlyph>(minOf(text.length, glyphLimit))
@@ -81,7 +83,7 @@ fun PlainBody(
             val box = runCatching { layout.getBoundingBox(offset) }.getOrNull() ?: continue
             if (box.width <= 0f || box.height <= 0f) continue
             // The square is the character's own width, so an i is a small box
-            // and an M a large one.
+            // and an M a large one, centred on where the character was.
             val side = box.width.coerceAtLeast(MIN_BOX)
             glyphs += GravityGlyph(
                 char = character,
@@ -101,8 +103,6 @@ fun PlainBody(
         // in place keeps the layout, and the height, exactly as it was.
         color = if (handOverGlyphs) Color.Transparent else color,
         modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp)
             .onSizeChanged { size = it }
             .onGloballyPositioned { position = it.positionInRoot() }
     )

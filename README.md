@@ -1,4 +1,4 @@
-# uwuMail
+<<># uwuMail
 
 A multi-account IMAP mail client for Android 12+ (API 31), built around a rules
 engine that can act on mail before it ever reaches your notification shade.

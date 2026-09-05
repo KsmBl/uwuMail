@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -87,9 +88,13 @@ fun MessageScreen(
     // Set when a tapped link carries tracking parameters and the user has asked
     // to be consulted; the dialog is what actually opens it.
     var trackingLink by remember { mutableStateOf<String?>(null) }
-    // The characters the body handed over, once gravity is on.
-    var glyphs by remember { mutableStateOf<List<GravityGlyph>>(emptyList()) }
-    LaunchedEffect(state.gravity) { if (!state.gravity) glyphs = emptyList() }
+    // Every part of the message hands its characters over separately; the
+    // overlay wants them as one list.
+    val lifted = remember { mutableStateMapOf<String, List<GravityGlyph>>() }
+    val glyphs = remember(lifted.size, lifted.values.sumOf { it.size }) {
+        lifted.entries.sortedBy { it.key }.flatMap { it.value }
+    }
+    LaunchedEffect(state.gravity) { if (!state.gravity) lifted.clear() }
 
     fun follow(url: String) {
         if (state.settings.askStripTracking && de.uwumail.mail.TrackingParams.hasTracking(url)) {
@@ -238,38 +243,55 @@ fun MessageScreen(
             }
 
             Column(Modifier.padding(16.dp)) {
-                Text(
-                    message.subject.ifBlank { "(no subject)" },
-                    style = MaterialTheme.typography.headlineSmall
+                FallingText(
+                    text = message.subject.ifBlank { "(no subject)" },
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    handOverGlyphs = state.gravity,
+                    glyphLimit = HEADER_LETTERS,
+                    onGlyphs = { lifted["1subject"] = it }
                 )
-                Text(
-                    buildString {
+                FallingText(
+                    text = buildString {
                         append(message.fromName?.takeIf { it.isNotBlank() } ?: "")
                         if (isNotEmpty()) append(" ")
                         message.fromAddress?.let { append("<$it>") }
                     }.trim(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodyMedium
+                        .copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    handOverGlyphs = state.gravity,
+                    glyphLimit = HEADER_LETTERS,
+                    onGlyphs = { lifted["2from"] = it },
                     modifier = Modifier.padding(top = 8.dp)
                 )
                 if (message.toList.isNotBlank()) {
-                    Text(
-                        "to ${message.toList}",
+                    FallingText(
+                        text = "to ${message.toList}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        handOverGlyphs = state.gravity,
+                        glyphLimit = HEADER_LETTERS,
+                        onGlyphs = { lifted["4to"] = it }
                     )
                 }
                 if (message.ccList.isNotBlank()) {
-                    Text(
-                        "cc ${message.ccList}",
+                    FallingText(
+                        text = "cc ${message.ccList}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        handOverGlyphs = state.gravity,
+                        glyphLimit = HEADER_LETTERS,
+                        onGlyphs = { lifted["5cc"] = it }
                     )
                 }
-                Text(
-                    formatFullDate(message.receivedAt),
+                FallingText(
+                    text = formatFullDate(message.receivedAt),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    handOverGlyphs = state.gravity,
+                    glyphLimit = HEADER_LETTERS,
+                    onGlyphs = { lifted["6date"] = it }
                 )
             }
 
@@ -328,16 +350,17 @@ fun MessageScreen(
                     onLink = ::follow,
                     handOverGlyphs = state.gravity,
                     glyphLimit = MAX_GRAVITY_LETTERS,
-                    onGlyphs = { glyphs = it }
+                    onGlyphs = { lifted["3body"] = it }
                 )
             } else {
-                PlainBody(
+                FallingText(
                     text = plain.ifBlank { if (state.loading) "Loading…" else "(empty message)" },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     handOverGlyphs = state.gravity,
                     glyphLimit = MAX_GRAVITY_LETTERS,
-                    onGlyphs = { glyphs = it }
+                    onGlyphs = { lifted["3body"] = it },
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
                 )
             }
         }
@@ -389,6 +412,9 @@ fun MessageScreen(
         )
     }
 }
+
+/** The subject and sender are short; the body is what needs a budget. */
+private const val HEADER_LETTERS = 120
 
 private fun shareFile(context: android.content.Context, file: File, mimeType: String) {
     runCatching {
