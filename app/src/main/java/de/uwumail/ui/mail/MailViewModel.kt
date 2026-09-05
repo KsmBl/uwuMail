@@ -27,6 +27,8 @@ data class MailUiState(
     val query: String = "",
     val syncing: Boolean = false,
     val loadingMore: Boolean = false,
+    /** A user-initiated action is waiting on the server. */
+    val busy: Boolean = false,
     val error: String? = null,
     val status: String? = null
 ) {
@@ -52,9 +54,13 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     private data class TransientState(
         val loadingMore: Boolean = false,
+        /** Counted rather than a flag, so overlapping actions cannot clear it early. */
+        val pending: Int = 0,
         val error: String? = null,
         val status: String? = null
-    )
+    ) {
+        val busy: Boolean get() = pending > 0
+    }
 
     private val accounts = container.db.accountDao().observeAll()
     private val folders = container.db.folderDao().observeAll()
@@ -87,6 +93,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             query = rest.query,
             syncing = rest.syncing,
             loadingMore = rest.extra.loadingMore,
+            busy = rest.extra.busy,
             error = rest.extra.error,
             status = rest.extra.status
         )
@@ -128,7 +135,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     // -------------------------------------------------------------- actions
 
-    fun refresh() = launchGuarded {
+    fun refresh() = launchGuarded(showBusy = true) {
         val folder = currentFolder.value
         if (folder != null) {
             container.syncManager.syncFolder(folder.id)
@@ -197,13 +204,22 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         val ids = selection.value.toList()
         if (ids.isEmpty()) return
         selection.value = emptySet()
-        launchGuarded { block(ids) }
+        launchGuarded(showBusy = true) { block(ids) }
     }
 
-    private fun launchGuarded(block: suspend () -> Unit) {
+    private fun launchGuarded(showBusy: Boolean = false, block: suspend () -> Unit) {
+        if (showBusy) transient.update { it.copy(pending = it.pending + 1) }
         viewModelScope.launch {
-            runCatching { block() }
-                .onFailure { e -> transient.update { it.copy(error = e.message ?: e.toString()) } }
+            try {
+                runCatching { block() }
+                    .onFailure { e ->
+                        transient.update { it.copy(error = e.message ?: e.toString()) }
+                    }
+            } finally {
+                if (showBusy) {
+                    transient.update { it.copy(pending = (it.pending - 1).coerceAtLeast(0)) }
+                }
+            }
         }
     }
 

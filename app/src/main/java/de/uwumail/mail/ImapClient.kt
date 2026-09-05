@@ -1,6 +1,5 @@
 package de.uwumail.mail
 
-import de.uwumail.core.FolderType
 import de.uwumail.core.Security
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.mail.oauth.AuthType
@@ -13,6 +12,7 @@ import javax.mail.FetchProfile
 import javax.mail.Flags
 import javax.mail.Folder
 import javax.mail.Message
+import javax.mail.MessageRemovedException
 import javax.mail.Session
 import javax.mail.UIDFolder
 import javax.mail.internet.MimeMessage
@@ -107,7 +107,11 @@ class ImapClient(
                 delimiter = runCatching { folder.separator.toString() }.getOrDefault("/"),
                 selectable = selectable,
                 subscribed = folder.fullName in subscribed,
-                type = guessType(folder.fullName, attrs)
+                type = FolderClassifier.guess(
+                    folder.fullName,
+                    runCatching { folder.separator }.getOrDefault('/'),
+                    attrs
+                )
             )
         }.sortedBy { it.path }
     }
@@ -197,8 +201,8 @@ class ImapClient(
     fun fetchFlags(path: String, uids: List<Long>): Map<Long, FlagState> {
         if (uids.isEmpty()) return emptyMap()
         val folder = open(path, Folder.READ_ONLY)
-        val messages = runCatching { folder.getMessagesByUID(uids.toLongArray()) }
-            .getOrElse { emptyArray() }.filterNotNull()
+        val messages = runCatching { folder.messagesFor(uids).toList() }
+            .getOrElse { emptyList() }
         val fp = FetchProfile().apply {
             add(FetchProfile.Item.FLAGS)
             add(UIDFolder.FetchProfileItem.UID)
@@ -218,25 +222,29 @@ class ImapClient(
 
     fun fetchBody(path: String, uid: Long): FetchedBody? {
         val folder = open(path, Folder.READ_ONLY)
-        val message = folder.getMessageByUID(uid) ?: return null
-        return MimeUtil.extractBody(message)
+        val message = folder.messageFor(uid) ?: return null
+        return ignoringRemoved { MimeUtil.extractBody(message) }
     }
 
     fun fetchRaw(path: String, uid: Long): ByteArray? {
         val folder = open(path, Folder.READ_ONLY)
-        val message = folder.getMessageByUID(uid) as? MimeMessage ?: return null
-        val out = ByteArrayOutputStream()
-        message.writeTo(out)
-        return out.toByteArray()
+        val message = folder.messageFor(uid) as? MimeMessage ?: return null
+        return ignoringRemoved {
+            val out = ByteArrayOutputStream()
+            message.writeTo(out)
+            out.toByteArray()
+        }
     }
 
     fun fetchAttachment(path: String, uid: Long, partId: String): ByteArray? {
         val folder = open(path, Folder.READ_ONLY)
-        val message = folder.getMessageByUID(uid) ?: return null
-        val part = findPart(message, partId) ?: return null
-        val out = ByteArrayOutputStream()
-        part.inputStream.use { it.copyTo(out) }
-        return out.toByteArray()
+        val message = folder.messageFor(uid) ?: return null
+        return ignoringRemoved {
+            val part = findPart(message, partId) ?: return null
+            val out = ByteArrayOutputStream()
+            part.inputStream.use { it.copyTo(out) }
+            out.toByteArray()
+        }
     }
 
     private fun findPart(part: javax.mail.Part, wanted: String, current: String = "1"): javax.mail.Part? {
@@ -253,9 +261,9 @@ class ImapClient(
     fun setFlags(path: String, uids: List<Long>, flag: Flags.Flag, value: Boolean) {
         if (uids.isEmpty()) return
         val folder = open(path, Folder.READ_WRITE)
-        val messages = folder.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
+        val messages = folder.messagesFor(uids)
         if (messages.isEmpty()) return
-        folder.setFlags(messages, Flags(flag), value)
+        ignoringRemoved { folder.setFlags(messages, Flags(flag), value) }
     }
 
     /**
@@ -267,11 +275,13 @@ class ImapClient(
         val source = open(fromPath, Folder.READ_WRITE)
         val target = connect().getFolder(toPath)
         if (!target.exists()) throw MailException("Target folder \"$toPath\" does not exist")
-        val messages = source.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
+        val messages = source.messagesFor(uids)
         if (messages.isEmpty()) return
-        source.copyMessages(messages, target)
-        source.setFlags(messages, Flags(Flags.Flag.DELETED), true)
-        expunge(source, messages)
+        ignoringRemoved {
+            source.copyMessages(messages, target)
+            source.setFlags(messages, Flags(Flags.Flag.DELETED), true)
+            expunge(source, messages)
+        }
     }
 
     fun copyMessages(fromPath: String, uids: List<Long>, toPath: String) {
@@ -279,18 +289,20 @@ class ImapClient(
         val source = open(fromPath, Folder.READ_ONLY)
         val target = connect().getFolder(toPath)
         if (!target.exists()) throw MailException("Target folder \"$toPath\" does not exist")
-        val messages = source.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
+        val messages = source.messagesFor(uids)
         if (messages.isEmpty()) return
-        source.copyMessages(messages, target)
+        ignoringRemoved { source.copyMessages(messages, target) }
     }
 
     fun deleteMessages(path: String, uids: List<Long>) {
         if (uids.isEmpty()) return
         val folder = open(path, Folder.READ_WRITE)
-        val messages = folder.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
+        val messages = folder.messagesFor(uids)
         if (messages.isEmpty()) return
-        folder.setFlags(messages, Flags(Flags.Flag.DELETED), true)
-        expunge(folder, messages)
+        ignoringRemoved {
+            folder.setFlags(messages, Flags(Flags.Flag.DELETED), true)
+            expunge(folder, messages)
+        }
     }
 
     fun append(path: String, raw: ByteArray, seen: Boolean) {
@@ -311,6 +323,35 @@ class ImapClient(
     }
 
     // --------------------------------------------------------------- internals
+
+    /**
+     * Resolves UIDs to live messages.
+     *
+     * The server may hand back entries for messages that have already been
+     * expunged — by another client, by a rule, or by an earlier action in this
+     * session. Touching one throws [MessageRemovedException], so they are
+     * dropped here rather than turning a successful delete into an error.
+     */
+    private fun IMAPFolder.messagesFor(uids: List<Long>): Array<Message> =
+        runCatching { getMessagesByUID(uids.toLongArray()) }
+            .getOrElse { emptyArray() }
+            .filterNotNull()
+            .filter { runCatching { !it.isExpunged }.getOrDefault(false) }
+            .toTypedArray()
+
+    private fun IMAPFolder.messageFor(uid: Long): Message? =
+        runCatching { getMessageByUID(uid) }.getOrNull()
+            ?.takeIf { runCatching { !it.isExpunged }.getOrDefault(false) }
+
+    /**
+     * A message that is already gone satisfies any request to remove it, so
+     * "removed" is a successful outcome here, not a failure to report.
+     */
+    private inline fun <T> ignoringRemoved(block: () -> T): T? = try {
+        block()
+    } catch (e: MessageRemovedException) {
+        null
+    }
 
     private fun expunge(folder: IMAPFolder, messages: Array<Message>) {
         // UID EXPUNGE where available, so we never remove someone else's \Deleted mail.
@@ -399,27 +440,7 @@ class ImapClient(
         }
     }
 
-    private fun guessType(path: String, attributes: List<String>): String {
-        attributes.forEach { attr ->
-            when (attr.lowercase()) {
-                "\\archive" -> return FolderType.ARCHIVE.name
-                "\\sent" -> return FolderType.SENT.name
-                "\\drafts" -> return FolderType.DRAFTS.name
-                "\\trash" -> return FolderType.TRASH.name
-                "\\junk" -> return FolderType.SPAM.name
-            }
-        }
-        val leaf = path.substringAfterLast('/').substringAfterLast('.').lowercase()
-        return when (leaf) {
-            "inbox" -> FolderType.INBOX.name
-            "archive", "archiv", "all mail", "alle nachrichten" -> FolderType.ARCHIVE.name
-            "sent", "sent items", "gesendet", "gesendete objekte" -> FolderType.SENT.name
-            "drafts", "entwürfe", "entwuerfe" -> FolderType.DRAFTS.name
-            "trash", "deleted items", "papierkorb", "gelöschte objekte" -> FolderType.TRASH.name
-            "junk", "spam" -> FolderType.SPAM.name
-            else -> if (path.equals("INBOX", true)) FolderType.INBOX.name else FolderType.CUSTOM.name
-        }
-    }
+
 }
 
 data class FlagState(

@@ -48,6 +48,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -147,6 +148,7 @@ fun MailScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHost) },
             topBar = {
+                Column {
                 if (state.inSelectionMode) {
                     SelectionAppBar(
                         count = state.selection.size,
@@ -238,6 +240,12 @@ fun MailScreen(
                             }
                         }
                     )
+                }
+                // A thin bar rather than a blocking spinner: the list stays usable
+                // while a move or delete is in flight.
+                if (state.busy || state.syncing) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
                 }
             },
             floatingActionButton = {

@@ -26,6 +26,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -77,6 +78,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
+            Column {
             TopAppBar(
                 title = { Text(if (ruleId > 0) "Edit rule" else "New rule") },
                 navigationIcon = {
@@ -85,11 +87,17 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::save, enabled = state.canSave) {
-                        Icon(Icons.Default.Save, "Save")
+                    if (state.saving) {
+                        CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp))
+                    } else {
+                        IconButton(onClick = viewModel::save, enabled = state.canSave) {
+                            Icon(Icons.Default.Save, "Save")
+                        }
                     }
                 }
             )
+            if (state.applying || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
         }
     ) { padding ->
         Column(
@@ -250,8 +258,16 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 if (ruleId > 0) {
                     FilledTonalButton(
                         onClick = viewModel::applyToExistingMail,
+                        enabled = !state.applying,
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Apply rules to mail already synced") }
+                    ) {
+                        if (state.applying) {
+                            CircularProgressIndicator(Modifier.size(16.dp))
+                            Text("  Applying…")
+                        } else {
+                            Text("Apply rules to mail already synced")
+                        }
+                    }
                 }
             }
             Column(Modifier.padding(24.dp)) { Text("") }

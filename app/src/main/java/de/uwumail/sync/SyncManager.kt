@@ -14,6 +14,7 @@ import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.db.OutboxEntity
 import de.uwumail.data.db.RuleLogEntity
 import de.uwumail.mail.FetchedMessage
+import de.uwumail.mail.FolderClassifier
 import de.uwumail.mail.ImapPool
 import de.uwumail.mail.MailException
 import de.uwumail.mail.MimeUtil
@@ -94,7 +95,11 @@ class SyncManager(
         val account = db.accountDao().get(accountId) ?: return
         val existing = db.folderDao().forAccount(accountId).associateBy { it.path }
 
-        remote.forEachIndexed { index, folder ->
+        // The inbox always sits at the top, then the other well-known folders,
+        // then everything else alphabetically.
+        val ordered = FolderClassifier.order(remote, { it.type }, { it.path })
+
+        ordered.forEachIndexed { index, folder ->
             val current = existing[folder.path]
             if (current == null) {
                 db.folderDao().insert(
@@ -112,9 +117,16 @@ class SyncManager(
                         position = index
                     )
                 )
-            } else if (current.type != folder.type || current.selectable != folder.selectable) {
+            } else if (current.type != folder.type ||
+                current.selectable != folder.selectable ||
+                current.position != index
+            ) {
                 db.folderDao().update(
-                    current.copy(type = folder.type, selectable = folder.selectable)
+                    current.copy(
+                        type = folder.type,
+                        selectable = folder.selectable,
+                        position = index
+                    )
                 )
             }
         }

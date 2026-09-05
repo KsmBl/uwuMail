@@ -27,6 +27,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -88,6 +89,7 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
 
     Scaffold(
         topBar = {
+            Column {
             TopAppBar(
                 title = { Text(if (state.isNew) "Add account" else "Edit account") },
                 navigationIcon = {
@@ -96,11 +98,19 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::save, enabled = state.canSave) {
-                        Icon(Icons.Default.Save, "Save")
+                    if (state.saving) {
+                        CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp))
+                    } else {
+                        IconButton(onClick = viewModel::save, enabled = state.canSave) {
+                            Icon(Icons.Default.Save, "Save")
+                        }
                     }
                 }
             )
+            if (state.saving || state.discovering || state.testing || state.signingIn) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            }
         }
     ) { padding ->
         Column(

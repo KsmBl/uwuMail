@@ -41,6 +41,7 @@ data class AccountSetupState(
     val identities: List<IdentityEntity> = emptyList(),
     val discovering: Boolean = false,
     val testing: Boolean = false,
+    val saving: Boolean = false,
     val testResult: String? = null,
     val error: String? = null,
     val saved: Boolean = false,
@@ -314,7 +315,7 @@ class AccountSetupViewModel(
 
     fun save() {
         val current = _state.value
-        _state.update { it.copy(error = null) }
+        _state.update { it.copy(error = null, saving = true) }
         viewModelScope.launch {
             runCatching {
                 val id = container.accountRepository.save(
@@ -327,9 +328,9 @@ class AccountSetupViewModel(
                 runCatching { container.syncManager.refreshFolders(id) }
                 de.uwumail.sync.SyncScheduler.syncNow(container.appContext, id)
             }.onSuccess {
-                _state.update { it.copy(saved = true) }
+                _state.update { it.copy(saving = false, saved = true) }
             }.onFailure { e ->
-                _state.update { it.copy(error = e.message ?: e.toString()) }
+                _state.update { it.copy(saving = false, error = e.message ?: e.toString()) }
             }
         }
     }

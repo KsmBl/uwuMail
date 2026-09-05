@@ -1,6 +1,9 @@
 package de.uwumail.ui.folders
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +24,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -69,6 +73,7 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
+            Column {
             TopAppBar(
                 title = { Text("Folders") },
                 navigationIcon = {
@@ -82,13 +87,20 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
                     }
                 }
             )
+            // Creating or deleting a folder is a server round trip; show that
+            // something is happening instead of leaving the list looking frozen.
+            if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
         },
         floatingActionButton = {
             Box {
                 ExtendedFloatingActionButton(
-                    onClick = { fabMenu = true },
-                    icon = { Icon(Icons.Default.Add, null) },
-                    text = { Text("New folder") }
+                    onClick = { if (!state.busy) fabMenu = true },
+                    icon = {
+                        if (state.busy) CircularProgressIndicator(Modifier.size(20.dp))
+                        else Icon(Icons.Default.Add, null)
+                    },
+                    text = { Text(if (state.busy) "Working…" else "New folder") }
                 )
                 DropdownMenu(expanded = fabMenu, onDismissRequest = { fabMenu = false }) {
                     DropdownMenuItem(

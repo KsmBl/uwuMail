@@ -37,6 +37,9 @@ data class RuleEditState(
     val previewCount: Int? = null,
     val previewTotal: Int = 0,
     val previewing: Boolean = false,
+    /** Replaying rules over cached mail; can take a while on a big folder. */
+    val applying: Boolean = false,
+    val saving: Boolean = false,
     val message: String? = null,
     val saved: Boolean = false
 ) {
@@ -159,6 +162,7 @@ class RuleEditViewModel(
     fun save() {
         val current = _state.value
         if (!current.canSave) return
+        _state.update { it.copy(saving = true) }
         viewModelScope.launch {
             runCatching {
                 container.db.ruleDao().replaceRule(
@@ -177,15 +181,16 @@ class RuleEditViewModel(
                     current.actions
                 )
             }.onSuccess {
-                _state.update { it.copy(saved = true) }
+                _state.update { it.copy(saving = false, saved = true) }
             }.onFailure { e ->
-                _state.update { it.copy(message = e.message) }
+                _state.update { it.copy(saving = false, message = e.message) }
             }
         }
     }
 
     /** Runs the saved rule set over mail that is already in the cache. */
     fun applyToExistingMail() {
+        _state.update { it.copy(applying = true) }
         viewModelScope.launch {
             val folders = _state.value.foldersForScope().filter { !it.isLocal }
             var total = 0
@@ -193,7 +198,9 @@ class RuleEditViewModel(
                 runCatching { container.syncManager.applyRulesToFolder(folder.id) }
                     .onSuccess { total += it }
             }
-            _state.update { it.copy(message = "Rules applied to $total existing message(s)") }
+            _state.update {
+                it.copy(applying = false, message = "Rules applied to $total existing message(s)")
+            }
         }
     }
 

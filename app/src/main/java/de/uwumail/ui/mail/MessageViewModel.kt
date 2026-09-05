@@ -20,6 +20,8 @@ data class MessageUiState(
     val attachments: List<AttachmentEntity> = emptyList(),
     val folders: List<FolderEntity> = emptyList(),
     val loading: Boolean = true,
+    /** An action on this message is waiting on the server. */
+    val busy: Boolean = false,
     val showHtml: Boolean = true,
     val showHeaders: Boolean = false,
     val status: String? = null,
@@ -98,17 +100,25 @@ class MessageViewModel(
     }
 
     private fun guarded(block: suspend () -> Unit) {
+        local.update { it.copy(busy = true) }
         viewModelScope.launch {
-            runCatching { block() }
-                .onFailure { e -> local.update { it.copy(error = e.message ?: e.toString()) } }
+            try {
+                runCatching { block() }
+                    .onFailure { e -> local.update { it.copy(error = e.message ?: e.toString()) } }
+            } finally {
+                local.update { it.copy(busy = false) }
+            }
         }
     }
 
     private fun guardedAndClose(block: suspend () -> Unit) {
+        local.update { it.copy(busy = true) }
         viewModelScope.launch {
             runCatching { block() }
-                .onSuccess { local.update { it.copy(closed = true) } }
-                .onFailure { e -> local.update { it.copy(error = e.message ?: e.toString()) } }
+                .onSuccess { local.update { it.copy(closed = true, busy = false) } }
+                .onFailure { e ->
+                    local.update { it.copy(error = e.message ?: e.toString(), busy = false) }
+                }
         }
     }
 }
