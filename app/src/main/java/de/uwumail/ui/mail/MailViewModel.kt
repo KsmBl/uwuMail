@@ -307,6 +307,13 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         optimisticStatus = { "${it.size} moved" }
     ) { ids -> container.syncManager.moveMessages(ids, targetFolderId) }
 
+    // A copy leaves the rows in place, so unlike a move there is nothing to
+    // report optimistically: the progress bar runs until the server is done.
+    fun copySelection(targetFolderId: Long) = withSelection { ids ->
+        container.syncManager.copyMessages(ids, targetFolderId)
+        report("${ids.size} copied")
+    }
+
     fun downloadSelection() = withSelection { ids ->
         ids.forEach { container.syncManager.downloadRaw(it) }
         report("Saved ${ids.size} message${if (ids.size == 1) "" else "s"} to device")

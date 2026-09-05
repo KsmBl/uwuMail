@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MarkEmailRead
@@ -117,6 +118,7 @@ fun MailScreen(
     val listState = rememberLazyListState()
 
     var showMovePicker by remember { mutableStateOf(false) }
+    var showCopyPicker by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
 
@@ -207,6 +209,7 @@ fun MailScreen(
                         onTrash = viewModel::trashSelection,
                         onDeleteForever = viewModel::deleteSelectionPermanently,
                         onMove = { showMovePicker = true },
+                        onCopy = { showCopyPicker = true },
                         onDownload = viewModel::downloadSelection,
                         onCreateRule = {
                             val ids = state.selection.toList()
@@ -373,6 +376,21 @@ fun MailScreen(
         }
     }
 
+    if (showCopyPicker) {
+        FolderPickerSheet(
+            folders = state.moveTargets(),
+            accounts = state.accounts,
+            title = "Copy to",
+            confirmLabel = "Copy here",
+            preferredAccountId = state.currentFolder?.accountId,
+            onPick = {
+                showCopyPicker = false
+                viewModel.copySelection(it.id)
+            },
+            onDismiss = { showCopyPicker = false }
+        )
+    }
+
     if (showMovePicker) {
         FolderPickerSheet(
             folders = state.moveTargets(),
@@ -400,6 +418,7 @@ private fun SelectionAppBar(
     onTrash: () -> Unit,
     onDeleteForever: () -> Unit,
     onMove: () -> Unit,
+    onCopy: () -> Unit,
     onDownload: () -> Unit,
     onCreateRule: () -> Unit
 ) {
@@ -432,6 +451,11 @@ private fun SelectionAppBar(
                     text = { Text("Star") },
                     leadingIcon = { Icon(Icons.Default.Star, null) },
                     onClick = { overflow = false; onStar() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Copy to folder") },
+                    leadingIcon = { Icon(Icons.Default.FileCopy, null) },
+                    onClick = { overflow = false; onCopy() }
                 )
                 DropdownMenuItem(
                     text = { Text("Download to device") },

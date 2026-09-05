@@ -161,6 +161,11 @@ class MessageViewModel(
         container.syncManager.moveMessages(listOf(messageId), folderId)
     }
 
+    fun copyTo(folderId: Long) = guarded {
+        container.syncManager.copyMessages(listOf(messageId), folderId)
+        local.update { it.copy(status = "Copied") }
+    }
+
     fun download(onReady: (File) -> Unit) = guarded {
         val file = container.syncManager.downloadRaw(messageId)
         if (file != null) {

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
@@ -76,6 +77,7 @@ fun MessageScreen(
     val snackbarHost = remember { SnackbarHostState() }
     var overflow by remember { mutableStateOf(false) }
     var showMove by remember { mutableStateOf(false) }
+    var showCopy by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     // Set when a tapped link carries tracking parameters and the user has asked
     // to be consulted; the dialog is what actually opens it.
@@ -146,6 +148,11 @@ fun MessageScreen(
                             text = { Text("Move to folder") },
                             leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
                             onClick = { overflow = false; showMove = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Copy to folder") },
+                            leadingIcon = { Icon(Icons.Default.FileCopy, null) },
+                            onClick = { overflow = false; showCopy = true }
                         )
                         DropdownMenuItem(
                             text = { Text("Mark as unread") },
@@ -317,6 +324,18 @@ fun MessageScreen(
             preferredAccountId = state.message?.accountId,
             onPick = { showMove = false; viewModel.moveTo(it.id) },
             onDismiss = { showMove = false }
+        )
+    }
+
+    if (showCopy) {
+        FolderPickerSheet(
+            folders = state.moveTargets(),
+            accounts = state.accounts,
+            title = "Copy to",
+            confirmLabel = "Copy here",
+            preferredAccountId = state.message?.accountId,
+            onPick = { showCopy = false; viewModel.copyTo(it.id) },
+            onDismiss = { showCopy = false }
         )
     }
 
