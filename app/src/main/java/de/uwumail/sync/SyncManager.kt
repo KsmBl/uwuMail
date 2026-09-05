@@ -26,7 +26,9 @@ import de.uwumail.rules.MatchContext
 import de.uwumail.rules.RuleEngine
 import de.uwumail.rules.RulePlan
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
@@ -59,6 +61,13 @@ class SyncManager(
 
     private val _state = MutableStateFlow(SyncState())
     val state = _state.asStateFlow()
+
+    /**
+     * User-facing failures from work that outlived the screen that started it —
+     * an optimistic delete the server later refused, say.
+     */
+    private val _alerts = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val alerts = _alerts.asSharedFlow()
 
     // ------------------------------------------------------------------ sync
 
@@ -405,6 +414,29 @@ class SyncManager(
 
     // --------------------------------------------------------- user actions
 
+    /**
+     * Hides [messageIds] straight away and does the server work afterwards.
+     *
+     * The list is driven by the database, so the rows disappear the moment the
+     * flag is written — the user never waits on the round trip. If the server
+     * refuses, the rows come back and the failure is announced rather than
+     * leaving mail silently missing.
+     */
+    private suspend fun optimistically(messageIds: List<Long>, block: suspend () -> Unit) {
+        if (messageIds.isEmpty()) return
+        db.messageDao().setPendingRemoval(messageIds, true)
+        db.folderDao().refreshAllCounts()
+        messageIds.forEach { notifier.cancel(it) }
+        try {
+            block()
+        } catch (e: Throwable) {
+            db.messageDao().setPendingRemoval(messageIds, false)
+            db.folderDao().refreshAllCounts()
+            _alerts.tryEmit("Could not complete that: ${e.message ?: e.toString()}")
+            throw e
+        }
+    }
+
     suspend fun setSeen(messageIds: List<Long>, seen: Boolean) {
         forEachRemoteGroup(messageIds) { account, folder, uids ->
             pool.use(account.id) { it.setFlags(folder.path, uids, Flags.Flag.SEEN, seen) }
@@ -421,7 +453,7 @@ class SyncManager(
         db.messageDao().setFlagged(messageIds, flagged)
     }
 
-    suspend fun archive(messageIds: List<Long>) {
+    suspend fun archive(messageIds: List<Long>) = optimistically(messageIds) {
         val messages = db.messageDao().getAll(messageIds)
         messages.groupBy { it.accountId }.forEach { (accountId, group) ->
             val account = db.accountDao().get(accountId) ?: return@forEach
@@ -431,13 +463,13 @@ class SyncManager(
         }
     }
 
-    suspend fun moveToTrash(messageIds: List<Long>) {
+    suspend fun moveToTrash(messageIds: List<Long>) = optimistically(messageIds) {
         val messages = db.messageDao().getAll(messageIds)
         messages.groupBy { it.accountId }.forEach { (accountId, group) ->
             val account = db.accountDao().get(accountId) ?: return@forEach
             val trash = account.trashFolder
             if (trash == null) {
-                deletePermanently(group.map { it.id })
+                removeFromServer(group.map { it.id })
             } else {
                 moveMessagesToPath(account, group.map { it.id }, trash)
             }
@@ -447,11 +479,12 @@ class SyncManager(
     suspend fun moveMessages(messageIds: List<Long>, targetFolderId: Long) {
         val target = db.folderDao().get(targetFolderId) ?: return
         if (target.isLocal) {
+            // A local move keeps the row, so it must not be hidden as a removal.
             moveToLocalFolder(messageIds, targetFolderId)
             return
         }
         val account = db.accountDao().get(target.accountId) ?: return
-        moveMessagesToPath(account, messageIds, target.path)
+        optimistically(messageIds) { moveMessagesToPath(account, messageIds, target.path) }
     }
 
     private suspend fun moveMessagesToPath(
@@ -483,7 +516,10 @@ class SyncManager(
         db.folderDao().getByPath(account.id, targetPath)?.let { db.folderDao().refreshCounts(it.id) }
     }
 
-    suspend fun deletePermanently(messageIds: List<Long>) {
+    suspend fun deletePermanently(messageIds: List<Long>) =
+        optimistically(messageIds) { removeFromServer(messageIds) }
+
+    private suspend fun removeFromServer(messageIds: List<Long>) {
         val messages = db.messageDao().getAll(messageIds)
         messages.filter { !it.isLocal }.groupBy { it.folderId }.forEach { (folderId, group) ->
             val folder = db.folderDao().get(folderId) ?: return@forEach
@@ -525,6 +561,53 @@ class SyncManager(
         }
         pool.use(folder.accountId) { it.renameFolder(folder.path, newPath) }
         refreshFolders(folder.accountId)
+    }
+
+    /**
+     * Moves a folder [delta] places within its account.
+     *
+     * The whole account's order is written out on the first move: until then the
+     * folders sort automatically, and swapping only two of them would drag that
+     * pair above everything else.
+     */
+    suspend fun moveFolder(folderId: Long, delta: Int) {
+        val folder = db.folderDao().get(folderId) ?: return
+        val ordered = db.folderDao().forAccount(folder.accountId).toMutableList()
+        val index = ordered.indexOfFirst { it.id == folderId }
+        val target = index + delta
+        if (index < 0 || target !in ordered.indices) return
+        ordered.add(target, ordered.removeAt(index))
+        ordered.forEachIndexed { position, entry ->
+            if (entry.sortOverride != position) {
+                db.folderDao().update(entry.copy(sortOverride = position))
+            }
+        }
+    }
+
+    /** Hides a folder on this device; the folder itself is left alone on the server. */
+    suspend fun setFolderHidden(folderId: Long, hidden: Boolean) {
+        val folder = db.folderDao().get(folderId) ?: return
+        db.folderDao().update(folder.copy(hidden = hidden))
+    }
+
+    /** Restores the automatic ordering for an account. */
+    suspend fun resetFolderOrder(accountId: Long) {
+        db.folderDao().forAccount(accountId)
+            .filter { it.sortOverride != null }
+            .forEach { db.folderDao().update(it.copy(sortOverride = null)) }
+    }
+
+    suspend fun setFolderSyncEnabled(folderId: Long, enabled: Boolean) {
+        val folder = db.folderDao().get(folderId) ?: return
+        db.folderDao().update(folder.copy(syncEnabled = enabled))
+    }
+
+    /** Marks everything currently unread in a folder as read, locally and on the server. */
+    suspend fun markFolderRead(folderId: Long): Int {
+        val ids = db.messageDao().unreadIdsIn(folderId)
+        if (ids.isEmpty()) return 0
+        setSeen(ids, true)
+        return ids.size
     }
 
     suspend fun createLocalFolder(accountId: Long, name: String): Long {
@@ -836,6 +919,7 @@ private fun FetchedMessage.toEntity(accountId: Long, folderId: Long) = MessageEn
     subject = subject,
     fromName = fromName,
     fromAddress = fromAddress,
+    senderDomain = fromAddress?.substringAfterLast('@')?.lowercase()?.takeIf { it.isNotBlank() },
     toList = to.joinAddresses(),
     ccList = cc.joinAddresses(),
     bccList = bcc.joinAddresses(),

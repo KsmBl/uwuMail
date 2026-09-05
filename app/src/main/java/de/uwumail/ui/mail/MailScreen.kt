@@ -16,12 +16,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreateNewFolder
@@ -40,6 +46,9 @@ import androidx.compose.material.icons.filled.Rule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SyncDisabled
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
@@ -134,10 +143,11 @@ fun MailScreen(
         drawerContent = {
             MailDrawer(
                 state = state,
-                onSelectFolder = {
-                    viewModel.openFolder(it)
+                onOpen = {
+                    viewModel.open(it)
                     scope.launch { drawerState.close() }
                 },
+                onFolderAction = viewModel::folderAction,
                 onManageRules = { scope.launch { drawerState.close() }; onManageRules() },
                 onManageFolders = { scope.launch { drawerState.close() }; onManageFolders(it) },
                 onManageAccounts = { scope.launch { drawerState.close() }; onManageAccounts() },
@@ -259,7 +269,7 @@ fun MailScreen(
             }
         ) { padding ->
             PullToRefreshBox(
-                isRefreshing = state.syncing,
+                isRefreshing = state.refreshing,
                 onRefresh = viewModel::refresh,
                 modifier = Modifier.padding(padding).fillMaxSize()
             ) {
@@ -399,9 +409,14 @@ private fun MessageRow(
 ) {
     val background = when {
         selected -> MaterialTheme.colorScheme.secondaryContainer
+        // A blocklisted sender is called out in red rather than hidden, so the
+        // mail is still there to look at and the match can be judged.
+        message.spam -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
         !message.seen -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
         else -> Color.Transparent
     }
+    val senderColor =
+        if (message.spam) MaterialTheme.colorScheme.error else Color.Unspecified
     Row(
         verticalAlignment = Alignment.Top,
         modifier = Modifier
@@ -416,9 +431,12 @@ private fun MessageRow(
                 .size(36.dp)
                 .clip(CircleShape)
                 .background(
-                    if (selected) MaterialTheme.colorScheme.primary
-                    else accountColor?.let { Color(it) }
-                        ?: MaterialTheme.colorScheme.primaryContainer
+                    when {
+                        selected -> MaterialTheme.colorScheme.primary
+                        message.spam -> MaterialTheme.colorScheme.error
+                        else -> accountColor?.let { Color(it) }
+                            ?: MaterialTheme.colorScheme.primaryContainer
+                    }
                 )
                 .clickable(onClick = onLongClick),
             contentAlignment = Alignment.Center
@@ -442,10 +460,20 @@ private fun MessageRow(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (message.spam) {
+                    Icon(
+                        Icons.Default.Block,
+                        contentDescription = "Sender is on a spam list",
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
                 Text(
                     message.fromName?.takeIf { it.isNotBlank() }
                         ?: message.fromAddress.orEmpty().ifBlank { "(unknown sender)" },
                     style = MaterialTheme.typography.titleSmall,
+                    color = senderColor,
                     fontWeight = if (message.seen) FontWeight.Normal else FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -507,7 +535,8 @@ private fun MessageRow(
 @Composable
 private fun MailDrawer(
     state: MailUiState,
-    onSelectFolder: (Long?) -> Unit,
+    onOpen: (MailTarget) -> Unit,
+    onFolderAction: (FolderEntity, FolderAction) -> Unit,
     onManageRules: () -> Unit,
     onManageFolders: (Long) -> Unit,
     onManageAccounts: () -> Unit,
@@ -521,17 +550,30 @@ private fun MailDrawer(
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(24.dp)
                 )
+            }
+
+            // Cross-account views, before any individual account's folders.
+            items(MailTarget.UNIFIED, key = { it.second }) { (destination, label) ->
                 NavigationDrawerItem(
-                    label = { Text("All inboxes") },
-                    icon = { Icon(Icons.Default.Inbox, null) },
-                    selected = state.currentFolder == null,
-                    onClick = { onSelectFolder(null) },
+                    label = { Text(label) },
+                    icon = {
+                        Icon(
+                            when (destination) {
+                                MailTarget.OUTBOXES -> Icons.AutoMirrored.Filled.Send
+                                MailTarget.DELETED -> Icons.Default.Delete
+                                else -> Icons.Default.Inbox
+                            },
+                            contentDescription = null
+                        )
+                    },
+                    selected = state.currentFolder == null && state.target == destination,
+                    onClick = { onOpen(destination) },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
             }
 
             state.accounts.forEach { account ->
-                val folders = state.folders.filter { it.accountId == account.id }
+                val folders = state.visibleFolders.filter { it.accountId == account.id }
                 item {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -547,11 +589,14 @@ private fun MailDrawer(
                         }
                     }
                 }
-                items(folders, key = { it.id }) { folder ->
+                itemsIndexed(folders, key = { _, folder -> folder.id }) { index, folder ->
                     FolderRow(
                         folder = folder,
                         selected = state.currentFolder?.id == folder.id,
-                        onClick = { onSelectFolder(folder.id) }
+                        canMoveUp = index > 0,
+                        canMoveDown = index < folders.lastIndex,
+                        onClick = { onOpen(MailTarget.Folder(folder.id)) },
+                        onAction = { onFolderAction(folder, it) }
                     )
                 }
             }
@@ -585,34 +630,109 @@ private fun MailDrawer(
     }
 }
 
+/**
+ * A folder in the drawer. Long-pressing opens the same menu a desktop client
+ * would put on right-click: reorder, hide, mark read.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun FolderRow(folder: FolderEntity, selected: Boolean, onClick: () -> Unit) {
-    NavigationDrawerItem(
-        label = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    folder.displayName,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+private fun FolderRow(
+    folder: FolderEntity,
+    selected: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onClick: () -> Unit,
+    onAction: (FolderAction) -> Unit
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(
+                    if (selected) MaterialTheme.colorScheme.secondaryContainer
+                    else Color.Transparent
                 )
-                if (folder.unreadCount > 0) {
-                    Text(
-                        folder.unreadCount.toString(),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        },
-        icon = {
+                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
             Icon(
                 if (folder.isLocal) Icons.Default.PhoneAndroid else Icons.Default.Folder,
-                contentDescription = null
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
             )
-        },
-        selected = selected,
-        onClick = onClick,
-        modifier = Modifier.padding(horizontal = 12.dp)
-    )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                folder.displayName,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f)
+            )
+            if (!folder.syncEnabled && !folder.isLocal) {
+                Icon(
+                    Icons.Default.SyncDisabled,
+                    contentDescription = "Not synced automatically",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            if (folder.unreadCount > 0) {
+                Text(
+                    folder.unreadCount.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            Text(
+                folder.displayName,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Move up") },
+                enabled = canMoveUp,
+                leadingIcon = { Icon(Icons.Default.ArrowUpward, null) },
+                onClick = { menuOpen = false; onAction(FolderAction.MOVE_UP) }
+            )
+            DropdownMenuItem(
+                text = { Text("Move down") },
+                enabled = canMoveDown,
+                leadingIcon = { Icon(Icons.Default.ArrowDownward, null) },
+                onClick = { menuOpen = false; onAction(FolderAction.MOVE_DOWN) }
+            )
+            DropdownMenuItem(
+                text = { Text("Reset order") },
+                onClick = { menuOpen = false; onAction(FolderAction.RESET_ORDER) }
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Mark all as read") },
+                leadingIcon = { Icon(Icons.Default.MarkEmailRead, null) },
+                onClick = { menuOpen = false; onAction(FolderAction.MARK_READ) }
+            )
+            if (!folder.isLocal) {
+                DropdownMenuItem(
+                    text = { Text(if (folder.syncEnabled) "Stop syncing" else "Sync automatically") },
+                    leadingIcon = { Icon(Icons.Default.Sync, null) },
+                    onClick = { menuOpen = false; onAction(FolderAction.TOGGLE_SYNC) }
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Hide on this device") },
+                leadingIcon = { Icon(Icons.Default.VisibilityOff, null) },
+                onClick = { menuOpen = false; onAction(FolderAction.HIDE) }
+            )
+        }
+    }
 }

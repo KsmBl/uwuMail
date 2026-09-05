@@ -143,7 +143,14 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
             }
 
-                    item { HorizontalDivider(); SectionHeader("Google sign-in") }
+                    item { HorizontalDivider(); SectionHeader("Spam lists") }
+            item {
+                SpamListsSection { message ->
+                    scope.launch { snackbarHost.showSnackbar(message) }
+                }
+            }
+
+            item { HorizontalDivider(); SectionHeader("Google sign-in") }
             item { GoogleSignInSettings() }
 
             item { HorizontalDivider(); SectionHeader("Maintenance") }

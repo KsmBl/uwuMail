@@ -24,6 +24,7 @@ class UwuMailApp : Application() {
         container = AppContainer(this)
 
         appScope.launch(Dispatchers.IO) {
+            runCatching { container.blocklistRepository.seedIfEmpty() }
             val accounts = container.db.accountDao().getAll()
             container.notifier.ensureChannels(accounts)
             SyncScheduler.scheduleAll(this@UwuMailApp, accounts)

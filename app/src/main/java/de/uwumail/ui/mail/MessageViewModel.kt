@@ -26,7 +26,9 @@ data class MessageUiState(
     val showHeaders: Boolean = false,
     val status: String? = null,
     val error: String? = null,
-    val closed: Boolean = false
+    val closed: Boolean = false,
+    /** Set once the message has been seen at least once, so a later null means gone. */
+    val everLoaded: Boolean = false
 ) {
     fun moveTargets(): List<FolderEntity> = folders
         .filter { it.selectable && it.id != message?.folderId }
@@ -51,7 +53,12 @@ class MessageViewModel(
         extra.copy(
             message = message,
             attachments = attachments,
-            folders = folders
+            folders = folders,
+            // The row is hidden the instant a removal starts, so the view can
+            // close then rather than waiting on the server.
+            closed = extra.closed ||
+                message?.pendingRemoval == true ||
+                (extra.everLoaded && message == null)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MessageUiState())
 
@@ -64,7 +71,7 @@ class MessageViewModel(
                     if (!it.seen) container.syncManager.setSeen(listOf(messageId), true)
                 }
             }.onFailure { e -> local.update { s -> s.copy(error = e.message) } }
-            local.update { it.copy(loading = false) }
+            local.update { it.copy(loading = false, everLoaded = true) }
         }
     }
 
@@ -77,10 +84,14 @@ class MessageViewModel(
         container.syncManager.setFlagged(listOf(messageId), flagged)
     }
 
-    fun archive() = guardedAndClose { container.syncManager.archive(listOf(messageId)) }
-    fun trash() = guardedAndClose { container.syncManager.moveToTrash(listOf(messageId)) }
-    fun deleteForever() = guardedAndClose { container.syncManager.deletePermanently(listOf(messageId)) }
-    fun moveTo(folderId: Long) = guardedAndClose { container.syncManager.moveMessages(listOf(messageId), folderId) }
+    // The screen closes off the back of the row being hidden, so these do not
+    // set `closed` themselves and do not block on the server.
+    fun archive() = guarded { container.syncManager.archive(listOf(messageId)) }
+    fun trash() = guarded { container.syncManager.moveToTrash(listOf(messageId)) }
+    fun deleteForever() = guarded { container.syncManager.deletePermanently(listOf(messageId)) }
+    fun moveTo(folderId: Long) = guarded {
+        container.syncManager.moveMessages(listOf(messageId), folderId)
+    }
 
     fun download(onReady: (File) -> Unit) = guarded {
         val file = container.syncManager.downloadRaw(messageId)
@@ -111,14 +122,4 @@ class MessageViewModel(
         }
     }
 
-    private fun guardedAndClose(block: suspend () -> Unit) {
-        local.update { it.copy(busy = true) }
-        viewModelScope.launch {
-            runCatching { block() }
-                .onSuccess { local.update { it.copy(closed = true, busy = false) } }
-                .onFailure { e ->
-                    local.update { it.copy(error = e.message ?: e.toString(), busy = false) }
-                }
-        }
-    }
 }

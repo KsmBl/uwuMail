@@ -99,7 +99,12 @@ data class FolderEntity(
     val highestUid: Long = 0,
     val unreadCount: Int = 0,
     val totalCount: Int = 0,
-    val position: Int = 0
+    /** Automatic order from [de.uwumail.mail.FolderClassifier]. */
+    val position: Int = 0,
+    /** Set once the user drags a folder about; overrides [position] from then on. */
+    val sortOverride: Int? = null,
+    /** Hidden from the folder list on this device only; untouched on the server. */
+    val hidden: Boolean = false
 )
 
 @Entity(
@@ -115,7 +120,8 @@ data class FolderEntity(
         Index("accountId"),
         Index("folderId"),
         Index("receivedAt"),
-        Index("messageIdHeader")
+        Index("messageIdHeader"),
+        Index("senderDomain")
     ]
 )
 data class MessageEntity(
@@ -129,6 +135,8 @@ data class MessageEntity(
     val subject: String = "",
     val fromName: String? = null,
     val fromAddress: String? = null,
+    /** Lowercased domain of [fromAddress], indexed so blocklists can be matched cheaply. */
+    val senderDomain: String? = null,
     val toList: String = "",
     val ccList: String = "",
     val bccList: String = "",
@@ -157,7 +165,12 @@ data class MessageEntity(
 
     val isLocal: Boolean = false,
     val notified: Boolean = false,
-    val rulesApplied: Boolean = false
+    val rulesApplied: Boolean = false,
+    /**
+     * Hidden from every list because a delete/move is in flight. The row is
+     * kept so it can be put back if the server refuses.
+     */
+    val pendingRemoval: Boolean = false
 )
 
 @Entity(
@@ -276,4 +289,41 @@ data class OutboxEntity(
     val createdAt: Long,
     val lastError: String? = null,
     val attempts: Int = 0
+)
+
+/**
+ * A list of sender domains treated as spam.
+ *
+ * Built-in lists point at a public URL and are refreshed on demand; the one with
+ * a null [url] is the user's own list of blocked senders.
+ */
+@Entity(tableName = "blocklists")
+data class BlocklistEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val description: String = "",
+    val url: String? = null,
+    val enabled: Boolean = false,
+    val builtIn: Boolean = false,
+    val entryCount: Int = 0,
+    val updatedAt: Long = 0,
+    val lastError: String? = null,
+    val position: Int = 0
+)
+
+@Entity(
+    tableName = "blocklist_entries",
+    foreignKeys = [ForeignKey(
+        entity = BlocklistEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["listId"],
+        onDelete = ForeignKey.CASCADE
+    )],
+    indices = [Index("pattern"), Index("listId")]
+)
+data class BlocklistEntryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val listId: Long,
+    /** A lowercased domain, or a full address for a manually blocked sender. */
+    val pattern: String
 )

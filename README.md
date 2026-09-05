@@ -1,4 +1,4 @@
-# uwuMail
+z# uwuMail
 
 A multi-account IMAP mail client for Android 12+ (API 31), built around a rules
 engine that can act on mail before it ever reaches your notification shade.
@@ -27,11 +27,21 @@ engine that can act on mail before it ever reaches your notification shade.
   servers require one or the other.
 
 **Folders**
+- Unified views across every account: **All inboxes**, **All outboxes** (the Sent
+  folders) and **All deleted mails**.
+- Long-press any folder in the drawer to reorder it, hide it on this device,
+  mark it all read, or stop syncing it. Hiding leaves the folder untouched on
+  the server; the order is per-device and can be reset.
+- The inbox always sorts first, then Drafts/Sent/Archive/Spam/Trash, then custom
+  folders A-Z, then device folders.
 - Create, rename and delete IMAP folders on the server, including nested paths.
 - **Device folders**: a local folder that lives only on the phone. Moving mail
   into one downloads the full message as `.eml`, stores it in app storage, and
   deletes the server copy. Moving a message back out re-uploads it via `APPEND`.
 - Move, copy, archive, trash, delete permanently, and save any message as `.eml`.
+- Removals are optimistic: the message disappears from the list at once and the
+  server catches up in the background. If the server refuses, the message comes
+  back and the failure is reported rather than the mail going quietly missing.
 
 **Rules**
 Each rule is a set of conditions plus a set of actions.
@@ -77,6 +87,16 @@ The manual rule editor has the same safety net: **Test against cached mail**
 reports how many messages the draft would hit before you save it, and
 **Apply rules to mail already synced** replays your rules over mail you already
 have.
+
+**Spam lists**
+- Settings holds a set of public sender blocklists (disposable-mail providers,
+  StopForumSpam's toxic domains, FakeFilter) plus any list URL you add and your
+  own blocked senders. Lists are plain text, one domain per line.
+- Mail from a listed sender is drawn in red in the message list. Nothing is
+  deleted, moved or hidden on the strength of a list — the mail is still there
+  and the match is visible. Use a rule if you want an action.
+- Matching is done in the list query against an indexed sender domain, so
+  toggling a list takes effect immediately without rewriting cached mail.
 
 **Sync and notifications**
 - Periodic background sync per account through WorkManager (Android enforces a
@@ -155,7 +175,7 @@ to read and to run rules against.
 
 ## Tests
 
-34 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+51 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex), the regex builder, and the similarity suggester, including a
@@ -164,6 +184,10 @@ to read and to run rules against.
   mailing list.
 - `mail/oauth/` — PKCE challenge derivation against RFC 7636, token response
   parsing, expiry handling, and id_token address extraction.
+- `mail/FolderClassifierTest` — INBOX detection across casings and nesting,
+  SPECIAL-USE attributes, delimiter handling, and folder ordering.
+- `data/repo/BlocklistParserTest` — blocklist line parsing, including the
+  entries that must be rejected because they would match everything.
 
 ## Layout
 
@@ -172,7 +196,7 @@ app/src/main/java/de/uwumail/
   core/        enums (fields, operators, actions) and JSON helpers
   data/db/     Room entities, DAOs, database
   data/crypto/ keystore-backed credential storage
-  data/repo/   account + identity repository, connection testing
+  data/repo/   account + identity repository, blocklists, connection testing
   mail/        IMAP client, connection pool, SMTP sender, MIME parsing, autoconfig
   mail/oauth/  OAuth2 + PKCE, token refresh, provider definitions
   rules/       matcher, rule engine, regex builder, similarity suggester

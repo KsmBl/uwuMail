@@ -9,9 +9,18 @@ import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+private const val SPAM_FLAG =
+    """EXISTS(
+        SELECT 1 FROM blocklist_entries e
+        JOIN blocklists b ON b.id = e.listId
+        WHERE b.enabled = 1
+          AND (e.pattern = messages.senderDomain OR e.pattern = LOWER(messages.fromAddress))
+    ) AS spam"""
+
 private const val SUMMARY_COLUMNS =
     "id, accountId, folderId, uid, subject, fromName, fromAddress, toList, receivedAt, " +
-        "seen, flagged, answered, hasAttachments, sizeBytes, preview, isLocal, bodyDownloaded"
+        "seen, flagged, answered, hasAttachments, sizeBytes, preview, isLocal, bodyDownloaded, " +
+        SPAM_FLAG
 
 @Dao
 interface AccountDao {
@@ -73,13 +82,22 @@ interface IdentityDao {
 
 @Dao
 interface FolderDao {
-    @Query("SELECT * FROM folders WHERE accountId = :accountId ORDER BY position, path")
+    @Query(
+        """SELECT * FROM folders WHERE accountId = :accountId
+           ORDER BY COALESCE(sortOverride, 1000 + position), path"""
+    )
     fun observeForAccount(accountId: Long): Flow<List<FolderEntity>>
 
-    @Query("SELECT * FROM folders ORDER BY accountId, position, path")
+    @Query(
+        """SELECT * FROM folders
+           ORDER BY accountId, COALESCE(sortOverride, 1000 + position), path"""
+    )
     fun observeAll(): Flow<List<FolderEntity>>
 
-    @Query("SELECT * FROM folders WHERE accountId = :accountId ORDER BY position, path")
+    @Query(
+        """SELECT * FROM folders WHERE accountId = :accountId
+           ORDER BY COALESCE(sortOverride, 1000 + position), path"""
+    )
     suspend fun forAccount(accountId: Long): List<FolderEntity>
 
     @Query("SELECT * FROM folders WHERE id = :id")
@@ -109,8 +127,14 @@ interface FolderDao {
     @Query(
         """
         UPDATE folders SET
-          unreadCount = (SELECT COUNT(*) FROM messages WHERE folderId = folders.id AND seen = 0),
-          totalCount  = (SELECT COUNT(*) FROM messages WHERE folderId = folders.id)
+          unreadCount = (
+            SELECT COUNT(*) FROM messages
+            WHERE folderId = folders.id AND seen = 0 AND pendingRemoval = 0
+          ),
+          totalCount  = (
+            SELECT COUNT(*) FROM messages
+            WHERE folderId = folders.id AND pendingRemoval = 0
+          )
         WHERE id = :id
         """
     )
@@ -119,8 +143,14 @@ interface FolderDao {
     @Query(
         """
         UPDATE folders SET
-          unreadCount = (SELECT COUNT(*) FROM messages WHERE folderId = folders.id AND seen = 0),
-          totalCount  = (SELECT COUNT(*) FROM messages WHERE folderId = folders.id)
+          unreadCount = (
+            SELECT COUNT(*) FROM messages
+            WHERE folderId = folders.id AND seen = 0 AND pendingRemoval = 0
+          ),
+          totalCount  = (
+            SELECT COUNT(*) FROM messages
+            WHERE folderId = folders.id AND pendingRemoval = 0
+          )
         """
     )
     suspend fun refreshAllCounts()
@@ -128,22 +158,30 @@ interface FolderDao {
 
 @Dao
 interface MessageDao {
-    @Query("SELECT $SUMMARY_COLUMNS FROM messages WHERE folderId = :folderId ORDER BY receivedAt DESC LIMIT :limit")
-    fun observeFolder(folderId: Long, limit: Int): Flow<List<MessageSummary>>
-
     @Query(
         """
         SELECT $SUMMARY_COLUMNS FROM messages
-        WHERE folderId IN (SELECT id FROM folders WHERE type = 'INBOX')
+        WHERE folderId = :folderId AND pendingRemoval = 0
         ORDER BY receivedAt DESC LIMIT :limit
         """
     )
-    fun observeUnifiedInbox(limit: Int): Flow<List<MessageSummary>>
+    fun observeFolder(folderId: Long, limit: Int): Flow<List<MessageSummary>>
+
+    /** Every message across all accounts whose folder plays [type], newest first. */
+    @Query(
+        """
+        SELECT $SUMMARY_COLUMNS FROM messages
+        WHERE pendingRemoval = 0
+          AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+        ORDER BY receivedAt DESC LIMIT :limit
+        """
+    )
+    fun observeUnified(type: String, limit: Int): Flow<List<MessageSummary>>
 
     @Query(
         """
         SELECT $SUMMARY_COLUMNS FROM messages
-        WHERE folderId = :folderId AND (
+        WHERE folderId = :folderId AND pendingRemoval = 0 AND (
             subject LIKE '%' || :q || '%' OR
             fromAddress LIKE '%' || :q || '%' OR
             fromName LIKE '%' || :q || '%' OR
@@ -164,6 +202,12 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE folderId = :folderId AND uid = :uid")
     suspend fun getByUid(folderId: Long, uid: Long): MessageEntity?
+
+    @Query(
+        """SELECT id FROM messages
+           WHERE folderId = :folderId AND seen = 0 AND pendingRemoval = 0"""
+    )
+    suspend fun unreadIdsIn(folderId: Long): List<Long>
 
     @Query("SELECT uid FROM messages WHERE folderId = :folderId")
     suspend fun uidsIn(folderId: Long): List<Long>
@@ -207,6 +251,10 @@ interface MessageDao {
 
     @Query("UPDATE messages SET notified = 1 WHERE id IN (:ids)")
     suspend fun markNotified(ids: List<Long>)
+
+    /** Hides or restores rows while a server-side removal is in flight. */
+    @Query("UPDATE messages SET pendingRemoval = :pending WHERE id IN (:ids)")
+    suspend fun setPendingRemoval(ids: List<Long>, pending: Boolean)
 
     @Query("UPDATE messages SET folderId = :folderId, uid = :uid, isLocal = :isLocal WHERE id = :id")
     suspend fun reassign(id: Long, folderId: Long, uid: Long, isLocal: Boolean)
@@ -323,4 +371,67 @@ interface OutboxDao {
 
     @Query("SELECT COUNT(*) FROM outbox")
     fun observeCount(): Flow<Int>
+}
+
+
+@Dao
+interface BlocklistDao {
+    @Query("SELECT * FROM blocklists ORDER BY position, id")
+    fun observeAll(): Flow<List<BlocklistEntity>>
+
+    @Query("SELECT * FROM blocklists ORDER BY position, id")
+    suspend fun all(): List<BlocklistEntity>
+
+    @Query("SELECT * FROM blocklists WHERE id = :id")
+    suspend fun get(id: Long): BlocklistEntity?
+
+    @Query("SELECT * FROM blocklists WHERE url IS NULL LIMIT 1")
+    suspend fun manualList(): BlocklistEntity?
+
+    @Insert
+    suspend fun insert(list: BlocklistEntity): Long
+
+    @Update
+    suspend fun update(list: BlocklistEntity)
+
+    @Query("DELETE FROM blocklists WHERE id = :id AND builtIn = 0")
+    suspend fun delete(id: Long)
+
+    @Query("SELECT COUNT(*) FROM blocklists")
+    suspend fun count(): Int
+
+    @Query("SELECT pattern FROM blocklist_entries WHERE listId = :listId ORDER BY pattern")
+    fun observeEntries(listId: Long): Flow<List<String>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertEntries(entries: List<BlocklistEntryEntity>)
+
+    @Query("DELETE FROM blocklist_entries WHERE listId = :listId")
+    suspend fun clearEntries(listId: Long)
+
+    @Query("DELETE FROM blocklist_entries WHERE listId = :listId AND pattern = :pattern")
+    suspend fun deleteEntry(listId: Long, pattern: String)
+
+    @Query("SELECT COUNT(*) FROM blocklist_entries WHERE listId = :listId")
+    suspend fun entryCount(listId: Long): Int
+
+    /** True when any enabled list covers this sender. */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM blocklist_entries e
+            JOIN blocklists b ON b.id = e.listId
+            WHERE b.enabled = 1 AND (e.pattern = :domain OR e.pattern = :address)
+        )
+        """
+    )
+    suspend fun isBlocked(domain: String?, address: String?): Boolean
+
+    @Transaction
+    suspend fun replaceEntries(listId: Long, patterns: List<String>) {
+        clearEntries(listId)
+        patterns.chunked(500).forEach { chunk ->
+            insertEntries(chunk.map { BlocklistEntryEntity(listId = listId, pattern = it) })
+        }
+    }
 }

@@ -35,5 +35,7 @@ data class MessageSummary(
     val sizeBytes: Long,
     val preview: String,
     val isLocal: Boolean,
-    val bodyDownloaded: Boolean
+    val bodyDownloaded: Boolean,
+    /** Sender appears on an enabled blocklist; the row is drawn in red. */
+    val spam: Boolean
 )
