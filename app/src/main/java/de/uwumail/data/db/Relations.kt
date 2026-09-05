@@ -1,0 +1,39 @@
+package de.uwumail.data.db
+
+import androidx.room.Embedded
+import androidx.room.Relation
+
+data class RuleWithDetails(
+    @Embedded val rule: RuleEntity,
+    @Relation(parentColumn = "id", entityColumn = "ruleId")
+    val conditions: List<RuleConditionEntity>,
+    @Relation(parentColumn = "id", entityColumn = "ruleId")
+    val actions: List<RuleActionEntity>
+)
+
+data class AccountWithIdentities(
+    @Embedded val account: AccountEntity,
+    @Relation(parentColumn = "id", entityColumn = "accountId")
+    val identities: List<IdentityEntity>
+)
+
+/** List-screen projection: everything the row needs, none of the body columns. */
+data class MessageSummary(
+    val id: Long,
+    val accountId: Long,
+    val folderId: Long,
+    val uid: Long,
+    val subject: String,
+    val fromName: String?,
+    val fromAddress: String?,
+    val toList: String,
+    val receivedAt: Long,
+    val seen: Boolean,
+    val flagged: Boolean,
+    val answered: Boolean,
+    val hasAttachments: Boolean,
+    val sizeBytes: Long,
+    val preview: String,
+    val isLocal: Boolean,
+    val bodyDownloaded: Boolean
+)

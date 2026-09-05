@@ -1,0 +1,297 @@
+package de.uwumail.ui.rules
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import de.uwumail.core.ActionType
+import de.uwumail.rules.Suggestion
+import de.uwumail.sync.SyncManager
+import de.uwumail.ui.common.EmptyState
+import de.uwumail.ui.common.SectionHeader
+import de.uwumail.ui.containerViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RuleWizardScreen(
+    messageIds: List<Long>,
+    onBack: () -> Unit,
+    onSaved: (Long) -> Unit
+) {
+    val viewModel = containerViewModel(key = "wizard-${messageIds.joinToString(",")}") {
+        RuleWizardViewModel(it, messageIds)
+    }
+    val state by viewModel.state.collectAsState()
+    var actionMenu by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Create rule") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { viewModel.save(onSaved) },
+                        enabled = state.canSave
+                    ) { Icon(Icons.Default.Save, "Save rule") }
+                }
+            )
+        }
+    ) { padding ->
+        if (state.analysing) {
+            Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Text(
+                        "Looking for what these mails have in common…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+            return@Scaffold
+        }
+
+        LazyColumn(Modifier.padding(padding).fillMaxSize()) {
+            item {
+                Card(Modifier.fillMaxWidth().padding(16.dp)) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            "${state.samples.size} messages selected",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        state.samples.take(3).forEach { message ->
+                            Text(
+                                "· ${message.subject.take(70).ifBlank { "(no subject)" }}",
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1
+                            )
+                        }
+                        if (state.samples.size > 3) {
+                            Text(
+                                "· and ${state.samples.size - 3} more",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            item { SectionHeader("What they have in common") }
+
+            if (state.suggestions.isEmpty()) {
+                item {
+                    EmptyState(
+                        "Nothing shared found",
+                        "These messages have no sender, header or subject pattern in common. " +
+                            "Try picking mails that are more alike, or build the rule by hand."
+                    )
+                }
+            }
+
+            itemsIndexed(state.suggestions) { index, suggestion ->
+                SuggestionRow(
+                    suggestion = suggestion,
+                    checked = index in state.selected,
+                    onToggle = { viewModel.toggleSuggestion(index) }
+                )
+            }
+
+            if (state.suggestions.isNotEmpty()) {
+                item {
+                    Card(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(
+                                if (state.matchedOthers == 0) {
+                                    "This rule catches your ${state.samples.size} selected mails " +
+                                        "and nothing else in the cache."
+                                } else {
+                                    "This rule also catches ${state.matchedOthers} other cached " +
+                                        "message(s). Tick another line above to narrow it."
+                                },
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+
+            item { SectionHeader("Then do") }
+            item {
+                Column(Modifier.padding(horizontal = 16.dp)) {
+                    state.actions.forEachIndexed { index, action ->
+                        AssistChip(
+                            onClick = { viewModel.removeAction(index) },
+                            label = { Text(action.label) },
+                            trailingIcon = { Icon(Icons.Default.Close, "Remove") },
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
+                    TextButton(onClick = { actionMenu = true }) {
+                        Icon(Icons.Default.Add, null)
+                        Text(" Add action")
+                    }
+                    DropdownMenu(
+                        expanded = actionMenu,
+                        onDismissRequest = { actionMenu = false }
+                    ) {
+                        WizardActionMenu(
+                            folders = state.folders.filter {
+                                state.accountId == null || it.accountId == state.accountId
+                            },
+                            onPick = { actionMenu = false; viewModel.addAction(it) }
+                        )
+                    }
+                }
+            }
+
+            item { SectionHeader("Name") }
+            item {
+                OutlinedTextField(
+                    value = state.name,
+                    onValueChange = viewModel::setName,
+                    label = { Text("Rule name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                )
+            }
+            item {
+                state.error?.let {
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                Box(Modifier.padding(32.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionRow(
+    suggestion: Suggestion,
+    checked: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Checkbox(checked = checked, onCheckedChange = { onToggle() })
+        Column(Modifier.weight(1f)) {
+            Text(suggestion.label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                suggestion.detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (suggestion.isExact) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (suggestion.condition.operator == "REGEX") {
+                Text(
+                    suggestion.condition.value,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WizardActionMenu(
+    folders: List<de.uwumail.data.db.FolderEntity>,
+    onPick: (PendingAction) -> Unit
+) {
+    var folderFor by remember { mutableStateOf<ActionType?>(null) }
+
+    if (folderFor == null) {
+        // The short list first: this is what people reach for after selecting mails.
+        listOf(
+            ActionType.SUPPRESS_NOTIFICATION,
+            ActionType.NOTIFY_SILENT,
+            ActionType.MARK_READ,
+            ActionType.ARCHIVE,
+            ActionType.MOVE_TO_TRASH,
+            ActionType.FLAG,
+            ActionType.DOWNLOAD,
+            ActionType.DELETE_PERMANENTLY
+        ).forEach { type ->
+            DropdownMenuItem(
+                text = { Text(type.label) },
+                onClick = { onPick(PendingAction(type, null, type.label)) }
+            )
+        }
+        listOf(
+            ActionType.MOVE_TO_FOLDER,
+            ActionType.COPY_TO_FOLDER,
+            ActionType.MOVE_TO_LOCAL
+        ).forEach { type ->
+            DropdownMenuItem(
+                text = { Text("${type.label}…") },
+                onClick = { folderFor = type }
+            )
+        }
+    } else {
+        val type = folderFor!!
+        val candidates = if (type == ActionType.MOVE_TO_LOCAL) folders.filter { it.isLocal }
+        else folders.filter { !it.isLocal }
+        if (candidates.isEmpty()) {
+            DropdownMenuItem(
+                text = { Text("No folder available — create one first") },
+                onClick = { folderFor = null }
+            )
+        }
+        candidates.forEach { folder ->
+            DropdownMenuItem(
+                text = { Text(folder.displayName) },
+                onClick = {
+                    val arg = if (folder.isLocal) SyncManager.localName(folder.path) else folder.path
+                    folderFor = null
+                    onPick(PendingAction(type, arg, "${type.label} → ${folder.displayName}"))
+                }
+            )
+        }
+    }
+}
