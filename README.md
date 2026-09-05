@@ -1,7 +1,19 @@
+<div align="center">
+
 # uwuMail
 
-A multi-account IMAP mail client for Android 12+ (API 31), built around a rules
-engine that can act on mail before it ever reaches your notification shade.
+**A multi-account IMAP client for Android that treats every message as untrusted input.**
+
+Regex rules that act on mail before it reaches your notification shade · tracking
+pixels that are never requested · folders that live only on your phone.
+
+<p>
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Android%2012%2B-3DDC84?logo=android&logoColor=white">
+  <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
+  <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
+  <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-137%20passing-brightgreen">
+</p>
 
 <p align="center">
   <img src="docs/screenshots/message-list.png" width="235"
@@ -14,35 +26,153 @@ engine that can act on mail before it ever reaches your notification shade.
        alt="The reading, image and script settings">
 </p>
 
-<sup>Sender addresses and subjects are blurred in these screenshots; nothing in
-the app is.</sup>
+<sub>Sender addresses and subjects are blurred in these screenshots; nothing in the app is.</sub>
 
-## What it does
+</div>
 
-**Accounts**
-- Any number of IMAP/SMTP accounts, each with its own sync interval, colour and
-  notification channels.
-- Password or **OAuth2 (XOAUTH2)** authentication per account. Gmail no longer
-  accepts account passwords over IMAP, so Google accounts sign in through the
-  browser — see [Google sign-in](#google-sign-in) below.
-- Server settings are discovered from the domain's autoconfig
-  (`autoconfig.<domain>`, `.well-known`, Mozilla's ISPDB) and stay fully editable.
-- Passwords are encrypted with a hardware-backed AES-GCM key from the Android
-  keystore; only the ciphertext is stored on disk.
+---
 
-**Sending with a custom From**
-- The From address in the composer is free text, not a dropdown of your own
-  addresses. Type `xyz@mail.de` and that is what goes on the wire — your server
-  decides whether to accept it.
-- Frequently used addresses can be saved as *identities* per account and picked
-  from a menu in the composer, where they can also be deleted. Account settings
-  lists them too, and is where you choose which one new messages start from.
-  Saving an address that is already saved updates it rather than duplicating it.
-- `Envelope sender follows the From address` (per account) controls whether
-  `MAIL FROM` tracks the From header or stays on the account address, since some
-  servers require one or the other.
+## Contents
 
-**Folders**
+- [Reading mail](#reading-mail) — what a message body is and is not allowed to do
+- [Rules](#rules) — conditions, actions, and building one without knowing regex
+- [Folders and mailboxes](#folders-and-mailboxes) — device folders, moving mail across accounts
+- [The message list](#the-message-list) — grouped by day, and where new mail lands
+- [Accounts and sending](#accounts-and-sending) — OAuth2, and a From address you choose
+- [Background mail](#background-mail) — push, and the hours you allow it
+- [Building](#building) · [Google sign-in](#google-sign-in) · [Tests](#tests) · [Layout](#layout) · [Notes and limits](#notes-and-limits)
+
+---
+
+## Reading mail
+
+A mail body is untrusted input that would like to know when it was opened, so
+uwuMail starts closed and offers to open up. Everything here is a setting, and
+each one starts where it is described.
+
+- **Unsubscribe banner** (on). When a message says how to unsubscribe, a strip
+  above it does it in one tap. `List-Unsubscribe` is the authority and its
+  HTTPS entry beats its `mailto:` entry; senders that skip the header almost
+  always still put a link in the body, so that is scanned as a fallback in
+  English, German, French, Spanish, Portuguese, Italian, Dutch and Swedish.
+  A one-click sender (RFC 8058) is named as one.
+- **Ask before opening tracked links** (on). Links in a body always leave for
+  the browser rather than navigating inside the message. One carrying `utm_*`,
+  `fbclid`, `gclid`, `mc_eid`, `mkt_tok` and the like first offers to open a
+  cleaned copy of itself; both answers open the link, the question is only
+  which version. Only query parameters are ever removed. Path segments are left
+  alone, because senders routinely encode the real destination in the path and
+  a broken link is worse than a leaked click.
+- **Preload unread mail** (on). While a list is on screen, the bodies of up to
+  30 unread messages are fetched in the background, one at a time with a pause
+  between them, so opening them is instant and works with no connection.
+- **Block remote images** (on). Each message says how many remote images it is
+  holding back and loads them on request, for that one viewing — reopening the
+  message blocks them again.
+- **Skip tiny images** (on, 10x10). An image smaller than this in either
+  dimension is a tracking pixel — a 1x600 spacer reports an open just as
+  reliably as a 1x1 — and it is **never requested from the server**. Blocking a
+  beacon after downloading it would be pointless: the download is the thing the
+  sender is watching for. See [how the beacons are found](#how-tracking-pixels-are-found).
+- **Images the page never draws** are not fetched either, whatever the size
+  filter is set to. There is no reason to ask a server for something that is
+  not going to be shown.
+- **JavaScript** (off). Nothing a mail needs to be read requires scripts.
+
+<a id="how-tracking-pixels-are-found"></a>
+<details>
+<summary><b>How tracking pixels are found</b></summary>
+
+<br>
+
+Almost every beacon says what it is in the markup, so the body is read before it
+is rendered and those images are taken out of it entirely — the request is then
+never made. uwuMail looks at:
+
+| Where | What it reads |
+|---|---|
+| `<img>` attributes | `width` / `height`, including a literal `0` |
+| Inline styles | `width`, `height`, `display`, `visibility`, `opacity` |
+| `<style>` blocks | rules applied to the elements their selectors match |
+| Ancestors | a `display:none` wrapper around the image |
+
+Two things it deliberately does **not** do. The stylesheet is *read*, not
+executed, so this is a reading of the CSS and not the CSS engine: specificity is
+not weighed, and `@media` blocks are skipped, since a body hidden in some other
+viewport should still show in this one. And anything it cannot read it leaves
+alone — an image wrongly kept is merely shown, an image wrongly removed is gone.
+
+An image that only reveals its size in its own bytes cannot be judged without
+asking for it. Those still go through a second check at fetch time, which also
+refuses anything that turns out not to be an image, keeps the request out of the
+WebView's cookie store, and sends no referrer.
+
+</details>
+
+## Rules
+
+Each rule is a set of conditions plus a set of actions.
+
+*Conditions* match on From address, From display name, To/Cc, subject, body text,
+any raw header, `List-Id`, attachment filename, size, or folder — with the
+operators `matches regex`, `contains`, `is exactly`, `starts with`, `ends with`,
+`domain is`, `greater/less than`. Every condition can be inverted or made case
+sensitive, and conditions combine with all/any.
+
+*Actions*: mark read/unread, star/unstar, archive, move to trash, delete
+permanently, move or copy to an IMAP folder, move or copy to a device folder,
+download the full message, and the three notification outcomes — **don't
+notify**, notify silently, notify with high priority.
+
+Rules run during sync, before any notification is posted, and the server-side
+effects are batched per folder. A rule can be scoped to one account and/or one
+folder, given a priority, and told to stop later rules from running. Everything a
+rule does is written to an activity log you can read on the Rules screen.
+
+<details>
+<summary><b>Building a rule without knowing regex</b></summary>
+
+<br>
+
+Select several similar messages in the list and tap the label icon. uwuMail then:
+
+1. Looks for everything those messages share — identical sender, shared sender
+   domain, headers present in all of them with the same or overlapping values
+   (this is what catches `X-GitHub-Event`-style mail), common subject prefix,
+   suffix or substring, shared recipients.
+2. Generalises the subjects into a readable regex when they share structure:
+   the longest common token subsequence is kept literal and what varies between
+   samples becomes the tightest class the samples justify (`\d+` before
+   `[0-9a-fA-F]+` before `\S+` before `.*?`).
+3. **Scores every candidate against the rest of your cached mail** and tells you
+   how much else it would catch — "matches nothing else in 1,240 cached mails"
+   versus "also matches 312 of 1,240".
+4. Pre-ticks the smallest combination of conditions that catches your selection
+   and nothing else, then lets you adjust it.
+
+You pick the actions, name it, save. The generated rule is a normal rule and can
+be opened in the editor afterwards.
+
+The manual rule editor has the same safety net: **Test against cached mail**
+reports how many messages the draft would hit before you save it, and
+**Apply rules to mail already synced** replays your rules over mail you already
+have.
+
+</details>
+
+### Spam lists
+
+- Settings holds a set of public sender blocklists (disposable-mail providers,
+  StopForumSpam's toxic domains, FakeFilter) plus any list URL you add and your
+  own blocked senders. Lists are plain text, one domain per line.
+- Mail from a listed sender is drawn in red in the message list. Nothing is
+  deleted, moved or hidden on the strength of a list — the mail is still there
+  and the match is visible. Use a rule if you want an action.
+- Matching is done in the list query against an indexed sender domain, so
+  toggling a list takes effect immediately without rewriting cached mail.
+
+## Folders and mailboxes
+
 - Unified views across every account: **All inboxes**, **All outboxes** (the Sent
   folders) and **All deleted mails**. Pull to refresh in any of them syncs that
   folder across every account, whether or not those folders are set to sync in
@@ -76,96 +206,8 @@ the app is.</sup>
   server catches up in the background. If the server refuses, the message comes
   back and the failure is reported rather than the mail going quietly missing.
 
-**Reading mail**
+## The message list
 
-A mail body is untrusted input that would like to know when it was opened, so
-uwuMail starts closed and offers to open up. Everything here is a setting, and
-each one starts where it is described.
-
-- **Unsubscribe banner** (on). When a message says how to unsubscribe, a strip
-  above it does it in one tap. `List-Unsubscribe` is the authority and its
-  HTTPS entry beats its `mailto:` entry; senders that skip the header almost
-  always still put a link in the body, so that is scanned as a fallback in
-  English, German, French, Spanish, Portuguese, Italian, Dutch and Swedish.
-  A one-click sender (RFC 8058) is named as one.
-- **Ask before opening tracked links** (on). Links in a body always leave for
-  the browser rather than navigating inside the message. One carrying `utm_*`,
-  `fbclid`, `gclid`, `mc_eid`, `mkt_tok` and the like first offers to open a
-  cleaned copy of itself; both answers open the link, the question is only
-  which version. Only query parameters are ever removed. Path segments are left
-  alone, because senders routinely encode the real destination in the path and
-  a broken link is worse than a leaked click.
-- **Preload unread mail** (on). While a list is on screen, the bodies of up to
-  30 unread messages are fetched in the background, one at a time with a pause
-  between them, so opening them is instant and works with no connection.
-- **Block remote images** (on). Each message says how many remote images it is
-  holding back and loads them on request, for that one viewing — reopening the
-  message blocks them again.
-- **Skip tiny images** (on, 10x10). An image smaller than this in either
-  dimension is never shown: that is what a tracking pixel is, and a 1x600
-  spacer reports an open just as reliably as a 1x1. uwuMail fetches the image
-  itself to measure it, which also keeps the request out of the WebView's
-  cookie store and sends no referrer, and refuses anything that is not an image
-  so a body cannot fetch a remote stylesheet or font either. An image the
-  decoder cannot measure, such as SVG, is always shown.
-- **JavaScript** (off). Nothing a mail needs to be read requires scripts.
-
-**Rules**
-Each rule is a set of conditions plus a set of actions.
-
-*Conditions* match on From address, From display name, To/Cc, subject, body text,
-any raw header, `List-Id`, attachment filename, size, or folder — with the
-operators `matches regex`, `contains`, `is exactly`, `starts with`, `ends with`,
-`domain is`, `greater/less than`. Every condition can be inverted or made case
-sensitive, and conditions combine with all/any.
-
-*Actions*: mark read/unread, star/unstar, archive, move to trash, delete
-permanently, move or copy to an IMAP folder, move or copy to a device folder,
-download the full message, and the three notification outcomes — **don't
-notify**, notify silently, notify with high priority.
-
-Rules run during sync, before any notification is posted, and the server-side
-effects are batched per folder. A rule can be scoped to one account and/or one
-folder, given a priority, and told to stop later rules from running. Everything a
-rule does is written to an activity log you can read on the Rules screen.
-
-**Building a rule without knowing regex**
-
-Select several similar messages in the list and tap the label icon. uwuMail then:
-
-1. Looks for everything those messages share — identical sender, shared sender
-   domain, headers present in all of them with the same or overlapping values
-   (this is what catches `X-GitHub-Event`-style mail), common subject prefix,
-   suffix or substring, shared recipients.
-2. Generalises the subjects into a readable regex when they share structure:
-   the longest common token subsequence is kept literal and what varies between
-   samples becomes the tightest class the samples justify (`\d+` before
-   `[0-9a-fA-F]+` before `\S+` before `.*?`).
-3. **Scores every candidate against the rest of your cached mail** and tells you
-   how much else it would catch — "matches nothing else in 1,240 cached mails"
-   versus "also matches 312 of 1,240".
-4. Pre-ticks the smallest combination of conditions that catches your selection
-   and nothing else, then lets you adjust it.
-
-You pick the actions, name it, save. The generated rule is a normal rule and can
-be opened in the editor afterwards.
-
-The manual rule editor has the same safety net: **Test against cached mail**
-reports how many messages the draft would hit before you save it, and
-**Apply rules to mail already synced** replays your rules over mail you already
-have.
-
-**Spam lists**
-- Settings holds a set of public sender blocklists (disposable-mail providers,
-  StopForumSpam's toxic domains, FakeFilter) plus any list URL you add and your
-  own blocked senders. Lists are plain text, one domain per line.
-- Mail from a listed sender is drawn in red in the message list. Nothing is
-  deleted, moved or hidden on the strength of a list — the mail is still there
-  and the match is visible. Use a rule if you want an action.
-- Matching is done in the list query against an indexed sender domain, so
-  toggling a list takes effect immediately without rewriting cached mail.
-
-**Message list**
 - **Grouped by day.** Every run of mail from one day sits under a heading like
   *Tuesday, 01.09.2026*, pinned to the top of the list while that day is on
   screen, so a long scroll always says how much time it has covered. The
@@ -176,7 +218,34 @@ have.
   place is kept and nothing jumps. It also will not move during a fling, in a
   selection, or while you are reading further down.
 
-**Background mail and notifications**
+## Accounts and sending
+
+**Accounts**
+- Any number of IMAP/SMTP accounts, each with its own sync interval, colour and
+  notification channels.
+- Password or **OAuth2 (XOAUTH2)** authentication per account. Gmail no longer
+  accepts account passwords over IMAP, so Google accounts sign in through the
+  browser — see [Google sign-in](#google-sign-in) below.
+- Server settings are discovered from the domain's autoconfig
+  (`autoconfig.<domain>`, `.well-known`, Mozilla's ISPDB) and stay fully editable.
+- Passwords are encrypted with a hardware-backed AES-GCM key from the Android
+  keystore; only the ciphertext is stored on disk.
+
+### Sending with a custom From
+
+- The From address in the composer is free text, not a dropdown of your own
+  addresses. Type `xyz@mail.de` and that is what goes on the wire — your server
+  decides whether to accept it.
+- Frequently used addresses can be saved as *identities* per account and picked
+  from a menu in the composer, where they can also be deleted. Account settings
+  lists them too, and is where you choose which one new messages start from.
+  Saving an address that is already saved updates it rather than duplicating it.
+- `Envelope sender follows the From address` (per account) controls whether
+  `MAIL FROM` tracks the From header or stays on the account address, since some
+  servers require one or the other.
+
+## Background mail
+
 - Push is **on by default**: a foreground service holds an IMAP IDLE connection
   per account, so new mail notifies you without the app being opened. IMAP has
   no push service to delegate to the way FCM-based messengers do, so the app
@@ -294,7 +363,7 @@ to read and to run rules against.
 
 ## Tests
 
-119 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+137 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -306,6 +375,10 @@ to read and to run rules against.
   several languages, and refusing to follow a `javascript:` href.
 - `mail/TrackingParamsTest` — which parameters go and which stay, fragments,
   case, and the path being left alone even when it is obviously a redirect.
+- `mail/ImagePrefilterTest` — finding beacons in the markup before they can be
+  requested: size attributes, inline styles, stylesheet rules by class and id,
+  hidden wrappers, and the things it must leave alone, such as an image sized
+  only in a media query or in units it cannot read.
 - `mail/RemoteImagePolicyTest` — the tracking-pixel threshold in either
   dimension, custom limits, images that could not be measured, and refusing
   anything that is not an image.
