@@ -220,9 +220,13 @@ fun MessageScreen(
             val letters = remember(message.id, message.bodyHtml, message.bodyPlain) {
                 gravityTextOf(message)
             }
+            // The same style the body is read in, so only the physics changes.
+            val bodyStyle = MaterialTheme.typography.bodyMedium
             GravityBody(
                 text = letters,
                 color = MaterialTheme.colorScheme.onSurface,
+                fontSize = bodyStyle.fontSize,
+                fontFamily = bodyStyle.fontFamily,
                 modifier = Modifier.padding(padding)
             )
             return@Scaffold

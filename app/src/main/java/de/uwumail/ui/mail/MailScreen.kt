@@ -103,7 +103,7 @@ import de.uwumail.ui.common.SectionHeader
 import de.uwumail.ui.common.formatListDate
 import de.uwumail.ui.containerViewModel
 import android.widget.Toast
-import de.uwumail.ui.mail.gravity.rememberUpsideDown
+import de.uwumail.ui.mail.gravity.rememberDeviceOrientation
 import kotlinx.coroutines.launch
 
 private const val TAPS_TO_UNLOCK = 5
@@ -676,7 +676,7 @@ private fun MailDrawer(
     onManageAccounts: () -> Unit,
     onSettings: () -> Unit
 ) {
-    val upsideDown by rememberUpsideDown(active = drawerOpen)
+    val upsideDown = rememberDeviceOrientation(active = drawerOpen).value.upsideDown
     var taps by remember { mutableIntStateOf(0) }
     var lastTapAt by remember { mutableLongStateOf(0L) }
 

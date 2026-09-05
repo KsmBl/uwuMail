@@ -40,6 +40,13 @@ class GravityWorld(
     var count: Int = 0
         private set
 
+    /**
+     * Which way letters fall, as a unit vector in screen coordinates. Follows
+     * the phone: turn it over and the heap comes apart and falls the other way.
+     */
+    private var downX = 0f
+    private var downY = 1f
+
     /** True once every letter has come to rest, so the frame loop can stop. */
     val settled: Boolean get() = count > 0 && sleeping == count
 
@@ -77,6 +84,18 @@ class GravityWorld(
     }
 
     /**
+     * Points gravity somewhere new. A settled heap is woken by a real change of
+     * direction, since otherwise turning the phone would leave it hanging on
+     * what is no longer a floor.
+     */
+    fun setDown(x: Float, y: Float) {
+        if (abs(x - downX) + abs(y - downY) < DIRECTION_EPSILON) return
+        downX = x
+        downY = y
+        for (i in 0 until count) restFrames[i] = 0
+    }
+
+    /**
      * Advances the simulation by [dt] seconds.
      *
      * The frame is cut into substeps rather than solved once with more
@@ -102,7 +121,8 @@ class GravityWorld(
     private fun integrate(dt: Float) {
         for (i in 0 until count) {
             if (restFrames[i] >= SLEEP_FRAMES) continue
-            vy[i] += GRAVITY * dt
+            vx[i] += GRAVITY * downX * dt
+            vy[i] += GRAVITY * downY * dt
             vx[i] *= AIR_DRAG
             vy[i] *= AIR_DRAG
             x[i] += vx[i] * dt
@@ -250,10 +270,13 @@ class GravityWorld(
     /**
      * Keeps every letter inside the view.
      *
-     * The wake here uses the same slop as letter-on-letter contact: the bottom
-     * row is pressed a fraction of a pixel into the floor by the weight above
-     * it every single frame, and treating that as an impact would keep the
-     * whole floor awake for good.
+     * All four edges are solid, because down is wherever the phone says it is:
+     * held over, the ceiling is the floor.
+     *
+     * The wake here uses the same slop as letter-on-letter contact. The row
+     * against the wall is pressed a fraction of a pixel into it by the weight
+     * behind it every single frame, and treating that as an impact would keep
+     * the whole floor awake for good.
      */
     private fun solveBounds() {
         for (i in 0 until count) {
@@ -261,16 +284,28 @@ class GravityWorld(
             if (x[i] < 0f) {
                 if (-x[i] > WAKE_SLOP) wake(i)
                 x[i] = 0f
-                if (vx[i] < 0f) vx[i] = -vx[i] * RESTITUTION
+                if (vx[i] < 0f) {
+                    vx[i] = -vx[i] * RESTITUTION
+                    vy[i] *= FRICTION
+                }
             } else if (x[i] + extent > width) {
                 if (x[i] + extent - width > WAKE_SLOP) wake(i)
                 x[i] = width - extent
-                if (vx[i] > 0f) vx[i] = -vx[i] * RESTITUTION
+                if (vx[i] > 0f) {
+                    vx[i] = -vx[i] * RESTITUTION
+                    vy[i] *= FRICTION
+                }
             }
-            val floor = height - extent
-            if (y[i] > floor) {
-                if (y[i] - floor > WAKE_SLOP) wake(i)
-                y[i] = floor
+            if (y[i] < 0f) {
+                if (-y[i] > WAKE_SLOP) wake(i)
+                y[i] = 0f
+                if (vy[i] < 0f) {
+                    vy[i] = -vy[i] * RESTITUTION
+                    vx[i] *= FRICTION
+                }
+            } else if (y[i] + extent > height) {
+                if (y[i] + extent - height > WAKE_SLOP) wake(i)
+                y[i] = height - extent
                 if (vy[i] > 0f) {
                     vy[i] = -vy[i] * RESTITUTION
                     vx[i] *= FRICTION
@@ -349,6 +384,8 @@ class GravityWorld(
         private const val SOLVER_ITERATIONS = 2
         /** Movement per frame below which a letter counts as still, in pixels. */
         private const val REST_DISTANCE = 0.25f
+        /** Below this a direction change is sensor noise, not the phone turning. */
+        private const val DIRECTION_EPSILON = 0.08f
         private const val SLEEP_FRAMES = 24
     }
 }

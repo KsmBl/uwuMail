@@ -49,7 +49,7 @@ class GravityWorldTest {
     @Test
     fun `letters stack instead of sharing a spot`() {
         val world = world()
-        repeat(20) { i -> world.add('x', 500f, -i * letter * 1.5f, letter) }
+        repeat(20) { i -> world.add('x', 500f, i * letter * 1.5f, letter) }
         world.run(600)
 
         // The column is 20 letters tall, so the top one is well above the floor.
@@ -68,7 +68,7 @@ class GravityWorldTest {
             world.add(
                 'm',
                 random.nextFloat() * (width - letter),
-                -random.nextFloat() * 2000f,
+                random.nextFloat() * (height - letter),
                 letter
             )
         }
@@ -87,7 +87,7 @@ class GravityWorldTest {
         val world = world()
         val random = Random(11)
         repeat(400) {
-            world.add('w', random.nextFloat() * width, -random.nextFloat() * 1500f, letter)
+            world.add('w', random.nextFloat() * width, random.nextFloat() * height, letter)
         }
         world.run(900)
 
@@ -101,7 +101,7 @@ class GravityWorldTest {
     fun `the simulation settles so the frame loop can stop`() {
         val world = world()
         repeat(120) { i ->
-            world.add('e', 40f + (i % 30) * letter, -(i / 30) * letter, letter)
+            world.add('e', 40f + (i % 30) * letter, 40f + (i / 30) * letter, letter)
         }
         assertFalse(world.settled)
         world.run(1200)
@@ -113,7 +113,7 @@ class GravityWorldTest {
         val world = world()
         val random = Random(3)
         repeat(200) {
-            world.add('l', random.nextFloat() * width, -random.nextFloat() * 1000f, letter)
+            world.add('l', random.nextFloat() * width, random.nextFloat() * height, letter)
         }
         world.run(600)
         for (i in 0 until world.count) {
@@ -131,5 +131,67 @@ class GravityWorldTest {
         val world = world(capacity = 3)
         repeat(10) { world.add('a', 10f, 10f, letter) }
         assertEquals(3, world.count)
+    }
+
+    @Test
+    fun `letters fall towards whichever way is down`() {
+        val world = world()
+        world.setDown(1f, 0f)
+        world.add('a', width / 2, height / 2, letter)
+        world.run(300)
+        // The right-hand edge is the floor now.
+        assertEquals(width - letter, world.x[0], 1f)
+        assertEquals(height / 2, world.y[0], 2f)
+    }
+
+    @Test
+    fun `turning the phone over sends the heap to the other end`() {
+        val world = world()
+        repeat(30) { i -> world.add('u', 100f + i * letter, 200f, letter) }
+        world.run(400)
+        assertTrue("expected them at the bottom", (0 until world.count).all {
+            world.y[it] > height - letter * 3
+        })
+
+        world.setDown(0f, -1f)
+        world.run(600)
+        assertTrue("expected them at the top", (0 until world.count).all {
+            world.y[it] < letter * 3
+        })
+    }
+
+    @Test
+    fun `every edge holds letters in`() {
+        for (direction in listOf(0f to 1f, 0f to -1f, 1f to 0f, -1f to 0f)) {
+            val world = world()
+            world.setDown(direction.first, direction.second)
+            val random = Random(5)
+            repeat(100) {
+                world.add(
+                    'o',
+                    random.nextFloat() * (width - letter),
+                    random.nextFloat() * (height - letter),
+                    letter
+                )
+            }
+            world.run(600)
+            for (i in 0 until world.count) {
+                assertTrue("escaped with down=$direction", world.x[i] >= -0.5f)
+                assertTrue("escaped with down=$direction", world.x[i] + letter <= width + 0.5f)
+                assertTrue("escaped with down=$direction", world.y[i] >= -0.5f)
+                assertTrue("escaped with down=$direction", world.y[i] + letter <= height + 0.5f)
+            }
+        }
+    }
+
+    @Test
+    fun `sensor noise does not wake a settled heap`() {
+        val world = world()
+        repeat(40) { i -> world.add('n', 100f + (i % 20) * letter, 200f, letter) }
+        world.run(600)
+        assertTrue(world.settled)
+        world.setDown(0.02f, 0.999f)
+        world.step(1f / 60f)
+        assertTrue("a hair of drift should not restart it", world.settled)
     }
 }

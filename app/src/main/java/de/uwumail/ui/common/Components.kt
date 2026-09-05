@@ -20,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -196,7 +197,13 @@ fun FolderPickerSheet(
         )
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        // Opened at full height: the confirm button is pinned under the list,
+        // and at half height it sits below the bottom of the screen where
+        // there is nothing to suggest it exists.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
         Text(
             title,
             style = MaterialTheme.typography.titleLarge,
