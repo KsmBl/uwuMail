@@ -8,6 +8,9 @@ engine that can act on mail before it ever reaches your notification shade.
 **Accounts**
 - Any number of IMAP/SMTP accounts, each with its own sync interval, colour and
   notification channels.
+- Password or **OAuth2 (XOAUTH2)** authentication per account. Gmail no longer
+  accepts account passwords over IMAP, so Google accounts sign in through the
+  browser — see [Google sign-in](#google-sign-in) below.
 - Server settings are discovered from the domain's autoconfig
   (`autoconfig.<domain>`, `.well-known`, Mozilla's ISPDB) and stay fully editable.
 - Passwords are encrypted with a hardware-backed AES-GCM key from the Android
@@ -109,12 +112,58 @@ Or drive Gradle directly:
 The release build is unsigned unless you add your own signing config; the debug
 build uses the standard debug keystore and installs as-is.
 
+## Google sign-in
+
+Gmail rejects plain account passwords over IMAP with
+`Application-specific password required`. uwuMail handles this with a real OAuth2
+sign-in: Settings holds the client id, the account screen has **Sign in with
+Google**, and the app refreshes access tokens on its own from then on.
+
+uwuMail ships with no OAuth client id, because Google binds a client to a
+specific app package and signing certificate. Register your own once:
+
+1. **console.cloud.google.com** → new project → **APIs & Services → Credentials**
+2. **Create credentials → OAuth client ID → Android**
+   - Package name: `de.uwumail`
+   - SHA-1: shown in uwuMail under **Settings → Google sign-in** (tap to copy).
+     For the debug build produced by `build.sh` on this machine it is the debug
+     keystore's fingerprint; a release build signed with your own key has a
+     different one, so read it from the app rather than assuming.
+3. **OAuth consent screen** → External → add the scope
+   `https://mail.google.com/` and add your own address as a test user
+4. Paste the client id into **Settings → Google sign-in**, or put it in
+   `local.properties` so it is compiled in:
+
+   ```properties
+   google.oauth.client.id=xxxxxxxx.apps.googleusercontent.com
+   ```
+
+Then open **Accounts → + → Sign in with Google**. Server settings and the address
+fill themselves in; no password is stored.
+
+**Keep the consent screen out of "Testing".** Google expires refresh tokens
+issued by apps in testing status after 7 days, which means signing in again every
+week. Setting the publishing status to *In production* avoids that; the app stays
+unverified, so the first sign-in shows a "Google hasn't verified this app" screen
+— *Advanced → Go to uwuMail (unsafe)* — and unverified apps using this scope are
+capped at 100 users, which is irrelevant for personal use.
+
+**Sending as a custom address will not work through Gmail.** Google rewrites the
+From header to the authenticated address unless the alias is registered under
+Gmail's "Send mail as". Use your own server for that; Gmail is fine as an account
+to read and to run rules against.
+
 ## Tests
 
-The rules engine and the similarity suggester have JVM unit tests
-(`app/src/test/java/de/uwumail/rules/`), including a GitHub-CI-shaped scenario
-that asserts the wizard's recommendation catches the selected mails and none of
-the sibling notifications from the same sender and mailing list.
+34 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+
+- `rules/` — the rule engine (scoping, priority, stop-processing, negation,
+  invalid regex), the regex builder, and the similarity suggester, including a
+  GitHub-CI-shaped scenario asserting the wizard's recommendation catches the
+  selected mails and none of the sibling notifications from the same sender and
+  mailing list.
+- `mail/oauth/` — PKCE challenge derivation against RFC 7636, token response
+  parsing, expiry handling, and id_token address extraction.
 
 ## Layout
 
@@ -125,6 +174,7 @@ app/src/main/java/de/uwumail/
   data/crypto/ keystore-backed credential storage
   data/repo/   account + identity repository, connection testing
   mail/        IMAP client, connection pool, SMTP sender, MIME parsing, autoconfig
+  mail/oauth/  OAuth2 + PKCE, token refresh, provider definitions
   rules/       matcher, rule engine, regex builder, similarity suggester
   sync/        sync orchestration, WorkManager, IMAP IDLE service
   notify/      notification channels and posting
@@ -142,3 +192,6 @@ app/src/main/java/de/uwumail/
   pause on very long uptimes; periodic sync continues regardless.
 - Attachments can be sent from files already on disk; the composer does not yet
   have a file picker.
+- OAuth2 is implemented for Google. The provider definition in
+  `mail/oauth/OAuthModels.kt` is generic, so Microsoft/Outlook would be a matter
+  of adding endpoints and scopes, but it is untested.

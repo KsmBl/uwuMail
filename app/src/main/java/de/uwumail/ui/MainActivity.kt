@@ -71,7 +71,14 @@ class MainActivity : ComponentActivity() {
         intent ?: return
         intent.getLongExtra("messageId", -1L).takeIf { it > 0 }?.let { pendingMessageId = it }
         if (intent.action == Intent.ACTION_SENDTO || intent.action == Intent.ACTION_VIEW) {
-            intent.data?.takeIf { it.scheme == "mailto" }?.let { pendingMailto = it.toString() }
+            val data = intent.data
+            when {
+                data == null -> Unit
+                data.scheme == "mailto" -> pendingMailto = data.toString()
+                // The OAuth redirect comes back on our own package-name scheme.
+                data.scheme == packageName ->
+                    (application as UwuMailApp).container.oauthResults.post(data)
+            }
         }
     }
 

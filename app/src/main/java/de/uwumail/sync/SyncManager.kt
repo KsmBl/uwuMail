@@ -18,6 +18,7 @@ import de.uwumail.mail.ImapPool
 import de.uwumail.mail.MailException
 import de.uwumail.mail.MimeUtil
 import de.uwumail.mail.SmtpSender
+import de.uwumail.mail.oauth.TokenStore
 import de.uwumail.notify.NotificationPriority
 import de.uwumail.notify.Notifier
 import de.uwumail.rules.MatchContext
@@ -49,6 +50,7 @@ class SyncManager(
     private val db: AppDatabase,
     private val pool: ImapPool,
     private val credentials: CredentialStore,
+    private val tokenStore: TokenStore,
     private val ruleEngine: RuleEngine,
     private val notifier: Notifier,
     private val smtp: SmtpSender
@@ -677,8 +679,9 @@ class SyncManager(
     suspend fun sendOutbox() {
         db.outboxDao().pending().forEach { item ->
             val account = db.accountDao().get(item.accountId) ?: return@forEach
-            val password = credentials.get(credentials.smtpKey(account.id)) ?: return@forEach
-            runCatching { smtp.send(account, password, item) }
+            val secret = runCatching { tokenStore.smtpSecret(account) }.getOrNull()
+                ?: return@forEach
+            runCatching { smtp.send(account, secret, item) }
                 .onSuccess { raw ->
                     account.sentFolder?.let { sent ->
                         runCatching { pool.use(account.id) { it.append(sent, raw, seen = true) } }

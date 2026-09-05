@@ -3,6 +3,7 @@ package de.uwumail.mail
 import de.uwumail.core.FolderType
 import de.uwumail.core.Security
 import de.uwumail.data.db.AccountEntity
+import de.uwumail.mail.oauth.AuthType
 import com.sun.mail.imap.IMAPFolder
 import com.sun.mail.imap.IMAPStore
 import java.io.ByteArrayOutputStream
@@ -25,13 +26,18 @@ import javax.mail.internet.MimeMessage
  */
 class ImapClient(
     private val account: AccountEntity,
-    private val password: String
+    /** Password, or an OAuth access token when the account uses OAUTH2. */
+    private val secret: String
 ) : Closeable {
 
     private var store: IMAPStore? = null
     private val openFolders = LinkedHashMap<String, IMAPFolder>()
 
     val isConnected: Boolean get() = store?.isConnected == true
+
+    private val isOAuth: Boolean
+        get() = runCatching { AuthType.valueOf(account.authType) }
+            .getOrDefault(AuthType.PASSWORD) == AuthType.OAUTH2
 
     fun connect(): IMAPStore {
         store?.takeIf { it.isConnected }?.let { return it }
@@ -59,13 +65,23 @@ class ImapClient(
                 Security.NONE -> Unit
             }
             if (account.trustAllCerts) put("mail.$protocol.ssl.trust", "*")
+            if (isOAuth) {
+                // The access token is passed where the password normally goes;
+                // forcing the mechanism stops JavaMail trying PLAIN first.
+                put("mail.$protocol.auth.mechanisms", "XOAUTH2")
+                put("mail.$protocol.auth.login.disable", "true")
+                put("mail.$protocol.auth.plain.disable", "true")
+            }
         }
         val session = Session.getInstance(props)
         val newStore = session.getStore(protocol) as IMAPStore
         try {
-            newStore.connect(account.imapHost, account.imapPort, account.imapUsername, password)
+            newStore.connect(account.imapHost, account.imapPort, account.imapUsername, secret)
         } catch (e: Exception) {
-            throw MailException("IMAP connect to ${account.imapHost}:${account.imapPort} failed: ${e.message}", e)
+            throw MailException(
+                "IMAP connect to ${account.imapHost}:${account.imapPort} failed: ${describe(e)}",
+                e
+            )
         }
         store = newStore
         return newStore
@@ -366,6 +382,21 @@ class ImapClient(
         openFolders.clear()
         runCatching { store?.close() }
         store = null
+    }
+
+    /** Turns the provider's own wording into something a person can act on. */
+    private fun describe(e: Exception): String {
+        val message = e.message.orEmpty()
+        return when {
+            message.contains("Application-specific password required", ignoreCase = true) ->
+                "Google rejected the password. Use \"Sign in with Google\" instead, or create " +
+                    "an App Password at myaccount.google.com/apppasswords."
+            message.contains("Invalid credentials", ignoreCase = true) && isOAuth ->
+                "Google rejected the access token. Open the account and sign in again."
+            message.contains("AUTHENTICATIONFAILED", ignoreCase = true) ->
+                "Server rejected the credentials: $message"
+            else -> message.ifBlank { e.toString() }
+        }
     }
 
     private fun guessType(path: String, attributes: List<String>): String {

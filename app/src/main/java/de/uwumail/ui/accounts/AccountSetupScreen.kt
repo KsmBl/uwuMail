@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
@@ -48,7 +49,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
+import androidx.browser.customtabs.CustomTabsIntent
 import de.uwumail.core.Security
+import de.uwumail.mail.oauth.OAuthProvider
 import de.uwumail.ui.common.LabeledField
 import de.uwumail.ui.common.SectionHeader
 import de.uwumail.ui.common.TextPromptDialog
@@ -61,10 +66,25 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
         AccountSetupViewModel(it, accountId)
     }
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
     var showPassword by remember { mutableStateOf(false) }
     var addIdentity by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.saved) { if (state.saved) onDone() }
+
+    // The view model asks for a browser hop by publishing a URL.
+    LaunchedEffect(state.launchAuthUri) {
+        val uri = state.launchAuthUri ?: return@LaunchedEffect
+        viewModel.onAuthUriLaunched()
+        runCatching {
+            CustomTabsIntent.Builder().setShowTitle(true).build()
+                .launchUrl(context, uri.toUri())
+        }.onFailure {
+            runCatching {
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri.toUri()))
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -86,6 +106,12 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
         Column(
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())
         ) {
+            SignInCard(
+                state = state,
+                onSignIn = { viewModel.signInWith(OAuthProvider.GOOGLE) },
+                onUsePassword = viewModel::usePasswordInstead
+            )
+
             SectionHeader("Identity")
             LabeledField("Your name", state.displayName, { v -> viewModel.update { it.copy(displayName = v) } })
             LabeledField(
@@ -93,21 +119,24 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                 { v -> viewModel.update { it.copy(email = v) } },
                 supportingText = "Used as the default From address"
             )
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = viewModel::discover,
-                    enabled = state.email.contains('@') && !state.discovering,
-                    modifier = Modifier.weight(1f)
+            if (!state.isOAuth) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (state.discovering) CircularProgressIndicator(Modifier.size(16.dp))
-                    else Icon(Icons.Default.Search, null)
-                    Text("  Find settings")
+                    OutlinedButton(
+                        onClick = viewModel::discover,
+                        enabled = state.email.contains('@') && !state.discovering,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (state.discovering) CircularProgressIndicator(Modifier.size(16.dp))
+                        else Icon(Icons.Default.Search, null)
+                        Text("  Find settings")
+                    }
                 }
             }
 
+            if (state.needsPassword) {
             SectionHeader("Password")
             OutlinedTextField(
                 value = state.imapPassword,
@@ -139,6 +168,8 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                 )
+            }
+
             }
 
             SectionHeader("Incoming (IMAP)")
@@ -278,6 +309,57 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
             onConfirm = { viewModel.addIdentity(it.substringBefore('@'), it) },
             onDismiss = { addIdentity = false }
         )
+    }
+}
+
+
+/**
+ * Offers OAuth sign-in up front, because for Google it is the only thing that
+ * works without the user going off to create an App Password by hand.
+ */
+@Composable
+private fun SignInCard(
+    state: AccountSetupState,
+    onSignIn: () -> Unit,
+    onUsePassword: () -> Unit
+) {
+    Card(Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Sign in with Google", style = MaterialTheme.typography.titleMedium)
+            Text(
+                when {
+                    state.signedIn && state.isOAuth ->
+                        "Signed in as ${state.email}. Server settings are filled in and the " +
+                            "password fields are not used."
+                    !state.googleConfigured ->
+                        "Needs a Google OAuth client id. Add one under Settings > Google " +
+                            "sign-in, then come back."
+                    else ->
+                        "For Gmail this is the only option that works — Google no longer " +
+                            "accepts your account password over IMAP."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(
+                    onClick = onSignIn,
+                    enabled = state.googleConfigured && !state.signingIn
+                ) {
+                    if (state.signingIn) {
+                        CircularProgressIndicator(Modifier.size(16.dp))
+                        Text("  Waiting…")
+                    } else {
+                        Icon(Icons.Default.AccountCircle, null)
+                        Text(if (state.signedIn) "  Sign in again" else "  Sign in with Google")
+                    }
+                }
+                if (state.isOAuth) {
+                    TextButton(onClick = onUsePassword) { Text("Use a password") }
+                }
+            }
+        }
     }
 }
 

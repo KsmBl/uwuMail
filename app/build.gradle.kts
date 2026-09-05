@@ -1,8 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+/**
+ * The Google OAuth client id lives outside version control. Put
+ * `google.oauth.client.id=...` in local.properties, or set it at runtime in
+ * uwuMail's settings screen.
+ */
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -16,6 +28,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         vectorDrawables { useSupportLibrary = true }
+
+        buildConfigField(
+            "String",
+            "GOOGLE_OAUTH_CLIENT_ID",
+            "\"${localProperties.getProperty("google.oauth.client.id", "")}\""
+        )
     }
 
     buildTypes {
@@ -41,6 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -96,6 +115,7 @@ dependencies {
     implementation(libs.javamail.android.mail)
     implementation(libs.javamail.android.activation)
     implementation(libs.jsoup)
+    implementation(libs.androidx.browser)
 
     testImplementation(libs.junit)
     // Android ships org.json as stubs; the real implementation lets the rule

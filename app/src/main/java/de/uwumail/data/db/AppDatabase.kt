@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -18,7 +20,7 @@ import androidx.room.RoomDatabase
         RuleLogEntity::class,
         OutboxEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,9 +33,20 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun outboxDao(): OutboxDao
 
     companion object {
+        /** Adds OAuth columns without discarding existing accounts or cached mail. */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE accounts ADD COLUMN authType TEXT NOT NULL DEFAULT 'PASSWORD'"
+                )
+                db.execSQL("ALTER TABLE accounts ADD COLUMN oauthProvider TEXT")
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "uwumail.db")
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
+                .addMigrations(MIGRATION_1_2)
                 .fallbackToDestructiveMigration()
                 .build()
     }

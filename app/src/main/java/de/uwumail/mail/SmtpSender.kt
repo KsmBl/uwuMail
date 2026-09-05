@@ -3,6 +3,7 @@ package de.uwumail.mail
 import de.uwumail.core.Security
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.OutboxEntity
+import de.uwumail.mail.oauth.AuthType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -29,8 +30,10 @@ class SmtpSender {
      * permits them; [AccountEntity.useIdentityAsEnvelopeSender] decides whether
      * `MAIL FROM` follows it or stays on the account address.
      */
-    suspend fun send(account: AccountEntity, password: String, item: OutboxEntity): ByteArray =
+    suspend fun send(account: AccountEntity, secret: String, item: OutboxEntity): ByteArray =
         withContext(Dispatchers.IO) {
+            val isOAuth = runCatching { AuthType.valueOf(account.authType) }
+                .getOrDefault(AuthType.PASSWORD) == AuthType.OAUTH2
             val security = runCatching { Security.valueOf(account.smtpSecurity) }
                 .getOrDefault(Security.STARTTLS)
             val envelopeFrom =
@@ -56,11 +59,16 @@ class SmtpSender {
                     Security.NONE -> Unit
                 }
                 if (account.trustAllCerts) put("mail.smtp.ssl.trust", "*")
+                if (isOAuth) {
+                    put("mail.smtp.auth.mechanisms", "XOAUTH2")
+                    put("mail.smtp.auth.login.disable", "true")
+                    put("mail.smtp.auth.plain.disable", "true")
+                }
             }
 
             val session = Session.getInstance(props, object : Authenticator() {
                 override fun getPasswordAuthentication() =
-                    PasswordAuthentication(account.smtpUsername, password)
+                    PasswordAuthentication(account.smtpUsername, secret)
             })
 
             val message = buildMessage(session, item)

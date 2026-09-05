@@ -8,6 +8,9 @@ import de.uwumail.data.db.AppDatabase
 import de.uwumail.data.db.IdentityEntity
 import de.uwumail.mail.ImapClient
 import de.uwumail.mail.ImapPool
+import de.uwumail.mail.oauth.AuthType
+import de.uwumail.mail.oauth.TokenSet
+import de.uwumail.mail.oauth.TokenStore
 import de.uwumail.notify.Notifier
 import de.uwumail.sync.PushService
 import de.uwumail.sync.SyncScheduler
@@ -24,6 +27,7 @@ class AccountRepository(
     private val db: AppDatabase,
     private val credentials: CredentialStore,
     private val pool: ImapPool,
+    private val tokenStore: TokenStore,
     private val notifier: Notifier
 ) {
 
@@ -37,7 +41,9 @@ class AccountRepository(
     suspend fun save(
         account: AccountEntity,
         imapPassword: String?,
-        smtpPassword: String?
+        smtpPassword: String?,
+        /** Present when the account was just created or re-authorised via OAuth. */
+        oauthTokens: TokenSet? = null
     ): Long {
         val id = if (account.id == 0L) {
             val position = db.accountDao().count()
@@ -50,6 +56,7 @@ class AccountRepository(
             ?.let { credentials.put(credentials.imapKey(id), it) }
         smtpPassword?.takeIf { it.isNotEmpty() }
             ?.let { credentials.put(credentials.smtpKey(id), it) }
+        oauthTokens?.let { tokenStore.store(id, it) }
 
         if (account.id == 0L) {
             db.identityDao().insert(
@@ -72,6 +79,7 @@ class AccountRepository(
     suspend fun delete(accountId: Long) {
         SyncScheduler.cancel(context, accountId)
         pool.evict(accountId)
+        tokenStore.clear(accountId)
         credentials.removeAccount(accountId)
         notifier.removeAccountChannels(accountId)
         db.accountDao().delete(accountId)
@@ -80,6 +88,11 @@ class AccountRepository(
 
     suspend fun imapPassword(accountId: Long) = credentials.get(credentials.imapKey(accountId))
     suspend fun smtpPassword(accountId: Long) = credentials.get(credentials.smtpKey(accountId))
+
+    /** The secret SMTP should authenticate with: a password, or a live access token. */
+    suspend fun smtpSecret(account: AccountEntity): String = tokenStore.smtpSecret(account)
+
+    fun isSignedIn(accountId: Long) = tokenStore.hasRefreshToken(accountId)
 
     // -------------------------------------------------------------- identities
 
@@ -99,8 +112,22 @@ class AccountRepository(
         imapPassword: String,
         smtpPassword: String
     ): Result<String> = withContext(Dispatchers.IO) {
+        val oauth = runCatching { AuthType.valueOf(account.authType) }
+            .getOrDefault(AuthType.PASSWORD) == AuthType.OAUTH2
+        val imapSecret: String
+        val smtpSecret: String
+        if (oauth) {
+            val token = runCatching { tokenStore.imapSecret(account) }
+                .getOrElse { return@withContext Result.failure(it) }
+            imapSecret = token
+            smtpSecret = token
+        } else {
+            imapSecret = imapPassword
+            smtpSecret = smtpPassword
+        }
+
         val imapFolders = try {
-            ImapClient(account, imapPassword).use { client ->
+            ImapClient(account, imapSecret).use { client ->
                 client.connect()
                 client.listFolders().size
             }
@@ -126,13 +153,18 @@ class AccountRepository(
                     Security.NONE -> Unit
                 }
                 if (account.trustAllCerts) put("mail.smtp.ssl.trust", "*")
+                if (oauth) {
+                    put("mail.smtp.auth.mechanisms", "XOAUTH2")
+                    put("mail.smtp.auth.login.disable", "true")
+                    put("mail.smtp.auth.plain.disable", "true")
+                }
             }
             val session = Session.getInstance(props, object : Authenticator() {
                 override fun getPasswordAuthentication() =
-                    PasswordAuthentication(account.smtpUsername, smtpPassword)
+                    PasswordAuthentication(account.smtpUsername, smtpSecret)
             })
             val transport: Transport = session.getTransport("smtp")
-            transport.connect(account.smtpHost, account.smtpPort, account.smtpUsername, smtpPassword)
+            transport.connect(account.smtpHost, account.smtpPort, account.smtpUsername, smtpSecret)
             transport.close()
         } catch (e: Throwable) {
             return@withContext Result.failure(Exception("SMTP: ${e.message}", e))

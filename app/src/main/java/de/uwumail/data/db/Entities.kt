@@ -22,6 +22,11 @@ data class AccountEntity(
     val smtpSecurity: String,
     val smtpUsername: String,
 
+    /** PASSWORD or OAUTH2; see [de.uwumail.mail.oauth.AuthType]. */
+    val authType: String = "PASSWORD",
+    /** Provider id when [authType] is OAUTH2, e.g. GOOGLE. */
+    val oauthProvider: String? = null,
+
     /** Accept any server certificate. Needed for self-signed setups; off by default. */
     val trustAllCerts: Boolean = false,
     /** Send MAIL FROM matching the chosen identity instead of the account address. */

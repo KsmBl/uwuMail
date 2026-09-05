@@ -35,6 +35,15 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="mailto" />
             </intent-filter>
+
+            <!-- OAuth redirect. The scheme must equal the package name, which is
+                 what Google's Android OAuth client type expects. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" />
+            </intent-filter>
         </activity>
 
         <service

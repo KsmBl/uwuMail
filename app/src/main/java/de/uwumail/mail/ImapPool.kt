@@ -1,7 +1,8 @@
 package de.uwumail.mail
 
-import de.uwumail.data.crypto.CredentialStore
 import de.uwumail.data.db.AccountDao
+import de.uwumail.mail.oauth.AuthType
+import de.uwumail.mail.oauth.TokenStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -17,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class ImapPool(
     private val accountDao: AccountDao,
-    private val credentials: CredentialStore
+    private val tokenStore: TokenStore
 ) {
     private val mutexes = ConcurrentHashMap<Long, Mutex>()
     private val clients = ConcurrentHashMap<Long, ImapClient>()
@@ -25,29 +26,54 @@ class ImapPool(
     suspend fun <T> use(accountId: Long, block: (ImapClient) -> T): T =
         mutexes.getOrPut(accountId) { Mutex() }.withLock {
             withContext(Dispatchers.IO) {
-                val client = clients[accountId]?.takeIf { it.isConnected } ?: newClient(accountId)
-                clients[accountId] = client
                 try {
-                    block(client)
+                    runWith(accountId, block)
                 } catch (e: Throwable) {
-                    clients.remove(accountId)?.let { runCatching { it.close() } }
-                    throw e
+                    dropClient(accountId)
+                    // An access token that expired or was revoked looks exactly like
+                    // a bad password; fetch a fresh one and give it one more go.
+                    if (!shouldRetryWithNewToken(accountId, e)) throw e
+                    tokenStore.invalidateAccessToken(accountId)
+                    try {
+                        runWith(accountId, block)
+                    } catch (retry: Throwable) {
+                        dropClient(accountId)
+                        throw retry
+                    }
                 }
             }
         }
+
+    private suspend fun <T> runWith(accountId: Long, block: (ImapClient) -> T): T {
+        val client = clients[accountId]?.takeIf { it.isConnected } ?: newClient(accountId)
+        clients[accountId] = client
+        return block(client)
+    }
 
     /** A fresh, unpooled client — for IMAP IDLE, which parks the connection. */
     suspend fun newClient(accountId: Long): ImapClient = withContext(Dispatchers.IO) {
         val account = accountDao.get(accountId)
             ?: throw MailException("Account $accountId no longer exists")
-        val password = credentials.get(credentials.imapKey(accountId))
-            ?: throw MailException("No stored IMAP password for ${account.email}")
-        ImapClient(account, password).also { it.connect() }
+        ImapClient(account, tokenStore.imapSecret(account)).also { it.connect() }
     }
 
-    fun evict(accountId: Long) {
+    private suspend fun shouldRetryWithNewToken(accountId: Long, error: Throwable): Boolean {
+        val account = accountDao.get(accountId) ?: return false
+        if (tokenStore.authType(account) != AuthType.OAUTH2) return false
+        val text = generateSequence(error) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" ")
+        return text.contains("AUTHENTICATIONFAILED", true) ||
+            text.contains("Invalid credentials", true) ||
+            text.contains("authentication fail", true) ||
+            text.contains("access token", true)
+    }
+
+    private fun dropClient(accountId: Long) {
         clients.remove(accountId)?.let { runCatching { it.close() } }
     }
+
+    fun evict(accountId: Long) = dropClient(accountId)
 
     fun evictAll() {
         clients.keys.toList().forEach { evict(it) }

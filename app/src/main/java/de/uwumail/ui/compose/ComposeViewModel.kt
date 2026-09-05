@@ -234,8 +234,7 @@ class ComposeViewModel(
             runCatching {
                 val account = container.db.accountDao().get(current.accountId)
                     ?: error("No account selected")
-                val password = container.accountRepository.smtpPassword(account.id)
-                    ?: error("No SMTP password stored for ${account.email}")
+                val secret = container.accountRepository.smtpSecret(account)
                 val item = OutboxEntity(
                     accountId = account.id,
                     identityId = null,
@@ -252,7 +251,7 @@ class ComposeViewModel(
                     references = current.references,
                     createdAt = System.currentTimeMillis()
                 )
-                val raw = container.smtpSender.send(account, password, item)
+                val raw = container.smtpSender.send(account, secret, item)
                 account.sentFolder?.let { sent ->
                     runCatching {
                         container.imapPool.use(account.id) { it.append(sent, raw, seen = true) }

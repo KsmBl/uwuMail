@@ -62,10 +62,14 @@ class CredentialStore(context: Context) {
 
     fun imapKey(accountId: Long) = "imap_$accountId"
     fun smtpKey(accountId: Long) = "smtp_$accountId"
+    fun refreshTokenKey(accountId: Long) = "oauth_refresh_$accountId"
+    fun accessTokenKey(accountId: Long) = "oauth_access_$accountId"
 
     fun removeAccount(accountId: Long) {
         remove(imapKey(accountId))
         remove(smtpKey(accountId))
+        remove(refreshTokenKey(accountId))
+        remove(accessTokenKey(accountId))
     }
 
     private companion object {
