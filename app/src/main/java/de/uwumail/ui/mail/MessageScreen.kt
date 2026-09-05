@@ -1,8 +1,6 @@
 package de.uwumail.ui.mail
 
 import android.content.Intent
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,7 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import de.uwumail.core.Json
 import de.uwumail.mail.MimeUtil
@@ -80,6 +77,17 @@ fun MessageScreen(
     var overflow by remember { mutableStateOf(false) }
     var showMove by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    // Set when a tapped link carries tracking parameters and the user has asked
+    // to be consulted; the dialog is what actually opens it.
+    var trackingLink by remember { mutableStateOf<String?>(null) }
+
+    fun follow(url: String) {
+        if (state.settings.askStripTracking && de.uwumail.mail.TrackingParams.hasTracking(url)) {
+            trackingLink = url
+        } else {
+            openLink(context, url)
+        }
+    }
 
     LaunchedEffect(state.closed) { if (state.closed) onBack() }
     LaunchedEffect(state.status, state.error) {
@@ -193,7 +201,7 @@ fun MessageScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             state.unsubscribe?.let { target ->
-                UnsubscribeBanner(target) { openLink(context, target.url) }
+                UnsubscribeBanner(target) { follow(target.url) }
             }
 
             Column(Modifier.padding(16.dp)) {
@@ -279,7 +287,7 @@ fun MessageScreen(
                 ?: message.preview
 
             if (state.showHtml && !html.isNullOrBlank()) {
-                HtmlBody(html)
+                HtmlBody(html, onLink = ::follow)
             } else {
                 Text(
                     plain.ifBlank { if (state.loading) "Loading…" else "(empty message)" },
@@ -298,6 +306,14 @@ fun MessageScreen(
         )
     }
 
+    trackingLink?.let { url ->
+        TrackingLinkDialog(
+            url = url,
+            onOpen = { openLink(context, it) },
+            onDismiss = { trackingLink = null }
+        )
+    }
+
     if (confirmDelete) {
         ConfirmDialog(
             title = "Delete permanently?",
@@ -308,35 +324,6 @@ fun MessageScreen(
             onDismiss = { confirmDelete = false }
         )
     }
-}
-
-/**
- * Renders HTML mail with scripts and remote loads disabled — mail bodies are
- * untrusted content and must not be able to phone home or run code.
- */
-@Composable
-private fun HtmlBody(html: String) {
-    AndroidView(
-        modifier = Modifier.fillMaxWidth(),
-        factory = { context ->
-            WebView(context).apply {
-                webViewClient = WebViewClient()
-                settings.javaScriptEnabled = false
-                settings.blockNetworkLoads = true
-                settings.loadsImagesAutomatically = false
-                settings.allowFileAccess = false
-                settings.allowContentAccess = false
-                settings.builtInZoomControls = true
-                settings.displayZoomControls = false
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                isVerticalScrollBarEnabled = false
-            }
-        },
-        update = { view ->
-            view.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
-        }
-    )
 }
 
 private fun shareFile(context: android.content.Context, file: File, mimeType: String) {

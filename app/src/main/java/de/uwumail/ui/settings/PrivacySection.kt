@@ -1,6 +1,7 @@
 package de.uwumail.ui.settings
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Unsubscribe
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -19,5 +20,13 @@ fun PrivacySection() {
         icon = Icons.Default.Unsubscribe,
         checked = settings.unsubscribeBanner,
         onChange = { value -> container.settings.update { it.copy(unsubscribeBanner = value) } }
+    )
+
+    SettingSwitch(
+        title = "Ask before opening tracked links",
+        subtitle = "Offer to strip utm_, fbclid, gclid and the like from a link before it opens",
+        icon = Icons.Default.Link,
+        checked = settings.askStripTracking,
+        onChange = { value -> container.settings.update { it.copy(askStripTracking = value) } }
     )
 }
