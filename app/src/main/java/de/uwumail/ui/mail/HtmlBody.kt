@@ -192,6 +192,14 @@ private fun cutOut(
         }
     }.getOrNull() ?: return emptyList()
 
+    // A WebView does not always render into a software canvas. If it came back
+    // empty, the pictures are left in the page: falling invisible rectangles
+    // that letters pile on top of would be far worse than pictures that stay.
+    if (isBlank(page)) {
+        page.recycle()
+        return emptyList()
+    }
+
     val pieces = rects.mapNotNull { rect ->
         val left = (rect[0] - visible.left).toInt()
         val top = (rect[1] - visible.top).toInt()
@@ -214,6 +222,25 @@ private fun cutOut(
     }
     page.recycle()
     return pieces
+}
+
+/**
+ * Whether a capture came back with nothing in it, sampled on a coarse grid
+ * rather than pixel by pixel — this runs on a bitmap the size of the screen.
+ */
+private fun isBlank(bitmap: Bitmap): Boolean {
+    val stepX = (bitmap.width / 32).coerceAtLeast(1)
+    val stepY = (bitmap.height / 64).coerceAtLeast(1)
+    var y = 0
+    while (y < bitmap.height) {
+        var x = 0
+        while (x < bitmap.width) {
+            if (bitmap.getPixel(x, y) != 0) return false
+            x += stepX
+        }
+        y += stepY
+    }
+    return true
 }
 
 private suspend fun WebView.evaluate(script: String): String =
