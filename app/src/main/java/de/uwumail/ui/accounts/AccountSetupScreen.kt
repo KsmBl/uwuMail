@@ -35,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -75,8 +77,15 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
     var showPassword by remember { mutableStateOf(false) }
     var addIdentity by remember { mutableStateOf(false) }
     var identityToDelete by remember { mutableStateOf<IdentityEntity?>(null) }
+    val snackbarHost = remember { SnackbarHostState() }
 
     LaunchedEffect(state.saved) { if (state.saved) onDone() }
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHost.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
 
     // The view model asks for a browser hop by publishing a URL.
     LaunchedEffect(state.launchAuthUri) {
@@ -93,6 +102,7 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
             Column {
             TopAppBar(

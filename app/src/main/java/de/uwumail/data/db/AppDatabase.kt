@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleLogEntity::class,
         OutboxEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -99,10 +99,28 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Collapses duplicate identities and stops new ones being created. */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE identities SET email = LOWER(TRIM(email))")
+                // Keep the oldest row per address; a unique index cannot be
+                // created while duplicates are still present.
+                db.execSQL(
+                    """DELETE FROM identities WHERE id NOT IN (
+                           SELECT MIN(id) FROM identities GROUP BY accountId, email
+                       )"""
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_identities_accountId_email " +
+                        "ON identities (accountId, email)"
+                )
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "uwumail.db")
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build()
     }

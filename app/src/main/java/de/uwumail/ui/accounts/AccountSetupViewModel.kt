@@ -45,6 +45,7 @@ data class AccountSetupState(
     val testResult: String? = null,
     val error: String? = null,
     val saved: Boolean = false,
+    val message: String? = null,
     val advancedOpen: Boolean = false,
 
     val authType: AuthType = AuthType.PASSWORD,
@@ -337,12 +338,27 @@ class AccountSetupViewModel(
 
     fun addIdentity(displayName: String, email: String) {
         viewModelScope.launch {
-            container.accountRepository.saveIdentity(
-                IdentityEntity(accountId = accountId, displayName = displayName, email = email)
-            )
-            _state.update { it.copy(identities = container.db.identityDao().forAccount(accountId)) }
+            runCatching {
+                container.accountRepository.saveIdentity(
+                    IdentityEntity(accountId = accountId, displayName = displayName, email = email)
+                )
+            }.onSuccess { result ->
+                _state.update {
+                    it.copy(
+                        identities = container.db.identityDao().forAccount(accountId),
+                        message = when (result) {
+                            de.uwumail.data.repo.IdentitySaveResult.CREATED -> "Added $email"
+                            de.uwumail.data.repo.IdentitySaveResult.UPDATED -> "Updated $email"
+                            de.uwumail.data.repo.IdentitySaveResult.UNCHANGED ->
+                                "$email is already saved"
+                        }
+                    )
+                }
+            }.onFailure { e -> _state.update { it.copy(message = e.message) } }
         }
     }
+
+    fun clearMessage() = _state.update { it.copy(message = null) }
 
     /**
      * Makes [identity] the address new messages start from. Without this,

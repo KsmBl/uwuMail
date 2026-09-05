@@ -17,6 +17,18 @@ val localProperties = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 
+/**
+ * Release signing credentials, kept out of version control. `build.sh` creates
+ * both the keystore and this file on the first release build; when it is absent
+ * the release variant is simply left unsigned rather than failing the build.
+ */
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseSigning = keystoreProperties.getProperty("storeFile")
+    ?.let { rootProject.file(it).exists() } == true
+
 android {
     namespace = "de.uwumail"
     compileSdk = 35
@@ -36,11 +48,27 @@ android {
         )
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                // v1 (JAR) signing is only consulted below API 24; minSdk is 31.
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
         }
         release {
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

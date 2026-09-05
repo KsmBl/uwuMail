@@ -14,3 +14,7 @@ captures/
 # built artifacts in the project root
 /uwuMail-*.apk
 .kotlin/
+
+# release signing material
+/keystore/
+/keystore.properties

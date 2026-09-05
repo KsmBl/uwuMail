@@ -57,7 +57,8 @@ data class AccountEntity(
         childColumns = ["accountId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("accountId")]
+    // Emails are stored lowercased, so this also rules out case-only duplicates.
+    indices = [Index(value = ["accountId", "email"], unique = true)]
 )
 data class IdentityEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

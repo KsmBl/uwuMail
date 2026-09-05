@@ -22,6 +22,9 @@ import javax.mail.PasswordAuthentication
 import javax.mail.Session
 import javax.mail.Transport
 
+/** What [AccountRepository.saveIdentity] actually did. */
+enum class IdentitySaveResult { CREATED, UPDATED, UNCHANGED }
+
 class AccountRepository(
     private val context: Context,
     private val db: AppDatabase,
@@ -62,8 +65,8 @@ class AccountRepository(
             db.identityDao().insert(
                 IdentityEntity(
                     accountId = id,
-                    displayName = account.displayName,
-                    email = account.email,
+                    displayName = account.displayName.trim(),
+                    email = account.email.trim().lowercase(),
                     isDefault = true
                 )
             )
@@ -96,10 +99,53 @@ class AccountRepository(
 
     // -------------------------------------------------------------- identities
 
-    suspend fun saveIdentity(identity: IdentityEntity) {
-        if (identity.isDefault) db.identityDao().clearDefault(identity.accountId)
-        if (identity.id == 0L) db.identityDao().insert(identity)
-        else db.identityDao().update(identity)
+    /**
+     * Saves an identity, folding it into an existing one for the same address.
+     *
+     * Returns [IdentitySaveResult.UNCHANGED] when an identical entry is already
+     * there, so callers can say so instead of silently writing a duplicate — the
+     * unique index would reject it anyway.
+     */
+    suspend fun saveIdentity(identity: IdentityEntity): IdentitySaveResult {
+        val email = identity.email.trim().lowercase()
+        require(email.isNotEmpty()) { "An identity needs an address" }
+        val candidate = identity.copy(email = email, displayName = identity.displayName.trim())
+
+        val existing = db.identityDao().forAccount(candidate.accountId)
+            .firstOrNull { it.email == email && it.id != candidate.id }
+
+        if (existing != null &&
+            existing.displayName == candidate.displayName &&
+            existing.replyTo == candidate.replyTo &&
+            existing.signature == candidate.signature &&
+            (!candidate.isDefault || existing.isDefault)
+        ) {
+            return IdentitySaveResult.UNCHANGED
+        }
+
+        if (candidate.isDefault) db.identityDao().clearDefault(candidate.accountId)
+
+        return when {
+            existing != null -> {
+                db.identityDao().update(
+                    existing.copy(
+                        displayName = candidate.displayName,
+                        replyTo = candidate.replyTo,
+                        signature = candidate.signature,
+                        isDefault = candidate.isDefault || existing.isDefault
+                    )
+                )
+                IdentitySaveResult.UPDATED
+            }
+            candidate.id == 0L -> {
+                db.identityDao().insert(candidate)
+                IdentitySaveResult.CREATED
+            }
+            else -> {
+                db.identityDao().update(candidate)
+                IdentitySaveResult.UPDATED
+            }
+        }
     }
 
     suspend fun deleteIdentity(identity: IdentityEntity) = db.identityDao().delete(identity)

@@ -6,6 +6,7 @@ import de.uwumail.core.Json
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.IdentityEntity
 import de.uwumail.data.db.OutboxEntity
+import de.uwumail.data.repo.IdentitySaveResult
 import de.uwumail.di.AppContainer
 import de.uwumail.mail.MimeUtil
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -239,23 +240,25 @@ class ComposeViewModel(
             runCatching {
                 // Bookmarking the same address twice would otherwise pile up
                 // duplicates that then have to be deleted one by one.
-                val existing = savedIdentityFor(current.fromAddress)
-                container.accountRepository.saveIdentity(
+                val result = container.accountRepository.saveIdentity(
                     IdentityEntity(
-                        id = existing?.id ?: 0,
                         accountId = current.accountId,
                         displayName = current.fromName.ifBlank { current.fromAddress },
-                        email = current.fromAddress.trim(),
-                        isDefault = existing?.isDefault ?: false
+                        email = current.fromAddress,
+                        isDefault = false
                     )
                 )
                 reloadIdentities()
-                existing != null
-            }.onSuccess { updated ->
+                result
+            }.onSuccess { result ->
+                val address = current.fromAddress.trim().lowercase()
                 _state.update {
                     it.copy(
-                        status = if (updated) "Updated ${current.fromAddress}"
-                        else "Saved ${current.fromAddress}"
+                        status = when (result) {
+                            IdentitySaveResult.CREATED -> "Saved $address"
+                            IdentitySaveResult.UPDATED -> "Updated $address"
+                            IdentitySaveResult.UNCHANGED -> "$address is already saved"
+                        }
                     )
                 }
             }.onFailure { e -> _state.update { it.copy(error = e.message) } }

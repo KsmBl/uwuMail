@@ -119,25 +119,41 @@ Requires JDK 17+ and the Android SDK (compileSdk 35, build-tools 35.0.0). Point
 `ANDROID_HOME` at the SDK or set `sdk.dir` in `local.properties`.
 
 ```sh
-./build.sh                  # debug APK -> ./uwuMail-debug.apk
-./build.sh release          # release APK (R8 + resource shrinking)
-./build.sh debug --install  # build, then adb install
+./build.sh                  # signed release APK -> ./uwuMail-release.apk
+./build.sh debug            # debug APK -> ./uwuMail-debug.apk
+./build.sh --install        # build, then adb install
 ./build.sh --clean          # clean first
+./build.sh release --no-sign
 ```
 
 `build.sh` finds the SDK from `ANDROID_HOME`, `local.properties` or
 `~/Android/Sdk`, picks `./gradlew` (falling back to a `gradle` on `PATH` or a
-cached distribution), builds, and copies the APK into the project root.
+cached distribution), builds, copies the APK into the project root and reports
+the signing certificate.
+
+**Signing.** The first release build generates `keystore/uwumail-release.jks`
+and `keystore.properties` with a random password, and Gradle picks them up from
+there. Both are gitignored. **Back them up** — Android will not install an
+update signed with a different key, so losing the keystore means uninstalling
+(and losing local mail) to move forward.
+
+Release is minified and shrunk with R8; the ProGuard rules keep JavaMail whole,
+since it resolves providers and content handlers by name at runtime and R8
+cannot see those references.
+
+Debug and release share the application id `de.uwumail` but not the signing key,
+so a release APK will not install over a debug one. Uninstall first:
+
+```sh
+adb uninstall de.uwumail
+```
 
 Or drive Gradle directly:
 
 ```sh
-./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
 ./gradlew :app:testDebugUnitTest
 ```
-
-The release build is unsigned unless you add your own signing config; the debug
-build uses the standard debug keystore and installs as-is.
 
 ## Google sign-in
 
@@ -152,10 +168,10 @@ specific app package and signing certificate. Register your own once:
 1. **console.cloud.google.com** → new project → **APIs & Services → Credentials**
 2. **Create credentials → OAuth client ID → Android**
    - Package name: `de.uwumail`
-   - SHA-1: shown in uwuMail under **Settings → Google sign-in** (tap to copy).
-     For the debug build produced by `build.sh` on this machine it is the debug
-     keystore's fingerprint; a release build signed with your own key has a
-     different one, so read it from the app rather than assuming.
+   - SHA-1: shown in uwuMail under **Settings → Google sign-in** (tap to copy),
+     and printed by `build.sh` after each build. Debug and release are signed
+     with different keys and so have different fingerprints — add both to the
+     OAuth client if you use both builds.
 3. **OAuth consent screen** → External → add the scope
    `https://mail.google.com/` and add your own address as a test user
 4. Paste the client id into **Settings → Google sign-in**, or put it in
