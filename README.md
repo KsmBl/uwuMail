@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-176%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-179%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -466,7 +466,7 @@ to read and to run rules against.
 
 ## Tests
 
-176 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+179 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
