@@ -487,4 +487,19 @@
     <!-- Undo stack -->
     <string name="dismiss">Dismiss</string>
     <string name="swipe_select">Select</string>
+
+    <!-- Folder roles -->
+    <string name="configure_folders">Configure folders</string>
+    <string name="roles_intro">Which folder does which job on this account. These are guessed when the account is first seen, which some servers do not make easy — set them here if anything landed in the wrong place.</string>
+    <string name="role_archive">Archive</string>
+    <string name="role_archive_sub">Where archiving puts a message</string>
+    <string name="role_sent">Sent</string>
+    <string name="role_sent_sub">Where a copy of everything you send is kept</string>
+    <string name="role_drafts">Drafts</string>
+    <string name="role_drafts_sub">Where an unfinished message is saved</string>
+    <string name="role_trash">Trash</string>
+    <string name="role_trash_sub">Where deleting puts a message. With none set, deleting removes it outright.</string>
+    <string name="role_unset">Not set</string>
+    <string name="section_folders">Folders</string>
+    <string name="configure_folders_sub">Choose which folder is used for archive, sent, drafts and trash</string>
 </resources>

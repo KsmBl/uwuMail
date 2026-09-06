@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import de.uwumail.ui.accounts.AccountSetupScreen
 import de.uwumail.ui.accounts.AccountsScreen
+import de.uwumail.ui.accounts.FolderRolesScreen
 import de.uwumail.ui.compose.ComposeScreen
 import de.uwumail.ui.folders.FoldersScreen
 import de.uwumail.ui.mail.MailScreen
@@ -39,6 +40,7 @@ object Routes {
     const val WIZARD = "wizard"
     const val SETTINGS = "settings"
     const val BLOCKED = "blocked"
+    const val FOLDER_ROLES = "folderRoles"
 }
 
 @Composable
@@ -124,6 +126,7 @@ fun UwuMailNavHost(
         ) { entry ->
             AccountSetupScreen(
                 accountId = entry.arguments?.getLong("accountId") ?: 0L,
+                onConfigureFolders = { navController.go(entry, "${Routes.FOLDER_ROLES}/$it") },
                 onDone = { navController.leave(entry) }
             )
         }
@@ -239,6 +242,16 @@ fun UwuMailNavHost(
             SettingsScreen(
                 onBack = { navController.leave(entry) },
                 onManageBlocked = { navController.go(entry, Routes.BLOCKED) }
+            )
+        }
+
+        composable(
+            "${Routes.FOLDER_ROLES}/{accountId}",
+            arguments = listOf(navArgument("accountId") { type = NavType.LongType })
+        ) { entry ->
+            FolderRolesScreen(
+                accountId = entry.arguments?.getLong("accountId") ?: 0L,
+                onBack = { navController.leave(entry) }
             )
         }
 

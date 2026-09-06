@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
@@ -70,7 +72,11 @@ import de.uwumail.ui.containerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
+fun AccountSetupScreen(
+    accountId: Long,
+    onConfigureFolders: (Long) -> Unit,
+    onDone: () -> Unit
+) {
     val viewModel = containerViewModel(key = "setup-$accountId") {
         AccountSetupViewModel(it, accountId)
     }
@@ -318,6 +324,18 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                     onClick = { addIdentity = true },
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) { Text(stringResource(R.string.add_identity)) }
+            }
+
+            // Only for an account that exists: there are no folders to map
+            // until it has been saved and synced once.
+            if (accountId > 0) {
+                SectionHeader(stringResource(R.string.section_folders))
+                ListItem(
+                    modifier = Modifier.clickable { onConfigureFolders(accountId) },
+                    leadingContent = { Icon(Icons.Default.Folder, null) },
+                    headlineContent = { Text(stringResource(R.string.configure_folders)) },
+                    supportingContent = { Text(stringResource(R.string.configure_folders_sub)) }
+                )
             }
 
             SectionHeader(stringResource(R.string.advanced))

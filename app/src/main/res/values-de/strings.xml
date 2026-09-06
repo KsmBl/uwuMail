@@ -485,4 +485,19 @@
     <!-- Undo stack -->
     <string name="dismiss">Schließen</string>
     <string name="swipe_select">Auswählen</string>
+
+    <!-- Folder roles -->
+    <string name="configure_folders">Ordner zuordnen</string>
+    <string name="roles_intro">Welcher Ordner welche Aufgabe für dieses Konto übernimmt. Beim ersten Einrichten wird das geraten, was manche Server schwer machen — hier lässt es sich richtigstellen.</string>
+    <string name="role_archive">Archiv</string>
+    <string name="role_archive_sub">Wohin archivierte Nachrichten kommen</string>
+    <string name="role_sent">Gesendet</string>
+    <string name="role_sent_sub">Wo eine Kopie aller gesendeten Nachrichten liegt</string>
+    <string name="role_drafts">Entwürfe</string>
+    <string name="role_drafts_sub">Wo unfertige Nachrichten gespeichert werden</string>
+    <string name="role_trash">Papierkorb</string>
+    <string name="role_trash_sub">Wohin gelöschte Nachrichten kommen. Ohne Angabe wird direkt gelöscht.</string>
+    <string name="role_unset">Nicht gesetzt</string>
+    <string name="section_folders">Ordner</string>
+    <string name="configure_folders_sub">Festlegen, welcher Ordner für Archiv, Gesendet, Entwürfe und Papierkorb dient</string>
 </resources>
