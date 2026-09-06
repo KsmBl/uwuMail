@@ -73,13 +73,15 @@ fun ComposeScreen(
     forwardMessageId: Long,
     draftMessageId: Long,
     mailto: String?,
+    fromShare: Boolean = false,
     onDone: () -> Unit
 ) {
     val viewModel = containerViewModel(
-        key = "compose-$accountId-$replyToMessageId-$forwardMessageId-$draftMessageId"
+        key = "compose-$accountId-$replyToMessageId-$forwardMessageId-$draftMessageId-$fromShare"
     ) {
         ComposeViewModel(
-            it, accountId, replyToMessageId, replyAll, forwardMessageId, draftMessageId, mailto
+            it, accountId, replyToMessageId, replyAll, forwardMessageId, draftMessageId, mailto,
+            fromShare
         )
     }
     val state by viewModel.state.collectAsState()

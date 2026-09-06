@@ -105,7 +105,8 @@ class ComposeViewModel(
     private val replyAll: Boolean,
     private val forwardMessageId: Long,
     private val draftMessageId: Long,
-    private val mailto: String?
+    private val mailto: String?,
+    private val fromShare: Boolean = false
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ComposeUiState())
@@ -139,6 +140,7 @@ class ComposeViewModel(
                 replyToMessageId > 0 -> prefillReply(replyToMessageId, replyAll)
                 forwardMessageId > 0 -> prefillForward(forwardMessageId)
                 mailto != null -> prefillMailto(mailto)
+                fromShare -> prefillShare()
             }
         }
     }
@@ -169,6 +171,28 @@ class ComposeViewModel(
                 attachments = carried
             )
         }
+    }
+
+    /**
+     * Fills the composer from whatever another app shared.
+     *
+     * The share is taken rather than read, so a rotation cannot attach
+     * everything a second time; each file is copied in exactly as a picked one
+     * is, since the URI is a loan that will not outlive this screen.
+     */
+    private fun prefillShare() {
+        val shared = container.sharedContent.take() ?: return
+        _state.update {
+            it.copy(
+                to = shared.to,
+                cc = shared.cc,
+                bcc = shared.bcc,
+                subject = shared.subject,
+                body = if (shared.text.isBlank()) it.body else shared.text + it.body,
+                showCcBcc = shared.cc.isNotBlank() || shared.bcc.isNotBlank()
+            )
+        }
+        shared.attachments.forEach(::attach)
     }
 
     /**

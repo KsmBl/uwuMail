@@ -53,6 +53,30 @@ class MailtoIntentTest {
         assertTrue(resolves(Intent.ACTION_VIEW, "mailto:"))
     }
 
+    @Test
+    fun `a photo shared from another app is offered to us`() {
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType("image/jpeg")
+            .addCategory(Intent.CATEGORY_DEFAULT)
+
+        assertTrue(
+            packages.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                .any { it.activityInfo?.name == MainActivity::class.java.name }
+        )
+    }
+
+    @Test
+    fun `several files shared at once are offered to us`() {
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE)
+            .setType("*/*")
+            .addCategory(Intent.CATEGORY_DEFAULT)
+
+        assertTrue(
+            packages.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                .any { it.activityInfo?.name == MainActivity::class.java.name }
+        )
+    }
+
     /** Proof that the resolver above discriminates rather than agreeing to anything. */
     @Test
     fun `an ordinary web page is not ours to open`() {

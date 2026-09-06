@@ -54,6 +54,20 @@
                 <data android:scheme="mailto" />
             </intent-filter>
 
+            <!-- Sharing a photo, a file or a piece of text to be mailed. A mail
+                 app missing from the share sheet is a mail app people work
+                 around by saving the file first. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
             <!-- OAuth redirect. The scheme must equal the package name, which is
                  what Google's Android OAuth client type expects. -->
             <intent-filter>

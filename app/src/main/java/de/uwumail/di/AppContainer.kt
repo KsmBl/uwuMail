@@ -44,6 +44,11 @@ class AppContainer(private val context: Context) {
     val pendingAuth: PendingAuthStore by lazy { PendingAuthStore(context) }
     val oauthResults: OAuthResultBus by lazy { OAuthResultBus() }
 
+    /** Where a share from another app waits for the composer to open. */
+    val sharedContent: de.uwumail.ui.compose.SharedContentBus by lazy {
+        de.uwumail.ui.compose.SharedContentBus()
+    }
+
     val tokenStore: TokenStore by lazy {
         TokenStore(db.accountDao(), credentials, oauthClient, oauthConfig)
     }

@@ -67,11 +67,21 @@ fun UwuMailNavHost(
     navController: NavHostController = rememberNavController(),
     startOnAccounts: Boolean,
     openMessageId: Long? = null,
-    mailtoUri: String? = null
+    mailtoUri: String? = null,
+    /** Bumped by the activity each time a share arrives; 0 means none. */
+    sharedContent: Int = 0
 ) {
     LaunchedEffect(openMessageId) {
         openMessageId?.takeIf { it > 0 }?.let {
             navController.navigate("${Routes.MESSAGE}/$it")
+        }
+    }
+    LaunchedEffect(sharedContent) {
+        if (sharedContent > 0) {
+            navController.navigate(
+                "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false&forward=0" +
+                    "&draft=0&shared=true"
+            )
         }
     }
     LaunchedEffect(mailtoUri) {
@@ -203,7 +213,7 @@ fun UwuMailNavHost(
 
         composable(
             "${Routes.COMPOSE}?accountId={accountId}&reply={reply}&replyAll={replyAll}" +
-                "&forward={forward}&draft={draft}&mailto={mailto}",
+                "&forward={forward}&draft={draft}&mailto={mailto}&shared={shared}",
             arguments = listOf(
                 navArgument("accountId") { type = NavType.LongType; defaultValue = 0L },
                 navArgument("reply") { type = NavType.LongType; defaultValue = 0L },
@@ -212,7 +222,8 @@ fun UwuMailNavHost(
                 navArgument("draft") { type = NavType.LongType; defaultValue = 0L },
                 navArgument("mailto") {
                     type = NavType.StringType; nullable = true; defaultValue = null
-                }
+                },
+                navArgument("shared") { type = NavType.BoolType; defaultValue = false }
             )
         ) { entry ->
             val args = entry.arguments
@@ -225,6 +236,7 @@ fun UwuMailNavHost(
                 mailto = args?.getString("mailto")?.let {
                     runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it)
                 },
+                fromShare = args?.getBoolean("shared") ?: false,
                 onDone = { navController.leave(entry) }
             )
         }

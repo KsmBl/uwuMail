@@ -223,6 +223,8 @@ have.
   really holds the message before the local copy is discarded. A server can
   accept a `COPY` and still not keep it, and mail that quietly went nowhere is
   the worst outcome there is.
+- **Share to uwuMail.** A photo, a file, several files or a piece of text
+  shared from any other app opens the composer with them already attached.
 - **Attach files** to a message from the system document picker. The bytes are
   copied into app storage rather than the content URI being kept, since a URI
   is a loan from the app that produced it and may not outlive a spell in the

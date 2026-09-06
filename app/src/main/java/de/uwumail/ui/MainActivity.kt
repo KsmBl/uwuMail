@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import de.uwumail.UwuMailApp
+import de.uwumail.ui.compose.SharedContent
 import de.uwumail.ui.theme.UwuMailTheme
 
 class MainActivity : AppCompatActivity() {
@@ -33,6 +34,8 @@ class MainActivity : AppCompatActivity() {
 
     private var pendingMessageId by mutableStateOf<Long?>(null)
     private var pendingMailto by mutableStateOf<String?>(null)
+    /** Bumped when a share arrives, so the same one is not opened twice. */
+    private var pendingShare by mutableStateOf(0)
 
     /**
      * Anything held back for an undo is done now. The offer lived on a screen
@@ -83,7 +86,8 @@ class MainActivity : AppCompatActivity() {
                             UwuMailNavHost(
                                 startOnAccounts = accountCount == 0,
                                 openMessageId = pendingMessageId,
-                                mailtoUri = pendingMailto
+                                mailtoUri = pendingMailto,
+                                sharedContent = pendingShare
                             )
                         }
                     }
@@ -100,6 +104,14 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent?) {
         intent ?: return
         intent.getLongExtra("messageId", -1L).takeIf { it > 0 }?.let { pendingMessageId = it }
+        if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            val shared = SharedContent.of(intent)
+            if (!shared.isEmpty) {
+                (application as UwuMailApp).container.sharedContent.offer(shared)
+                pendingShare++
+            }
+            return
+        }
         if (intent.action == Intent.ACTION_SENDTO || intent.action == Intent.ACTION_VIEW) {
             val data = intent.data
             when {
