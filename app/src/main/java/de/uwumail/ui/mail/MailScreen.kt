@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
@@ -119,8 +121,10 @@ private const val TAP_GAP_MILLIS = 1_500L
 
 /** The name of a unified view, which has no folder of its own to be named after. */
 @StringRes
-private fun unifiedTitle(target: MailTarget): Int =
-    MailTarget.UNIFIED.firstOrNull { it.first == target }?.second ?: R.string.all_inboxes
+private fun unifiedTitle(target: MailTarget): Int = when (target) {
+    MailTarget.Search -> R.string.search_results
+    else -> MailTarget.UNIFIED.firstOrNull { it.first == target }?.second ?: R.string.all_inboxes
+}
 
 /** How a removal that is still cancellable describes itself. */
 private fun undoMessage(offer: Undoable): String {
@@ -292,7 +296,15 @@ fun MailScreen(
                                 OutlinedTextField(
                                     value = state.query,
                                     onValueChange = viewModel::setQuery,
-                                    placeholder = { Text(stringResource(R.string.search_folder)) },
+                                    placeholder = {
+                                        Text(
+                                            if (state.target == MailTarget.Search) {
+                                                stringResource(R.string.search_everywhere)
+                                            } else {
+                                                stringResource(R.string.search_folder)
+                                            }
+                                        )
+                                    },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -325,7 +337,13 @@ fun MailScreen(
                         actions = {
                             IconButton(onClick = {
                                 showSearch = !showSearch
-                                if (!showSearch) viewModel.setQuery("")
+                                if (!showSearch) {
+                                    viewModel.setQuery("")
+                                    // Leaving the search leaves the results too.
+                                    if (state.target == MailTarget.Search) {
+                                        viewModel.open(MailTarget.INBOXES)
+                                    }
+                                }
                             }) {
                                 Icon(
                                     if (showSearch) Icons.Default.Close else Icons.Default.Search,
@@ -342,6 +360,27 @@ fun MailScreen(
                                 expanded = overflowOpen,
                                 onDismissRequest = { overflowOpen = false }
                             ) {
+                                if (showSearch && state.query.isNotBlank()) {
+                                    if (state.target != MailTarget.Search) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.search_all_folders)) },
+                                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                                            onClick = {
+                                                overflowOpen = false
+                                                viewModel.searchEverywhere()
+                                            }
+                                        )
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.search_on_server)) },
+                                        leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
+                                        onClick = {
+                                            overflowOpen = false
+                                            viewModel.searchOnServer()
+                                        }
+                                    )
+                                    HorizontalDivider()
+                                }
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.rules)) },
                                     onClick = { overflowOpen = false; onManageRules() }

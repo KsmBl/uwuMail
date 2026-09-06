@@ -468,4 +468,10 @@
     <string name="backup_export_failed">Sicherung fehlgeschlagen</string>
     <string name="backup_import_failed">Wiederherstellen fehlgeschlagen</string>
     <string name="backup_not_a_backup">Diese Datei ist keine uwuMail-Sicherung</string>
+
+    <!-- Search -->
+    <string name="search_everywhere">Alle Mail durchsuchen</string>
+    <string name="search_all_folders">In allen Ordnern suchen</string>
+    <string name="search_on_server">Auch auf dem Server suchen</string>
+    <string name="search_results">Suchergebnisse</string>
 </resources>

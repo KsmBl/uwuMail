@@ -10,6 +10,10 @@ import java.io.Closeable
 import java.util.Properties
 import javax.mail.FetchProfile
 import javax.mail.Flags
+import javax.mail.search.FromStringTerm
+import javax.mail.search.OrTerm
+import javax.mail.search.RecipientStringTerm
+import javax.mail.search.SubjectTerm
 import javax.mail.Folder
 import javax.mail.Message
 import javax.mail.MessageRemovedException
@@ -262,6 +266,32 @@ class ImapClient(
             }
         }
         return null
+    }
+
+    /**
+     * Asks the server to search a folder, which reaches mail that was never
+     * downloaded — the local search can only ever see what has been synced.
+     *
+     * Subject, sender and recipients are searched but not the body: a full-text
+     * search over every message is expensive on the server and slow on a phone,
+     * and it is not what someone typing a name is usually after.
+     */
+    fun search(path: String, query: String, limit: Int): List<FetchedMessage> {
+        if (query.isBlank()) return emptyList()
+        val folder = open(path, Folder.READ_ONLY)
+        val term = OrTerm(
+            arrayOf(
+                SubjectTerm(query),
+                FromStringTerm(query),
+                RecipientStringTerm(Message.RecipientType.TO, query)
+            )
+        )
+        val found = ignoringRemoved { folder.search(term) } ?: return emptyList()
+        // Newest first, and only as many as anyone will read.
+        val newest = found.takeLast(limit).reversed().toTypedArray()
+        if (newest.isEmpty()) return emptyList()
+        fetchEnvelopes(folder, newest)
+        return newest.mapNotNull { toFetched(folder, it) }
     }
 
     fun setFlags(path: String, uids: List<Long>, flag: Flags.Flag, value: Boolean) {

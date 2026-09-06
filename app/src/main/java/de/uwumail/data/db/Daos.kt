@@ -191,6 +191,24 @@ interface MessageDao {
     )
     fun searchInFolder(folderId: Long, q: String, limit: Int): Flow<List<MessageSummary>>
 
+    /** The same search across every folder of every account. */
+    @Query(
+        """
+        SELECT $SUMMARY_COLUMNS FROM messages
+        WHERE pendingRemoval = 0
+          AND folderId IN (SELECT id FROM folders WHERE hidden = 0)
+          AND (
+            subject LIKE '%' || :q || '%' OR
+            fromAddress LIKE '%' || :q || '%' OR
+            fromName LIKE '%' || :q || '%' OR
+            toList LIKE '%' || :q || '%' OR
+            preview LIKE '%' || :q || '%' OR
+            bodyPlain LIKE '%' || :q || '%')
+        ORDER BY receivedAt DESC LIMIT :limit
+        """
+    )
+    fun searchEverywhere(q: String, limit: Int): Flow<List<MessageSummary>>
+
     @Query("SELECT * FROM messages WHERE id = :id")
     fun observeFull(id: Long): Flow<MessageEntity?>
 

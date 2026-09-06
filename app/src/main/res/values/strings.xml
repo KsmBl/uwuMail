@@ -470,4 +470,10 @@
     <string name="backup_export_failed">Could not save the backup</string>
     <string name="backup_import_failed">Could not restore</string>
     <string name="backup_not_a_backup">That file is not a uwuMail backup</string>
+
+    <!-- Search -->
+    <string name="search_everywhere">Search all mail</string>
+    <string name="search_all_folders">Search every folder</string>
+    <string name="search_on_server">Also search the server</string>
+    <string name="search_results">Search results</string>
 </resources>

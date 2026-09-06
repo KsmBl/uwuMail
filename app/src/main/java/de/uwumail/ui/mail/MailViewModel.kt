@@ -38,6 +38,9 @@ sealed interface MailTarget {
     data class Unified(val type: FolderType) : MailTarget
     data class Folder(val id: Long) : MailTarget
 
+    /** Everything cached, everywhere, matching whatever was typed. */
+    data object Search : MailTarget
+
     companion object {
         val INBOXES = Unified(FolderType.INBOX)
         val OUTBOXES = Unified(FolderType.SENT)
@@ -129,6 +132,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
                 is MailTarget.Folder ->
                     if (q.isBlank()) container.db.messageDao().observeFolder(selected.id, PAGE)
                     else container.db.messageDao().searchInFolder(selected.id, q, PAGE)
+                is MailTarget.Search -> container.db.messageDao().searchEverywhere(q, PAGE)
             }
         }
 
@@ -220,6 +224,9 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
                             .unreadWithoutBodyUnified(
                                 destination.type.name, SyncManager.PREFETCH_LIMIT
                             )
+                        // Search results are somebody looking for one thing,
+                        // not a list to read through.
+                        MailTarget.Search -> emptyList()
                     }
                     container.syncManager.prefetchBodies(ids)
                 }
@@ -264,6 +271,34 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         query.value = value
     }
 
+    /** Switches the list to searching everything cached, everywhere. */
+    fun searchEverywhere() {
+        selection.value = emptySet()
+        target.value = MailTarget.Search
+    }
+
+    /**
+     * Asks the servers as well, for mail too old to have been synced. Every
+     * folder currently on screen is searched, since a search that only covered
+     * one of them would quietly miss the rest.
+     */
+    fun searchOnServer() = launchGuarded(showBusy = true) {
+        val q = query.value.trim()
+        if (q.isBlank()) return@launchGuarded
+        val folders = when (val destination = target.value) {
+            is MailTarget.Folder -> listOfNotNull(destination.id)
+            is MailTarget.Unified -> state.value.visibleFolders
+                .filter { it.type == destination.type.name && !it.isLocal }.map { it.id }
+            MailTarget.Search -> state.value.visibleFolders
+                .filter { !it.isLocal && it.selectable }.map { it.id }
+        }
+        var found = 0
+        folders.forEach { id ->
+            runCatching { found += container.syncManager.searchOnServer(id, q) }
+        }
+        report(if (found == 0) "Nothing more on the server" else "$found more from the server")
+    }
+
     // ------------------------------------------------------------ selection
 
     fun toggleSelection(id: Long) {
@@ -296,6 +331,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
                         // syncAll would only cover folders marked for background
                         // sync, which leaves the Sent and Trash views empty.
                         is MailTarget.Unified -> container.syncManager.syncUnified(destination.type)
+                        MailTarget.Search -> searchOnServer()
                     }
                 }.onFailure { e ->
                     transient.update { it.copy(error = e.message ?: e.toString()) }

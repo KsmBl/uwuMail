@@ -1196,6 +1196,33 @@ class SyncManager(
         return folder?.id
     }
 
+    /**
+     * Searches the server and caches whatever comes back.
+     *
+     * The local search only sees mail that has been synced, which for anything
+     * older than the last few hundred messages is nothing. Results are stored
+     * like any other message so the list picks them up on its own — and so a
+     * second search for the same thing is instant.
+     *
+     * Returns how many were new to the cache.
+     */
+    suspend fun searchOnServer(folderId: Long, query: String, limit: Int = SEARCH_LIMIT): Int {
+        val folder = db.folderDao().get(folderId) ?: return 0
+        if (folder.isLocal) return 0
+        val account = db.accountDao().get(folder.accountId) ?: return 0
+        val found = pool.use(account.id) { it.search(folder.path, query, limit) }
+        if (found.isEmpty()) return 0
+
+        val known = db.messageDao().uidsIn(folderId).toHashSet()
+        val fresh = found.filterNot { it.uid in known }
+        if (fresh.isNotEmpty()) {
+            // History, not news: no rules and no notifications.
+            db.messageDao().insertAll(fresh.map { it.toEntity(account.id, folderId) })
+            db.folderDao().refreshCounts(folderId)
+        }
+        return fresh.size
+    }
+
     // ------------------------------------------------------------- outgoing
 
     suspend fun sendOutbox() {
@@ -1368,6 +1395,8 @@ class SyncManager(
         const val UNDO_WINDOW_MILLIS = 5_000L
         /** How many unread messages the list screen preloads ahead of the user. */
         const val PREFETCH_LIMIT = 30
+        /** How many server-side search hits are worth pulling down at once. */
+        const val SEARCH_LIMIT = 100
         private const val PREFETCH_GAP_MILLIS = 400L
         private const val FLAG_WINDOW = 200
 
