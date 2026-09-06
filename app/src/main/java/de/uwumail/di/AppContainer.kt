@@ -17,6 +17,7 @@ import de.uwumail.notify.Notifier
 import de.uwumail.rules.RuleEngine
 import de.uwumail.rules.RuleSuggester
 import de.uwumail.sync.SyncManager
+import de.uwumail.ui.mail.MessageOrder
 
 /**
  * Hand-rolled dependency graph.
@@ -32,6 +33,9 @@ class AppContainer(private val context: Context) {
     val db: AppDatabase by lazy { AppDatabase.build(context) }
     val credentials: CredentialStore by lazy { CredentialStore(context) }
     val settings: SettingsStore by lazy { SettingsStore(context) }
+
+    /** What the list is showing, so the message screen can swipe along it. */
+    val messageOrder: MessageOrder by lazy { MessageOrder() }
     val notifier: Notifier by lazy { Notifier(context) }
 
     val oauthClient: OAuthClient by lazy { OAuthClient() }

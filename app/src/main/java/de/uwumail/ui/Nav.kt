@@ -118,6 +118,14 @@ fun UwuMailNavHost(
                     navController.navigate(
                         "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false&forward=$id"
                     )
+                },
+                // Swiping between messages replaces this one rather than
+                // stacking, so back always returns to the list rather than
+                // walking every message that was swiped through.
+                onOpenMessage = { id ->
+                    navController.navigate("${Routes.MESSAGE}/$id") {
+                        popUpTo("${Routes.MESSAGE}/{messageId}") { inclusive = true }
+                    }
                 }
             )
         }

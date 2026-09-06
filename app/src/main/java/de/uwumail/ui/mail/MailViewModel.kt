@@ -176,6 +176,14 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
 
+        // The message screen swipes along whatever the list is showing, which
+        // only the list knows: it depends on the folder and on any search.
+        viewModelScope.launch {
+            state.map { ui -> ui.messages.map { it.id } }
+                .distinctUntilChanged()
+                .collect { container.messageOrder.publish(it) }
+        }
+
         // Pull the bodies of unread mail down while the list is on screen, so
         // opening any of it is instant and works with no connection.
         //

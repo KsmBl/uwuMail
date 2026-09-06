@@ -64,6 +64,7 @@ import de.uwumail.mail.MimeUtil
 import de.uwumail.ui.mail.gravity.FallingPiece
 import de.uwumail.ui.mail.gravity.GravityOverlay
 import de.uwumail.ui.mail.gravity.MAX_GRAVITY_LETTERS
+import de.uwumail.ui.LocalAppContainer
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.FolderPickerSheet
 import de.uwumail.ui.common.formatFullDate
@@ -77,7 +78,8 @@ fun MessageScreen(
     messageId: Long,
     onBack: () -> Unit,
     onReply: (Long, Boolean) -> Unit,
-    onForward: (Long) -> Unit
+    onForward: (Long) -> Unit,
+    onOpenMessage: (Long) -> Unit = {}
 ) {
     val viewModel = containerViewModel(key = "message-$messageId") {
         MessageViewModel(it, messageId)
@@ -85,6 +87,11 @@ fun MessageScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val snackbarHost = remember { SnackbarHostState() }
+    // Swiping moves along whatever the list was showing when this was opened.
+    val order = LocalAppContainer.current.messageOrder
+    val siblings by order.ids.collectAsState()
+    val previousMessage = remember(siblings, messageId) { order.previousOf(messageId) }
+    val nextMessage = remember(siblings, messageId) { order.nextOf(messageId) }
     var overflow by remember { mutableStateOf(false) }
     var showMove by remember { mutableStateOf(false) }
     var showCopy by remember { mutableStateOf(false) }
@@ -244,7 +251,15 @@ fun MessageScreen(
         // The message is drawn exactly as it always is. Under gravity the
         // letters are lifted off it into the overlay below, which is why the
         // first frame of the fall is indistinguishable from it sitting still.
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        HorizontalSwipeNavigator(
+            // Letters loose on the floor are not a message to swipe away from.
+            canGoPrevious = previousMessage != null && !state.gravity,
+            canGoNext = nextMessage != null && !state.gravity,
+            onPrevious = { previousMessage?.let(onOpenMessage) },
+            onNext = { nextMessage?.let(onOpenMessage) },
+            modifier = Modifier.padding(padding)
+        ) {
+        Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -387,6 +402,7 @@ fun MessageScreen(
 
         if (state.gravity && glyphs.isNotEmpty()) {
             GravityOverlay(glyphs, Modifier.fillMaxSize())
+        }
         }
         }
     }
