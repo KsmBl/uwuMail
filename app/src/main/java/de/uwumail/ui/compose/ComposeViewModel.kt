@@ -321,7 +321,7 @@ class ComposeViewModel(
     private suspend fun prefillForward(messageId: Long) {
         val message = container.syncManager.ensureBody(messageId)
             ?: container.db.messageDao().get(messageId) ?: return
-        val text = message.bodyPlain ?: message.bodyHtml?.let(MimeUtil::htmlToText).orEmpty()
+        val quoted = message.bodyPlain ?: message.bodyHtml?.let(MimeUtil::htmlToText).orEmpty()
         // Forwarding a message without what was attached to it forwards half of
         // it, and the half that is usually the point.
         val carried = carriedAttachments(messageId)
@@ -331,11 +331,16 @@ class ComposeViewModel(
                 attachments = it.attachments + carried,
                 subject = if (message.subject.startsWith("Fwd:", true)) message.subject
                 else "Fwd: ${message.subject}",
-                body = it.body + "\n\n" + container.appContext.getString(R.string.forwarded_separator) + "\n" +
-                    "From: ${message.fromName.orEmpty()} <${message.fromAddress.orEmpty()}>\n" +
-                    "Date: ${dateFormat.format(java.util.Date(message.receivedAt))}\n" +
-                    "Subject: ${message.subject}\n" +
-                    "To: ${message.toList}\n\n" + text
+                body = it.body + "\n\n" +
+                    container.appContext.getString(R.string.forwarded_separator) + "\n" +
+                    text(
+                        R.string.forwarded_headers,
+                        message.fromName.orEmpty(),
+                        message.fromAddress.orEmpty(),
+                        dateFormat.format(java.util.Date(message.receivedAt)),
+                        message.subject,
+                        message.toList
+                    ) + "\n\n" + quoted
             )
         }
     }
@@ -362,11 +367,17 @@ class ComposeViewModel(
         }
     }
 
-    private fun quote(text: String, message: de.uwumail.data.db.MessageEntity): String {
-        val header = "On ${dateFormat.format(java.util.Date(message.receivedAt))}, " +
-            "${message.fromName ?: message.fromAddress} wrote:"
-        return header + "\n" + text.lineSequence().joinToString("\n") { "> $it" }
+    private fun quote(body: String, message: de.uwumail.data.db.MessageEntity): String {
+        val header = text(
+            R.string.quote_header,
+            dateFormat.format(java.util.Date(message.receivedAt)),
+            message.fromName ?: message.fromAddress.orEmpty()
+        )
+        return header + "\n" + body.lineSequence().joinToString("\n") { "> $it" }
     }
+
+    private fun text(id: Int, vararg args: Any) =
+        container.appContext.getString(id, *args)
 
     // ------------------------------------------------------------- mutations
 
@@ -408,7 +419,7 @@ class ComposeViewModel(
                 container.accountRepository.deleteIdentity(identity)
                 reloadIdentities()
             }.onSuccess {
-                _state.update { it.copy(status = "Removed ${identity.email}") }
+                _state.update { it.copy(status = text(R.string.identity_removed, identity.email)) }
             }.onFailure { e ->
                 _state.update { it.copy(error = e.message ?: e.toString()) }
             }
@@ -443,9 +454,10 @@ class ComposeViewModel(
                 _state.update {
                     it.copy(
                         status = when (result) {
-                            IdentitySaveResult.CREATED -> "Saved $address"
-                            IdentitySaveResult.UPDATED -> "Updated $address"
-                            IdentitySaveResult.UNCHANGED -> "$address is already saved"
+                            IdentitySaveResult.CREATED -> text(R.string.identity_saved, address)
+                            IdentitySaveResult.UPDATED -> text(R.string.identity_updated, address)
+                            IdentitySaveResult.UNCHANGED ->
+                                text(R.string.identity_already_saved, address)
                         }
                     )
                 }

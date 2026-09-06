@@ -147,7 +147,9 @@ class RuleWizardViewModel(
                 report = report,
                 folders = folders,
                 selected = report.recommended.toSet(),
-                name = report.suggestedRuleName,
+                name = report.suggestedRuleName.let {
+                    container.appContext.getString(it.id, *it.args.toTypedArray())
+                },
                 matchedOthers = report.recommendedOthersMatched
             )
         }

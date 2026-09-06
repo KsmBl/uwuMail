@@ -596,4 +596,58 @@
         <item quantity="other">%1$d Nachrichten warten</item>
     </plurals>
     <string name="replied_to">Beantwortet</string>
+    <!-- Beschreibungen des Regel-Assistenten. -->
+    <string name="suggest_sender_is">Absender ist %1$s</string>
+    <string name="suggest_sender_domain_is">Absender-Domain ist %1$s</string>
+    <string name="suggest_sender_starts_with">Absender beginnt mit %1$s@</string>
+    <string name="suggest_sender_name_is">Absendername ist \"%1$s\"</string>
+    <string name="suggest_subject_is">Betreff ist \"%1$s\"</string>
+    <string name="suggest_subject_starts_with">Betreff beginnt mit \"%1$s\"</string>
+    <string name="suggest_subject_ends_with">Betreff endet mit \"%1$s\"</string>
+    <string name="suggest_subject_contains">Betreff enthält \"%1$s\"</string>
+    <string name="suggest_subject_pattern">Betreff passt auf das gemeinsame Muster</string>
+    <string name="suggest_addressed_to">Gerichtet an %1$s</string>
+    <string name="suggest_header_is">Header %1$s ist \"%2$s\"</string>
+    <string name="suggest_header_contains">Header %1$s enthält \"%2$s\"</string>
+    <string name="suggest_nothing_to_compare">keine andere Mail zum Vergleichen gespeichert</string>
+    <string name="suggest_matches_nothing_else">passt auf nichts anderes von %1$s gespeicherten Mails</string>
+    <string name="suggest_matches_one_other">passt außerdem auf 1 weitere gespeicherte Mail</string>
+    <string name="suggest_matches_others">passt außerdem auf %1$s von %2$s weiteren gespeicherten Mails</string>
+    <string name="suggest_new_rule">Neue Regel</string>
+    <string name="suggest_name_literal">%1$s</string>
+    <string name="suggest_name_list">Liste: %1$s</string>
+    <string name="push_watching">Wartet auf neue Mail</string>
+    <string name="saved_to_file">Gespeichert als %1$s</string>
+    <string name="error_prefix">Fehler: %1$s</string>
+    <string name="identity_removed">%1$s entfernt</string>
+    <string name="identity_saved">%1$s gespeichert</string>
+    <string name="identity_updated">%1$s aktualisiert</string>
+    <string name="identity_already_saved">%1$s ist bereits gespeichert</string>
+    <string name="quote_header">Am %1$s schrieb %2$s:</string>
+    <string name="forwarded_headers">Von: %1$s &lt;%2$s&gt;\nDatum: %3$s\nBetreff: %4$s\nAn: %5$s</string>
+    <string name="status_device_folder_created">Geräteordner \"%1$s\" erstellt</string>
+    <string name="status_folder_renamed">Umbenannt in \"%1$s\"</string>
+    <plurals name="rules_applied">
+        <item quantity="one">Regeln auf %1$d vorhandene Nachricht angewendet</item>
+        <item quantity="other">Regeln auf %1$d vorhandene Nachrichten angewendet</item>
+    </plurals>
+    <string name="oauth_no_client_id">Es ist keine %1$s-OAuth-Client-ID hinterlegt. Unter Einstellungen &gt; %2$s-Anmeldung eintragen.</string>
+    <string name="signed_in_as">Angemeldet als %1$s</string>
+    <string name="autoconfig_guessed">Keine Autoconfig veröffentlicht — mail.%1$s geraten. Bitte die Felder prüfen.</string>
+    <string name="autoconfig_found">Einstellungen gefunden über %1$s</string>
+    <string name="google_signed_in">Angemeldet als %1$s. Die Servereinstellungen sind ausgefüllt, die Passwortfelder werden nicht verwendet.</string>
+    <string name="spam_update_failed">Aktualisierung fehlgeschlagen: %1$s</string>
+    <string name="spam_entry_summary">%1$d Domains · aktualisiert %2$s</string>
+    <string name="spam_list_add_failed">Diese Liste konnte nicht hinzugefügt werden: %1$s</string>
+    <string name="error_no_archive_folder">Für %1$s ist kein Archivordner eingestellt</string>
+    <string name="error_no_drafts_folder">Kein Entwurfsordner bei %1$s</string>
+    <string name="error_local_folder_exists">Geräteordner \"%1$s\" existiert bereits</string>
+    <plurals name="error_transfer_failed">
+        <item quantity="one">%1$d Nachricht konnte nicht zu %2$s übertragen werden</item>
+        <item quantity="other">%1$d Nachrichten konnten nicht zu %2$s übertragen werden</item>
+    </plurals>
+    <plurals name="error_target_refused">
+        <item quantity="one">%1$s hat %2$d Nachricht nicht angenommen; sie bleibt unberührt</item>
+        <item quantity="other">%1$s hat %2$d Nachrichten nicht angenommen; sie bleiben unberührt</item>
+    </plurals>
 </resources>

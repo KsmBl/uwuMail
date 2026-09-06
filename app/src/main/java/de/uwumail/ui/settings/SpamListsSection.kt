@@ -89,10 +89,13 @@ fun SpamListsSection(onManageBlocked: () -> Unit, onMessage: (String) -> Unit) {
                         )
                         Text(
                             when {
-                                list.lastError != null -> "Update failed: ${list.lastError}"
-                                list.entryCount > 0 ->
-                                    "${list.entryCount} domains · updated " +
-                                        formatListDate(list.updatedAt)
+                                list.lastError != null ->
+                                    stringResource(R.string.spam_update_failed, list.lastError)
+                                list.entryCount > 0 -> stringResource(
+                                    R.string.spam_entry_summary,
+                                    list.entryCount,
+                                    formatListDate(list.updatedAt)
+                                )
                                 list.enabled -> stringResource(R.string.spam_not_downloaded)
                                 else -> stringResource(R.string.spam_off)
                             },
@@ -176,17 +179,18 @@ fun SpamListsSection(onManageBlocked: () -> Unit, onMessage: (String) -> Unit) {
 
     // Read outside the coroutine below, which is not composable.
     val listAdded = stringResource(R.string.spam_list_added)
+    val listAddFailed = stringResource(R.string.spam_list_add_failed)
     if (addingList) {
         TextPromptDialog(
             title = stringResource(R.string.spam_add_list),
             label = stringResource(R.string.spam_url),
-            confirmLabel = "Add",
+            confirmLabel = stringResource(R.string.add),
             supportingText = stringResource(R.string.spam_url_hint),
             onConfirm = { url ->
                 scope.launch {
                     runCatching { repository.addCustomList(url.substringAfterLast('/'), url) }
                         .onSuccess { onMessage(listAdded) }
-                        .onFailure { onMessage("Could not add that list: ${it.message}") }
+                        .onFailure { onMessage(listAddFailed.format(it.message.orEmpty())) }
                 }
             },
             onDismiss = { addingList = false }

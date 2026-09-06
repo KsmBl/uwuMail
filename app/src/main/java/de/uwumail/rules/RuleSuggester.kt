@@ -1,11 +1,22 @@
 package de.uwumail.rules
 
+import androidx.annotation.StringRes
+import de.uwumail.R
 import de.uwumail.core.WizardLog
 import de.uwumail.core.Json
 import de.uwumail.core.RuleField
 import de.uwumail.core.RuleOperator
 import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.db.RuleConditionEntity
+
+/**
+ * A phrase for the screen to say, kept as an id and its parts rather than as
+ * words: the suggester runs on a background thread with no resources to hand,
+ * and the wizard is read in whatever language the phone is in.
+ */
+data class Phrase(@StringRes val id: Int, val args: List<String> = emptyList()) {
+    constructor(@StringRes id: Int, vararg args: String) : this(id, args.toList())
+}
 
 /**
  * One thing the selected messages have in common, phrased as a rule condition.
@@ -16,8 +27,8 @@ import de.uwumail.data.db.RuleConditionEntity
  */
 data class Suggestion(
     val condition: RuleConditionEntity,
-    val label: String,
-    val detail: String,
+    val label: Phrase,
+    val detail: Phrase,
     val selectedMatched: Int,
     val othersMatched: Int,
     val precision: Double,
@@ -35,7 +46,7 @@ data class SuggestionReport(
     val recommended: List<Int>,
     val recommendedOthersMatched: Int,
     val corpusSize: Int,
-    val suggestedRuleName: String
+    val suggestedRuleName: Phrase
 )
 
 /**
@@ -65,7 +76,7 @@ class RuleSuggester {
         folderPathOf: (MessageEntity) -> String = { "" }
     ): SuggestionReport {
         if (selected.isEmpty()) {
-            return SuggestionReport(emptyList(), emptyList(), 0, 0, "New rule")
+            return SuggestionReport(emptyList(), emptyList(), 0, 0, Phrase(R.string.suggest_new_rule))
         }
 
         val selectedIds = selected.mapTo(HashSet()) { it.id }
@@ -139,7 +150,7 @@ class RuleSuggester {
 
     private class Candidate(
         val condition: RuleConditionEntity,
-        val label: String,
+        val label: Phrase,
         val kind: Suggestion.Kind
     ) {
         val field get() = condition.field
@@ -170,7 +181,7 @@ class RuleSuggester {
             addresses.distinct().singleOrNull()?.let {
                 result += Candidate(
                     condition(RuleField.FROM, RuleOperator.EQUALS, it),
-                    "Sender is $it",
+                    Phrase(R.string.suggest_sender_is, it),
                     Suggestion.Kind.SENDER
                 )
             }
@@ -179,7 +190,7 @@ class RuleSuggester {
                 ?.let {
                     result += Candidate(
                         condition(RuleField.FROM, RuleOperator.DOMAIN_IS, it),
-                        "Sender domain is $it",
+                        Phrase(R.string.suggest_sender_domain_is, it),
                         Suggestion.Kind.SENDER
                     )
                 }
@@ -189,7 +200,7 @@ class RuleSuggester {
                 ?.let {
                     result += Candidate(
                         condition(RuleField.FROM, RuleOperator.STARTS_WITH, "$it@"),
-                        "Sender starts with $it@",
+                        Phrase(R.string.suggest_sender_starts_with, it),
                         Suggestion.Kind.SENDER
                     )
                 }
@@ -200,7 +211,7 @@ class RuleSuggester {
             names.distinct().singleOrNull()?.let {
                 result += Candidate(
                     condition(RuleField.FROM_NAME, RuleOperator.EQUALS, it),
-                    "Sender name is \"$it\"",
+                    Phrase(R.string.suggest_sender_name_is, it),
                     Suggestion.Kind.SENDER
                 )
             }
@@ -229,7 +240,7 @@ class RuleSuggester {
                 values.distinct().size == 1 -> listOf(
                     Candidate(
                         condition(RuleField.HEADER, RuleOperator.EQUALS, values.first(), name),
-                        "Header $name is \"${values.first().take(60)}\"",
+                        Phrase(R.string.suggest_header_is, name, values.first().take(60)),
                         if (name == "list-id") Suggestion.Kind.LIST else Suggestion.Kind.HEADER
                     )
                 )
@@ -237,7 +248,7 @@ class RuleSuggester {
                     listOf(
                         Candidate(
                             condition(RuleField.HEADER, RuleOperator.CONTAINS, common, name),
-                            "Header $name contains \"${common.take(60)}\"",
+                            Phrase(R.string.suggest_header_contains, name, common.take(60)),
                             if (name == "list-id") Suggestion.Kind.LIST else Suggestion.Kind.HEADER
                         )
                     )
@@ -254,35 +265,35 @@ class RuleSuggester {
         if (subjects.distinct().size == 1) {
             result += Candidate(
                 condition(RuleField.SUBJECT, RuleOperator.EQUALS, subjects.first()),
-                "Subject is \"${subjects.first().take(60)}\"",
+                Phrase(R.string.suggest_subject_is, subjects.first().take(60)),
                 Suggestion.Kind.SUBJECT
             )
         }
         RegexBuilder.commonPrefix(subjects)?.let {
             result += Candidate(
                 condition(RuleField.SUBJECT, RuleOperator.STARTS_WITH, it),
-                "Subject starts with \"$it\"",
+                Phrase(R.string.suggest_subject_starts_with, it),
                 Suggestion.Kind.SUBJECT
             )
         }
         RegexBuilder.commonSuffix(subjects)?.let {
             result += Candidate(
                 condition(RuleField.SUBJECT, RuleOperator.ENDS_WITH, it),
-                "Subject ends with \"$it\"",
+                Phrase(R.string.suggest_subject_ends_with, it),
                 Suggestion.Kind.SUBJECT
             )
         }
         RegexBuilder.longestCommonSubstring(subjects)?.let {
             result += Candidate(
                 condition(RuleField.SUBJECT, RuleOperator.CONTAINS, it),
-                "Subject contains \"$it\"",
+                Phrase(R.string.suggest_subject_contains, it),
                 Suggestion.Kind.SUBJECT
             )
         }
         RegexBuilder.fromSamples(subjects)?.let {
             result += Candidate(
                 condition(RuleField.SUBJECT, RuleOperator.REGEX, it),
-                "Subject matches the shared pattern",
+                Phrase(R.string.suggest_subject_pattern),
                 Suggestion.Kind.SUBJECT
             )
         }
@@ -300,7 +311,7 @@ class RuleSuggester {
         return shared.map {
             Candidate(
                 condition(RuleField.TO_OR_CC, RuleOperator.EQUALS, it),
-                "Addressed to $it",
+                Phrase(R.string.suggest_addressed_to, it),
                 Suggestion.Kind.RECIPIENT
             )
         }
@@ -344,30 +355,36 @@ class RuleSuggester {
         return chosen
     }
 
-    private fun describe(othersMatched: Int, corpusSize: Int): String = when {
-        corpusSize == 0 -> "no other mail cached to compare against"
-        othersMatched == 0 -> "matches nothing else in $corpusSize cached mails"
-        othersMatched == 1 -> "also matches 1 other cached mail"
-        else -> "also matches $othersMatched of $corpusSize other cached mails"
+    private fun describe(othersMatched: Int, corpusSize: Int): Phrase = when {
+        corpusSize == 0 -> Phrase(R.string.suggest_nothing_to_compare)
+        othersMatched == 0 -> Phrase(R.string.suggest_matches_nothing_else, "$corpusSize")
+        othersMatched == 1 -> Phrase(R.string.suggest_matches_one_other)
+        else -> Phrase(
+            R.string.suggest_matches_others, "$othersMatched", "$corpusSize"
+        )
     }
 
     private fun suggestName(
         selected: List<MessageEntity>,
         scored: List<Suggestion>,
         recommended: List<Int>
-    ): String {
+    ): Phrase {
         recommended.firstOrNull()?.let { index ->
             val suggestion = scored[index]
             when (suggestion.kind) {
                 Suggestion.Kind.SENDER -> selected.firstOrNull()?.fromName
                     ?.takeIf { it.isNotBlank() }
-                    ?.let { return it }
-                Suggestion.Kind.LIST -> return "List: ${suggestion.condition.value.take(40)}"
+                    ?.let { return Phrase(R.string.suggest_name_literal, it) }
+                Suggestion.Kind.LIST ->
+                    return Phrase(R.string.suggest_name_list, suggestion.condition.value.take(40))
                 else -> Unit
             }
         }
         val domain = selected.mapNotNull { it.fromAddress?.substringAfterLast('@') }
             .distinct().singleOrNull()
-        return domain ?: selected.firstOrNull()?.subject?.take(40).orEmpty().ifBlank { "New rule" }
+        val fallback = domain
+            ?: selected.firstOrNull()?.subject?.take(40).orEmpty().ifBlank { null }
+        return fallback?.let { Phrase(R.string.suggest_name_literal, it) }
+            ?: Phrase(R.string.suggest_new_rule)
     }
 }

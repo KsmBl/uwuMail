@@ -418,8 +418,7 @@ private fun SignInCard(
             Text(
                 when {
                     state.signedIn && state.isOAuth ->
-                        "Signed in as ${state.email}. Server settings are filled in and the " +
-                            "password fields are not used."
+                        stringResource(R.string.google_signed_in, state.email)
                     !state.googleConfigured ->
                         stringResource(R.string.google_needs_id)
                     else ->

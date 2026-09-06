@@ -42,12 +42,12 @@ class FoldersViewModel(
         guarded("Created \"$path\"") { container.syncManager.createRemoteFolder(accountId, path) }
 
     fun createLocalFolder(name: String) =
-        guarded("Created device folder \"$name\"") {
+        guarded(text(R.string.status_device_folder_created, name)) {
             container.syncManager.createLocalFolder(accountId, name)
         }
 
     fun rename(folder: FolderEntity, newPath: String) =
-        guarded("Renamed to \"$newPath\"") {
+        guarded(text(R.string.status_folder_renamed, newPath)) {
             container.syncManager.renameRemoteFolder(folder.id, newPath)
         }
 
@@ -87,6 +87,8 @@ class FoldersViewModel(
     }
 
     fun clearMessage() = transient.update { it.copy(message = null) }
+
+    private fun text(id: Int, vararg args: Any) = container.appContext.getString(id, *args)
 
     private fun guarded(success: String, block: suspend () -> Unit) {
         transient.update { it.copy(busy = true) }

@@ -371,10 +371,15 @@ have.
   by name turns dynamic colour off, since a wallpaper overriding your choice
   would make it meaningless.
 - **German and English.** Every user-facing string is a resource with a German
-  translation beside it, so the app follows the phone's language. The rule
-  activity log deliberately keeps the English action names: it is a record of
-  what happened, not a screen, and should not change meaning with the display
-  language.
+  translation beside it, so the app follows the phone's language — including the
+  rule wizard's descriptions of what it found, the background-mail notification,
+  and the header of a quoted reply. A test walks both files and fails on any
+  string present in one and not the other.
+- Text quoted from a server — a rejection, an authentication failure — is passed
+  through as the server sent it rather than translated around.
+- The rule activity log deliberately keeps the English action names: it is a
+  record of what happened, not a screen, and should not change meaning with the
+  display language.
 
 ## Background mail
 

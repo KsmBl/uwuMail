@@ -248,7 +248,7 @@ class MessageViewModel(
     fun download(onReady: (File) -> Unit) = guarded {
         val file = container.syncManager.downloadRaw(messageId)
         if (file != null) {
-            local.update { it.copy(status = "Saved to ${file.name}") }
+            local.update { it.copy(status = text(R.string.saved_to_file, file.name)) }
             onReady(file)
         } else {
             local.update { it.copy(error = text(R.string.error_no_download)) }

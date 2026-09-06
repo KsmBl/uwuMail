@@ -116,6 +116,7 @@ fun MessageScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val snackbarHost = remember { SnackbarHostState() }
+    val errorPrefix = stringResource(R.string.error_prefix)
     // Swiping moves along whatever the list was showing when this was opened.
     val order = LocalAppContainer.current.messageOrder
     val siblings by order.ids.collectAsState()
@@ -187,7 +188,7 @@ fun MessageScreen(
 
     LaunchedEffect(state.closed) { if (state.closed) onBack() }
     LaunchedEffect(state.status, state.error) {
-        val text = state.error?.let { "Error: $it" } ?: state.status
+        val text = state.error?.let { errorPrefix.format(it) } ?: state.status
         if (text != null) {
             snackbarHost.showSnackbar(text)
             viewModel.clearStatus()

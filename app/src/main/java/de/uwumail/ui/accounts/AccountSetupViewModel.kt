@@ -135,8 +135,7 @@ class AccountSetupViewModel(
         if (clientId == null) {
             _state.update {
                 it.copy(
-                    error = "No ${provider.label} OAuth client id is configured. " +
-                        "Add one under Settings > ${provider.label} sign-in."
+                    error = text(R.string.oauth_no_client_id, provider.label, provider.label)
                 )
             }
             return
@@ -237,7 +236,7 @@ class AccountSetupViewModel(
                     smtpUsername = address,
                     imapPassword = "",
                     smtpPassword = "",
-                    testResult = "Signed in as $address",
+                    testResult = text(R.string.signed_in_as, address),
                     error = null
                 )
             }
@@ -281,8 +280,13 @@ class AccountSetupViewModel(
                         result.displayName ?: email.substringBefore('@')
                     },
                     testResult = if (result.source == "guess") {
-                        "No autoconfig published — guessed mail.${email.substringAfter('@')}. Check the fields."
-                    } else "Settings found via ${result.source.substringAfter("//").substringBefore('/')}"
+                        text(R.string.autoconfig_guessed, email.substringAfter('@'))
+                    } else {
+                        text(
+                            R.string.autoconfig_found,
+                            result.source.substringAfter("//").substringBefore('/')
+                        )
+                    }
                 )
             }
         }
@@ -414,4 +418,7 @@ class AccountSetupViewModel(
         val hue = random.nextInt(360).toFloat()
         return android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.45f, 0.75f))
     }
+
+    private fun text(id: Int, vararg args: Any) = container.appContext.getString(id, *args)
+
 }

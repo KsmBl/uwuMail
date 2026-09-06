@@ -2,6 +2,7 @@ package de.uwumail.ui.rules
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.core.MatchMode
 import de.uwumail.core.RuleField
@@ -203,7 +204,12 @@ class RuleEditViewModel(
                     .onSuccess { total += it }
             }
             _state.update {
-                it.copy(applying = false, message = "Rules applied to $total existing message(s)")
+                it.copy(
+                    applying = false,
+                    message = container.appContext.resources.getQuantityString(
+                        R.plurals.rules_applied, total, total
+                    )
+                )
             }
         }
     }

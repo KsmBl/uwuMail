@@ -272,9 +272,9 @@ private fun SuggestionRow(
     ) {
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
         Column(Modifier.weight(1f)) {
-            Text(suggestion.label, style = MaterialTheme.typography.bodyLarge)
+            Text(say(suggestion.label), style = MaterialTheme.typography.bodyLarge)
             Text(
-                suggestion.detail,
+                say(suggestion.detail),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (suggestion.isExact) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -394,3 +394,8 @@ private fun shareLog(context: android.content.Context) {
         )
     }
 }
+
+/** Turns a suggester [Phrase] into words in the phone's own language. */
+@Composable
+private fun say(phrase: de.uwumail.rules.Phrase): String =
+    stringResource(phrase.id, *phrase.args.toTypedArray())

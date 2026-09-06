@@ -631,7 +631,9 @@ class SyncManager(
         messages.groupBy { it.accountId }.forEach { (accountId, group) ->
             val account = db.accountDao().get(accountId) ?: return@forEach
             val archive = account.archiveFolder
-                ?: throw MailException("No archive folder configured for ${account.displayName}")
+                ?: throw MailException(
+                    context.getString(R.string.error_no_archive_folder, account.displayName)
+                )
             moveMessagesToPath(account, group.map { it.id }, archive)
         }
     }
@@ -753,7 +755,10 @@ class SyncManager(
 
         if (failures.isNotEmpty()) {
             throw MailException(
-                "Could not transfer ${failures.size} message(s) to ${targetAccount.email}"
+                context.resources.getQuantityString(
+                    R.plurals.error_transfer_failed,
+                    failures.size, failures.size, targetAccount.email
+                )
             )
         }
     }
@@ -848,7 +853,10 @@ class SyncManager(
         }
         if (missing.isNotEmpty()) {
             throw MailException(
-                "$targetPath did not accept ${missing.size} message(s); they have been left alone"
+                context.resources.getQuantityString(
+                    R.plurals.error_target_refused,
+                    missing.size, targetPath, missing.size
+                )
             )
         }
     }
@@ -976,7 +984,7 @@ class SyncManager(
     suspend fun createLocalFolder(accountId: Long, name: String): Long {
         val path = localPath(name)
         db.folderDao().getByPath(accountId, path)?.let {
-            throw MailException("Local folder \"$name\" already exists")
+            throw MailException(context.getString(R.string.error_local_folder_exists, name))
         }
         return db.folderDao().insert(
             FolderEntity(
@@ -1283,7 +1291,9 @@ class SyncManager(
     suspend fun saveDraft(item: OutboxEntity, replacing: Long?): Long? {
         val account = db.accountDao().get(item.accountId) ?: return null
         val drafts = account.draftsFolder
-            ?: throw MailException("No drafts folder on ${account.displayName}")
+            ?: throw MailException(
+                context.getString(R.string.error_no_drafts_folder, account.displayName)
+            )
 
         val raw = smtp.buildRaw(item)
         pool.use(account.id) { it.append(drafts, raw, seen = true, draft = true) }

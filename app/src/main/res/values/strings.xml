@@ -598,4 +598,58 @@
         <item quantity="other">%1$d messages waiting</item>
     </plurals>
     <string name="replied_to">Replied to</string>
+    <!-- The rule wizard's descriptions of what it found. -->
+    <string name="suggest_sender_is">Sender is %1$s</string>
+    <string name="suggest_sender_domain_is">Sender domain is %1$s</string>
+    <string name="suggest_sender_starts_with">Sender starts with %1$s@</string>
+    <string name="suggest_sender_name_is">Sender name is \"%1$s\"</string>
+    <string name="suggest_subject_is">Subject is \"%1$s\"</string>
+    <string name="suggest_subject_starts_with">Subject starts with \"%1$s\"</string>
+    <string name="suggest_subject_ends_with">Subject ends with \"%1$s\"</string>
+    <string name="suggest_subject_contains">Subject contains \"%1$s\"</string>
+    <string name="suggest_subject_pattern">Subject matches the shared pattern</string>
+    <string name="suggest_addressed_to">Addressed to %1$s</string>
+    <string name="suggest_header_is">Header %1$s is \"%2$s\"</string>
+    <string name="suggest_header_contains">Header %1$s contains \"%2$s\"</string>
+    <string name="suggest_nothing_to_compare">no other mail cached to compare against</string>
+    <string name="suggest_matches_nothing_else">matches nothing else in %1$s cached mails</string>
+    <string name="suggest_matches_one_other">also matches 1 other cached mail</string>
+    <string name="suggest_matches_others">also matches %1$s of %2$s other cached mails</string>
+    <string name="suggest_new_rule">New rule</string>
+    <string name="suggest_name_literal">%1$s</string>
+    <string name="suggest_name_list">List: %1$s</string>
+    <string name="push_watching">Watching for new mail</string>
+    <string name="saved_to_file">Saved to %1$s</string>
+    <string name="error_prefix">Error: %1$s</string>
+    <string name="identity_removed">Removed %1$s</string>
+    <string name="identity_saved">Saved %1$s</string>
+    <string name="identity_updated">Updated %1$s</string>
+    <string name="identity_already_saved">%1$s is already saved</string>
+    <string name="quote_header">On %1$s, %2$s wrote:</string>
+    <string name="forwarded_headers">From: %1$s &lt;%2$s&gt;\nDate: %3$s\nSubject: %4$s\nTo: %5$s</string>
+    <string name="status_device_folder_created">Created device folder \"%1$s\"</string>
+    <string name="status_folder_renamed">Renamed to \"%1$s\"</string>
+    <plurals name="rules_applied">
+        <item quantity="one">Rules applied to %1$d existing message</item>
+        <item quantity="other">Rules applied to %1$d existing messages</item>
+    </plurals>
+    <string name="oauth_no_client_id">No %1$s OAuth client id is configured. Add one under Settings &gt; %2$s sign-in.</string>
+    <string name="signed_in_as">Signed in as %1$s</string>
+    <string name="autoconfig_guessed">No autoconfig published — guessed mail.%1$s. Check the fields.</string>
+    <string name="autoconfig_found">Settings found via %1$s</string>
+    <string name="google_signed_in">Signed in as %1$s. Server settings are filled in and the password fields are not used.</string>
+    <string name="spam_update_failed">Update failed: %1$s</string>
+    <string name="spam_entry_summary">%1$d domains · updated %2$s</string>
+    <string name="spam_list_add_failed">Could not add that list: %1$s</string>
+    <string name="error_no_archive_folder">No archive folder configured for %1$s</string>
+    <string name="error_no_drafts_folder">No drafts folder on %1$s</string>
+    <string name="error_local_folder_exists">Device folder \"%1$s\" already exists</string>
+    <plurals name="error_transfer_failed">
+        <item quantity="one">Could not transfer %1$d message to %2$s</item>
+        <item quantity="other">Could not transfer %1$d messages to %2$s</item>
+    </plurals>
+    <plurals name="error_target_refused">
+        <item quantity="one">%1$s did not accept %2$d message; it has been left alone</item>
+        <item quantity="other">%1$s did not accept %2$d messages; they have been left alone</item>
+    </plurals>
 </resources>

@@ -63,8 +63,8 @@ class PushService : LifecycleService() {
         val notification: Notification =
             NotificationCompat.Builder(this, Notifier.CHANNEL_SERVICE)
                 .setSmallIcon(R.drawable.ic_stat_mail)
-                .setContentTitle("uwuMail")
-                .setContentText("Watching for new mail")
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(getString(R.string.push_watching))
                 .setOngoing(true)
                 .setShowWhen(false)
                 .setPriority(NotificationCompat.PRIORITY_MIN)
