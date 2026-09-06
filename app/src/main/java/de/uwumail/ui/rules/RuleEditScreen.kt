@@ -85,7 +85,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 title = { Text(if (ruleId > 0) stringResource(R.string.rule_edit) else stringResource(R.string.rule_new)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -93,7 +93,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                         CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp))
                     } else {
                         IconButton(onClick = viewModel::save, enabled = state.canSave) {
-                            Icon(Icons.Default.Save, "Save")
+                            Icon(Icons.Default.Save, stringResource(R.string.save))
                         }
                     }
                 }
@@ -186,7 +186,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 16.dp)
             ) {
                 Icon(Icons.Default.Add, null)
-                Text(" Add condition")
+                Text(" " + stringResource(R.string.add_condition))
             }
 
             SectionHeader(stringResource(R.string.rule_then))
@@ -198,14 +198,14 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                         val name = type?.let { stringResource(it.label) } ?: action.type
                         Text(action.stringArg?.let { "$name → $it" } ?: name)
                     },
-                    trailingIcon = { Icon(Icons.Default.Close, "Remove") },
+                    trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.remove)) },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                 )
             }
             Column(Modifier.padding(horizontal = 16.dp)) {
                 TextButton(onClick = { addActionOpen = true }) {
                     Icon(Icons.Default.Add, null)
-                    Text(" Add action")
+                    Text(" " + stringResource(R.string.add_action))
                 }
                 DropdownMenu(
                     expanded = addActionOpen,
@@ -233,7 +233,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 ) {
                     if (state.previewing) CircularProgressIndicator(Modifier.size(16.dp))
                     else Icon(Icons.Default.PlayArrow, null)
-                    Text("  Test against cached mail")
+                    Text("  " + stringResource(R.string.rule_test))
                 }
                 state.previewCount?.let { count ->
                     Card(Modifier.fillMaxWidth()) {
@@ -246,8 +246,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                                 if (count == 0) {
                                     stringResource(R.string.rule_nothing_matched)
                                 } else {
-                                    "Check that this is the set you meant before enabling " +
-                                        "destructive actions."
+                                    stringResource(R.string.rule_check_before)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -263,7 +262,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                     ) {
                         if (state.applying) {
                             CircularProgressIndicator(Modifier.size(16.dp))
-                            Text("  Applying…")
+                            Text("  " + stringResource(R.string.applying))
                         } else {
                             Text(stringResource(R.string.rule_apply_existing))
                         }

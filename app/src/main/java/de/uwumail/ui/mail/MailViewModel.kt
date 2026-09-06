@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.uwumail.R
 import de.uwumail.core.DeviceDownloads
+import de.uwumail.core.SavedAttachments
 import de.uwumail.core.FolderType
 import de.uwumail.core.SwipeAction
 import de.uwumail.data.settings.AppSettings
@@ -261,18 +262,21 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
                 if ((target.value as? MailTarget.Folder)?.id == folder.id) {
                     open(MailTarget.INBOXES)
                 }
-                report("\"${folder.displayName}\" hidden on this device")
+                report(text(R.string.status_hidden, folder.displayName))
             }
             FolderAction.SHOW -> container.syncManager.setFolderHidden(folder.id, false)
             FolderAction.TOGGLE_SYNC ->
                 container.syncManager.setFolderSyncEnabled(folder.id, !folder.syncEnabled)
             FolderAction.MARK_READ -> {
                 val count = container.syncManager.markFolderRead(folder.id)
-                report(if (count == 0) "Nothing unread" else "$count marked as read")
+                report(
+                    if (count == 0) text(R.string.status_nothing_unread)
+                    else text(R.string.status_marked_read, count)
+                )
             }
             FolderAction.RESET_ORDER -> {
                 container.syncManager.resetFolderOrder(folder.accountId)
-                report("Folder order reset")
+                report(text(R.string.status_order_reset))
             }
         }
     }
@@ -306,7 +310,10 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         folders.forEach { id ->
             runCatching { found += container.syncManager.searchOnServer(id, q) }
         }
-        report(if (found == 0) "Nothing more on the server" else "$found more from the server")
+        report(
+            if (found == 0) text(R.string.status_nothing_more)
+            else text(R.string.status_from_server, found)
+        )
     }
 
     // ------------------------------------------------------------ selection
@@ -395,18 +402,17 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
     // report optimistically: the progress bar runs until the server is done.
     fun copySelection(targetFolderId: Long) = withSelection { ids ->
         container.syncManager.copyMessages(ids, targetFolderId)
-        report("${ids.size} copied")
+        report(text(R.string.status_copied_count, ids.size))
     }
 
     fun downloadSelection() = withSelection { ids ->
         ids.forEach { container.syncManager.downloadRaw(it) }
-        report("Saved ${ids.size} message${if (ids.size == 1) "" else "s"} to device")
+        report(text(R.string.status_saved_to_device, ids.size))
     }
 
     /** Pulls every attachment off the selected mail and into Downloads. */
     fun saveSelectionAttachments() = withSelection { ids ->
-        val result = container.syncManager.saveAttachmentsToDevice(ids)
-        report(result.summary(ids.size, DeviceDownloads.folderLabel))
+        report(describe(container.syncManager.saveAttachmentsToDevice(ids), ids.size))
     }
 
     fun toggleSeen(messageId: Long, seen: Boolean) = launchGuarded {
@@ -498,6 +504,25 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private fun report(message: String) = transient.update { it.copy(status = message) }
+
+    private fun text(id: Int, vararg args: Any) = container.appContext.getString(id, *args)
+
+    /** Puts an attachment save into words, in whatever language the app is in. */
+    private fun describe(result: SavedAttachments, selection: Int): String =
+        when (result.outcome) {
+            SavedAttachments.Outcome.NOTHING_ATTACHED ->
+                if (selection == 1) text(R.string.attach_none_one)
+                else text(R.string.attach_none_many)
+            SavedAttachments.Outcome.ALL_FAILED -> text(R.string.error_no_attachment)
+            SavedAttachments.Outcome.SAVED -> if (result.partial) {
+                text(
+                    R.string.attach_partial,
+                    result.saved, DeviceDownloads.folderLabel, result.missing
+                )
+            } else {
+                text(R.string.attach_saved, result.saved, DeviceDownloads.folderLabel)
+            }
+        }
 
     companion object {
         private const val PAGE = 300

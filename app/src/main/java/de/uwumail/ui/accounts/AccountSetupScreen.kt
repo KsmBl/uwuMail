@@ -381,8 +381,7 @@ fun AccountSetupScreen(
     identityToDelete?.let { identity ->
         ConfirmDialog(
             title = stringResource(R.string.delete_identity_q),
-            message = "\"${identity.email}\" is removed from this account's saved " +
-                "addresses. Nothing on the server changes.",
+            message = stringResource(R.string.identity_delete_body, identity.email),
             confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = { viewModel.deleteIdentity(identity) },

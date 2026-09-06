@@ -90,11 +90,10 @@ fun UnsubscribeBanner(target: UnsubscribeTarget, onUnsubscribe: () -> Unit) {
 fun BlockedImagesBanner(blockedCount: Int, onShow: () -> Unit) {
     MessageBanner(
         icon = Icons.Default.Image,
-        text = if (blockedCount > 0) {
-            "$blockedCount remote image${if (blockedCount == 1) "" else "s"} blocked. " +
-                "Loading them tells the sender you opened this."
-        } else {
-            "Remote images are blocked. Loading them tells the sender you opened this."
+        text = when {
+            blockedCount == 1 -> stringResource(R.string.images_blocked_one, blockedCount)
+            blockedCount > 1 -> stringResource(R.string.images_blocked_many, blockedCount)
+            else -> stringResource(R.string.images_blocked_plain)
         },
         actionLabel = stringResource(R.string.show_images),
         onAction = onShow

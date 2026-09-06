@@ -62,7 +62,7 @@ fun RulesScreen(
                 title = { Text(stringResource(R.string.rules_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -77,8 +77,7 @@ fun RulesScreen(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         EmptyState(
                             stringResource(R.string.rules_none),
-                            "Select a few similar mails in the message list and tap the label " +
-                                "icon — uwuMail works out what they have in common for you."
+                            stringResource(R.string.rules_none_hint)
                         )
                     }
                 }
@@ -139,7 +138,7 @@ fun RulesScreen(
                 items(log, key = { it.id }) { entry ->
                     ListItem(
                         headlineContent = {
-                            Text(entry.subject.ifBlank { "(no subject)" }, maxLines = 1)
+                            Text(entry.subject.ifBlank { stringResource(R.string.no_subject) }, maxLines = 1)
                         },
                         supportingContent = {
                             Text(
@@ -163,7 +162,7 @@ fun RulesScreen(
         ConfirmDialog(
             title = "Delete \"${entry.rule.name}\"?",
             message = stringResource(R.string.rules_delete_body),
-            confirmLabel = "Delete",
+            confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = { scope.launch { container.db.ruleDao().deleteRule(entry.rule.id) } },
             onDismiss = { pendingDelete = null }

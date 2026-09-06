@@ -502,4 +502,69 @@
     <string name="role_unset">Not set</string>
     <string name="section_folders">Folders</string>
     <string name="configure_folders_sub">Choose which folder is used for archive, sent, drafts and trash</string>
+
+    <!-- Status and errors -->
+    <string name="attach_none_one">Nothing attached to that message</string>
+    <string name="attach_none_many">Nothing attached to those messages</string>
+    <string name="attach_saved">%1$d saved to %2$s</string>
+    <string name="attach_partial">%1$d saved to %2$s · %3$d could not be fetched</string>
+    <string name="undo_too_late">Too late to undo that</string>
+    <string name="status_nothing_unread">Nothing unread</string>
+    <string name="status_order_reset">Folder order reset</string>
+    <string name="status_folders_updated">Folder list updated</string>
+    <string name="status_nothing_more">Nothing more on the server</string>
+    <string name="status_from_server">%1$d more from the server</string>
+    <string name="status_copied">Copied</string>
+    <string name="status_hidden">"%1$s" hidden on this device</string>
+    <string name="status_marked_read">%1$d marked as read</string>
+    <string name="status_copied_count">%1$d copied</string>
+    <string name="status_saved_to_device">Saved %1$d to the device</string>
+    <string name="error_no_app_for_link">No app can open that link</string>
+    <string name="error_no_download">Could not download this message</string>
+    <string name="error_no_attachment">Could not download the attachment</string>
+    <string name="error_read_file">Could not read that file</string>
+    <string name="error_no_account">No account selected</string>
+    <string name="signin_cancelled">Sign-in was cancelled.</string>
+    <string name="signin_unverified">Sign-in could not be verified.</string>
+    <string name="signin_no_code">Sign-in returned no code.</string>
+    <string name="forwarded_separator">---------- Forwarded message ----------</string>
+    <plurals name="undo_archived">
+        <item quantity="one">Message archived</item>
+        <item quantity="other">%d messages archived</item>
+    </plurals>
+    <plurals name="undo_trashed">
+        <item quantity="one">Message moved to trash</item>
+        <item quantity="other">%d messages moved to trash</item>
+    </plurals>
+    <plurals name="undo_deleted">
+        <item quantity="one">Message deleted</item>
+        <item quantity="other">%d messages deleted</item>
+    </plurals>
+    <plurals name="undo_moved">
+        <item quantity="one">Message moved</item>
+        <item quantity="other">%d messages moved</item>
+    </plurals>
+
+    <!-- Long form text -->
+    <string name="identity_delete_body">"%1$s" is removed from this account\'s saved addresses. Nothing on the server changes.</string>
+    <string name="identity_delete_body_compose">"%1$s" is removed from your saved addresses. Mail already sent from it is not affected.</string>
+    <string name="identities_button">Identities</string>
+    <string name="add_list_from_url">Add list from URL</string>
+    <string name="add_condition">Add condition</string>
+    <string name="add_action">Add action</string>
+    <string name="rule_check_before">Check that this is the set you meant before enabling destructive actions.</string>
+    <string name="applying">Applying…</string>
+    <string name="wizard_nothing_body">These messages have no sender, header or subject pattern in common. Try picking mails that are more alike, or build the rule by hand.</string>
+    <string name="rules_none_hint">Select a few similar mails in the message list and tap the label icon — uwuMail works out what they have in common for you.</string>
+    <string name="window_applies">Applies to background checks and to push. Opening the app, pulling to refresh and sending are never held back.</string>
+
+    <!-- Remaining text -->
+    <string name="images_blocked_one">%1$d remote image blocked. Loading it tells the sender you opened this.</string>
+    <string name="images_blocked_many">%1$d remote images blocked. Loading them tells the sender you opened this.</string>
+    <string name="images_blocked_plain">Remote images are blocked. Loading them tells the sender you opened this.</string>
+    <string name="wizard_also_matches">This rule also catches %1$d other cached message(s). Tick another line above to narrow it.</string>
+    <string name="window_overnight">This window runs overnight: it opens at %1$s on the days above and closes at %2$s the next morning.</string>
+    <string name="google_no_refresh">Google did not return a refresh token. Remove uwuMail at %1$s and sign in again.</string>
+    <string name="wizard_only_selection">This rule catches your %1$d selected mails and nothing else in the cache.</string>
+    <string name="section_name">Name</string>
 </resources>

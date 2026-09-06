@@ -68,8 +68,7 @@ fun SpamListsSection(onManageBlocked: () -> Unit, onMessage: (String) -> Unit) {
 
     Column {
         Text(
-            "Mail from a listed sender is highlighted in red. Nothing is deleted " +
-                "or moved — use a rule if you want that.",
+            stringResource(R.string.spam_intro),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -145,7 +144,7 @@ fun SpamListsSection(onManageBlocked: () -> Unit, onMessage: (String) -> Unit) {
             modifier = Modifier.padding(horizontal = 16.dp)
         ) {
             Icon(Icons.Default.Add, null)
-            Text(" Add list from URL")
+            Text(" " + stringResource(R.string.add_list_from_url))
         }
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))

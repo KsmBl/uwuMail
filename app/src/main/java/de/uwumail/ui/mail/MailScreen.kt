@@ -99,6 +99,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.annotation.StringRes
@@ -129,15 +130,17 @@ private fun unifiedTitle(target: MailTarget): Int = when (target) {
 }
 
 /** How a removal that is still cancellable describes itself. */
-private fun undoMessage(offer: Undoable): String {
-    val what = if (offer.count == 1) "Message" else "${offer.count} messages"
-    return when (offer.kind) {
-        UndoKind.ARCHIVE -> "$what archived"
-        UndoKind.TRASH -> "$what moved to trash"
-        UndoKind.DELETE -> "$what deleted"
-        UndoKind.MOVE -> "$what moved"
-    }
-}
+@Composable
+private fun undoMessage(offer: Undoable): String = pluralStringResource(
+    when (offer.kind) {
+        UndoKind.ARCHIVE -> R.plurals.undo_archived
+        UndoKind.TRASH -> R.plurals.undo_trashed
+        UndoKind.DELETE -> R.plurals.undo_deleted
+        UndoKind.MOVE -> R.plurals.undo_moved
+    },
+    offer.count,
+    offer.count
+)
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -634,7 +637,7 @@ private fun SelectionAppBar(
                     onClick = { overflow = false; onStar() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Copy to folder") },
+                    text = { Text(stringResource(R.string.copy_to_folder)) },
                     leadingIcon = { Icon(Icons.Default.FileCopy, null) },
                     onClick = { overflow = false; onCopy() }
                 )

@@ -2,6 +2,7 @@ package de.uwumail.ui.compose
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.R
 import de.uwumail.core.Json
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.IdentityEntity
@@ -174,7 +175,7 @@ class ComposeViewModel(
                     val file = File(directory, "${System.currentTimeMillis()}_$name")
                     resolver.openInputStream(uri)?.use { input ->
                         file.outputStream().use { input.copyTo(it) }
-                    } ?: error("Could not read that file")
+                    } ?: error(container.appContext.getString(R.string.error_read_file))
                     PendingAttachment(name, file.absolutePath, file.length())
                 }
             }.onSuccess { attachment ->
@@ -259,7 +260,7 @@ class ComposeViewModel(
                 accountId = message.accountId,
                 subject = if (message.subject.startsWith("Fwd:", true)) message.subject
                 else "Fwd: ${message.subject}",
-                body = it.body + "\n\n---------- Forwarded message ----------\n" +
+                body = it.body + "\n\n" + container.appContext.getString(R.string.forwarded_separator) + "\n" +
                     "From: ${message.fromName.orEmpty()} <${message.fromAddress.orEmpty()}>\n" +
                     "Date: ${dateFormat.format(java.util.Date(message.receivedAt))}\n" +
                     "Subject: ${message.subject}\n" +
@@ -388,7 +389,7 @@ class ComposeViewModel(
         viewModelScope.launch {
             runCatching {
                 val account = container.db.accountDao().get(current.accountId)
-                    ?: error("No account selected")
+                    ?: error(container.appContext.getString(R.string.error_no_account))
                 val secret = container.accountRepository.smtpSecret(account)
                 val raw = container.smtpSender.send(account, secret, current.toOutbox())
                 account.sentFolder?.let { sent ->

@@ -2,6 +2,7 @@ package de.uwumail.ui.mail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.R
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.AttachmentEntity
 import de.uwumail.data.db.FolderEntity
@@ -195,7 +196,7 @@ class MessageViewModel(
 
     fun copyTo(folderId: Long) = guarded {
         container.syncManager.copyMessages(listOf(messageId), folderId)
-        local.update { it.copy(status = "Copied") }
+        local.update { it.copy(status = text(R.string.status_copied)) }
     }
 
     fun download(onReady: (File) -> Unit) = guarded {
@@ -204,7 +205,7 @@ class MessageViewModel(
             local.update { it.copy(status = "Saved to ${file.name}") }
             onReady(file)
         } else {
-            local.update { it.copy(error = "Could not download this message") }
+            local.update { it.copy(error = text(R.string.error_no_download)) }
         }
     }
 
@@ -212,8 +213,10 @@ class MessageViewModel(
         val file = container.syncManager.downloadAttachment(attachmentId)
         val attachment = container.db.attachmentDao().get(attachmentId)
         if (file != null && attachment != null) onReady(file, attachment.mimeType)
-        else local.update { it.copy(error = "Could not download the attachment") }
+        else local.update { it.copy(error = text(R.string.error_no_attachment)) }
     }
+
+    private fun text(id: Int, vararg args: Any) = container.appContext.getString(id, *args)
 
     private fun guarded(block: suspend () -> Unit) {
         local.update { it.copy(busy = true) }

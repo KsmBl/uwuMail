@@ -87,17 +87,17 @@ fun SyncWindowSection() {
 
     Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(
-            "Applies to background checks and to push. Opening the app, pulling to " +
-                "refresh and sending are never held back.",
+            stringResource(R.string.window_applies),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (settings.syncEndMinutes <= settings.syncStartMinutes) {
             Text(
-                "This window runs overnight: it opens at " +
-                    "${AppSettings.formatTime(settings.syncStartMinutes)} on the days " +
-                    "above and closes at " +
-                    "${AppSettings.formatTime(settings.syncEndMinutes)} the next morning.",
+                stringResource(
+                    R.string.window_overnight,
+                    AppSettings.formatTime(settings.syncStartMinutes),
+                    AppSettings.formatTime(settings.syncEndMinutes)
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 4.dp)
@@ -151,6 +151,6 @@ private fun TimeDialog(
         confirmButton = {
             TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) { Text(stringResource(R.string.window_set)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }

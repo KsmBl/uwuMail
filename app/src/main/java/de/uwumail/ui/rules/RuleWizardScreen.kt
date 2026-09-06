@@ -67,7 +67,7 @@ fun RuleWizardScreen(
                 title = { Text(stringResource(R.string.wizard_create)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -124,8 +124,7 @@ fun RuleWizardScreen(
                 item {
                     EmptyState(
                         stringResource(R.string.wizard_nothing),
-                        "These messages have no sender, header or subject pattern in common. " +
-                            "Try picking mails that are more alike, or build the rule by hand."
+                        stringResource(R.string.wizard_nothing_body)
                     )
                 }
             }
@@ -144,11 +143,13 @@ fun RuleWizardScreen(
                         Column(Modifier.padding(12.dp)) {
                             Text(
                                 if (state.matchedOthers == 0) {
-                                    "This rule catches your ${state.samples.size} selected mails " +
-                                        "and nothing else in the cache."
+                                    stringResource(
+                                        R.string.wizard_only_selection, state.samples.size
+                                    )
                                 } else {
-                                    "This rule also catches ${state.matchedOthers} other cached " +
-                                        "message(s). Tick another line above to narrow it."
+                                    stringResource(
+                                        R.string.wizard_also_matches, state.matchedOthers
+                                    )
                                 },
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -164,13 +165,13 @@ fun RuleWizardScreen(
                         AssistChip(
                             onClick = { viewModel.removeAction(index) },
                             label = { Text(action.label) },
-                            trailingIcon = { Icon(Icons.Default.Close, "Remove") },
+                            trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.remove)) },
                             modifier = Modifier.padding(vertical = 2.dp)
                         )
                     }
                     TextButton(onClick = { actionMenu = true }) {
                         Icon(Icons.Default.Add, null)
-                        Text(" Add action")
+                        Text(" " + stringResource(R.string.add_action))
                     }
                     DropdownMenu(
                         expanded = actionMenu,
@@ -186,12 +187,12 @@ fun RuleWizardScreen(
                 }
             }
 
-            item { SectionHeader("Name") }
+            item { SectionHeader(stringResource(R.string.section_name)) }
             item {
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = viewModel::setName,
-                    label = { Text("Rule name") },
+                    label = { Text(stringResource(R.string.rule_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(16.dp)
                 )

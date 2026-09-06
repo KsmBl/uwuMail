@@ -177,7 +177,7 @@ fun ComposeScreen(
                     if (state.accountIdentities.isNotEmpty()) {
                         TextButton(onClick = { identityMenu = true }) {
                             Icon(Icons.Default.AlternateEmail, null)
-                            Text(" Identities")
+                            Text(" " + stringResource(R.string.identities_button))
                         }
                         DropdownMenu(
                             expanded = identityMenu,
@@ -353,8 +353,7 @@ fun ComposeScreen(
     identityToDelete?.let { identity ->
         ConfirmDialog(
             title = stringResource(R.string.delete_identity_q),
-            message = "\"${identity.email}\" is removed from this account's saved " +
-                "addresses. Mail already sent from it is not affected.",
+            message = stringResource(R.string.identity_delete_body_compose, identity.email),
             confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = { viewModel.deleteIdentity(identity) },

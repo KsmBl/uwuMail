@@ -500,4 +500,69 @@
     <string name="role_unset">Nicht gesetzt</string>
     <string name="section_folders">Ordner</string>
     <string name="configure_folders_sub">Festlegen, welcher Ordner für Archiv, Gesendet, Entwürfe und Papierkorb dient</string>
+
+    <!-- Status and errors -->
+    <string name="attach_none_one">An dieser Nachricht hängt nichts</string>
+    <string name="attach_none_many">An diesen Nachrichten hängt nichts</string>
+    <string name="attach_saved">%1$d in %2$s gesichert</string>
+    <string name="attach_partial">%1$d in %2$s gesichert · %3$d konnten nicht geladen werden</string>
+    <string name="undo_too_late">Zu spät zum Rückgängigmachen</string>
+    <string name="status_nothing_unread">Nichts ungelesen</string>
+    <string name="status_order_reset">Ordnerreihenfolge zurückgesetzt</string>
+    <string name="status_folders_updated">Ordnerliste aktualisiert</string>
+    <string name="status_nothing_more">Nichts weiter auf dem Server</string>
+    <string name="status_from_server">%1$d weitere vom Server</string>
+    <string name="status_copied">Kopiert</string>
+    <string name="status_hidden">„%1$s“ auf diesem Gerät ausgeblendet</string>
+    <string name="status_marked_read">%1$d als gelesen markiert</string>
+    <string name="status_copied_count">%1$d kopiert</string>
+    <string name="status_saved_to_device">%1$d auf dem Gerät gespeichert</string>
+    <string name="error_no_app_for_link">Keine App kann diesen Link öffnen</string>
+    <string name="error_no_download">Nachricht konnte nicht geladen werden</string>
+    <string name="error_no_attachment">Anhang konnte nicht geladen werden</string>
+    <string name="error_read_file">Datei konnte nicht gelesen werden</string>
+    <string name="error_no_account">Kein Konto ausgewählt</string>
+    <string name="signin_cancelled">Anmeldung abgebrochen.</string>
+    <string name="signin_unverified">Anmeldung konnte nicht überprüft werden.</string>
+    <string name="signin_no_code">Anmeldung lieferte keinen Code.</string>
+    <string name="forwarded_separator">---------- Weitergeleitete Nachricht ----------</string>
+    <plurals name="undo_archived">
+        <item quantity="one">Nachricht archiviert</item>
+        <item quantity="other">%d Nachrichten archiviert</item>
+    </plurals>
+    <plurals name="undo_trashed">
+        <item quantity="one">Nachricht in den Papierkorb</item>
+        <item quantity="other">%d Nachrichten in den Papierkorb</item>
+    </plurals>
+    <plurals name="undo_deleted">
+        <item quantity="one">Nachricht gelöscht</item>
+        <item quantity="other">%d Nachrichten gelöscht</item>
+    </plurals>
+    <plurals name="undo_moved">
+        <item quantity="one">Nachricht verschoben</item>
+        <item quantity="other">%d Nachrichten verschoben</item>
+    </plurals>
+
+    <!-- Long form text -->
+    <string name="identity_delete_body">„%1$s“ wird aus den gespeicherten Adressen dieses Kontos entfernt. Auf dem Server ändert sich nichts.</string>
+    <string name="identity_delete_body_compose">„%1$s“ wird aus den gespeicherten Adressen entfernt. Bereits darüber gesendete Mail bleibt unberührt.</string>
+    <string name="identities_button">Identitäten</string>
+    <string name="add_list_from_url">Liste per URL hinzufügen</string>
+    <string name="add_condition">Bedingung hinzufügen</string>
+    <string name="add_action">Aktion hinzufügen</string>
+    <string name="rule_check_before">Prüfe, ob das die gemeinte Auswahl ist, bevor du löschende Aktionen aktivierst.</string>
+    <string name="applying">Wird angewendet…</string>
+    <string name="wizard_nothing_body">Diese Nachrichten haben kein gemeinsames Muster bei Absender, Kopfzeile oder Betreff. Wähle ähnlichere Mails oder baue die Regel von Hand.</string>
+    <string name="rules_none_hint">Wähle in der Nachrichtenliste ein paar ähnliche Mails aus und tippe auf das Label-Symbol — uwuMail findet die Gemeinsamkeiten für dich.</string>
+    <string name="window_applies">Gilt für Hintergrundabgleich und Push. Das Öffnen der App, Ziehen zum Aktualisieren und Senden werden nie zurückgehalten.</string>
+
+    <!-- Remaining text -->
+    <string name="images_blocked_one">%1$d externes Bild blockiert. Es zu laden verrät dem Absender, dass du die Mail geöffnet hast.</string>
+    <string name="images_blocked_many">%1$d externe Bilder blockiert. Sie zu laden verrät dem Absender, dass du die Mail geöffnet hast.</string>
+    <string name="images_blocked_plain">Externe Bilder sind blockiert. Sie zu laden verrät dem Absender, dass du die Mail geöffnet hast.</string>
+    <string name="wizard_also_matches">Diese Regel trifft auch auf %1$d weitere gespeicherte Nachricht(en) zu. Hake oben eine weitere Zeile an, um sie einzugrenzen.</string>
+    <string name="window_overnight">Dieses Fenster läuft über Nacht: Es öffnet um %1$s an den oben gewählten Tagen und schließt am nächsten Morgen um %2$s.</string>
+    <string name="google_no_refresh">Google hat kein Refresh-Token geliefert. Entferne uwuMail unter %1$s und melde dich erneut an.</string>
+    <string name="wizard_only_selection">Diese Regel trifft genau auf deine %1$d ausgewählten Mails zu und auf nichts anderes im Zwischenspeicher.</string>
+    <string name="section_name">Name</string>
 </resources>

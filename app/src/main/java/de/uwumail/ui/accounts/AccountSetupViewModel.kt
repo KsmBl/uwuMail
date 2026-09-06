@@ -2,6 +2,7 @@ package de.uwumail.ui.accounts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.R
 import de.uwumail.core.Security
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.IdentityEntity
@@ -179,7 +180,7 @@ class AccountSetupViewModel(
             _state.update {
                 it.copy(
                     signingIn = false,
-                    error = if (result.error == "access_denied") "Sign-in was cancelled."
+                    error = if (result.error == "access_denied") container.appContext.getString(R.string.signin_cancelled)
                     else "Sign-in failed: ${result.error}"
                 )
             }
@@ -187,12 +188,12 @@ class AccountSetupViewModel(
         }
         // A mismatched state means the redirect did not come from our request.
         if (result.state != pending.state) {
-            _state.update { it.copy(signingIn = false, error = "Sign-in could not be verified.") }
+            _state.update { it.copy(signingIn = false, error = container.appContext.getString(R.string.signin_unverified)) }
             return
         }
         val code = result.code
         if (code == null) {
-            _state.update { it.copy(signingIn = false, error = "Sign-in returned no code.") }
+            _state.update { it.copy(signingIn = false, error = container.appContext.getString(R.string.signin_no_code)) }
             return
         }
         val provider = OAuthProvider.byId(pending.providerId) ?: return
@@ -209,8 +210,9 @@ class AccountSetupViewModel(
                 _state.update {
                     it.copy(
                         signingIn = false,
-                        error = "Google did not return a refresh token. Remove uwuMail at " +
-                            "myaccount.google.com/permissions and sign in again."
+                        error = container.appContext.getString(
+                            R.string.google_no_refresh, "myaccount.google.com/permissions"
+                        )
                     )
                 }
                 return@onSuccess

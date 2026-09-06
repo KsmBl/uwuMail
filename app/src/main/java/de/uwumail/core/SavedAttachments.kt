@@ -13,21 +13,16 @@ data class SavedAttachments(
     val messagesWithNone: Int = 0
 ) {
 
-    /** The one line the user sees when it is over. */
-    fun summary(selectionSize: Int, folder: String): String = when {
-        saved == 0 && missing == 0 ->
-            if (selectionSize == 1) "Nothing attached to that message"
-            else "Nothing attached to those messages"
-        saved == 0 -> if (missing == 1) {
-            "Could not fetch that attachment"
-        } else {
-            "Could not fetch those $missing attachments"
+    /** What happened, for the caller to put into words in its own language. */
+    enum class Outcome { NOTHING_ATTACHED, ALL_FAILED, SAVED }
+
+    val outcome: Outcome
+        get() = when {
+            saved == 0 && missing == 0 -> Outcome.NOTHING_ATTACHED
+            saved == 0 -> Outcome.ALL_FAILED
+            else -> Outcome.SAVED
         }
-        else -> buildString {
-            append(saved)
-            append(if (saved == 1) " file saved to " else " files saved to ")
-            append(folder)
-            if (missing > 0) append(" · $missing could not be fetched")
-        }
-    }
+
+    /** A partial result has something to report beyond the count that worked. */
+    val partial: Boolean get() = saved > 0 && missing > 0
 }

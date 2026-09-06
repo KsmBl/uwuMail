@@ -2,6 +2,7 @@ package de.uwumail.ui.folders
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.R
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +36,7 @@ class FoldersViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FoldersUiState())
 
     fun refresh() =
-        guarded("Folder list updated") { container.syncManager.refreshFolders(accountId) }
+        guarded(container.appContext.getString(R.string.status_folders_updated)) { container.syncManager.refreshFolders(accountId) }
 
     fun createRemoteFolder(path: String) =
         guarded("Created \"$path\"") { container.syncManager.createRemoteFolder(accountId, path) }
@@ -81,7 +82,7 @@ class FoldersViewModel(
     fun resetOrder() {
         viewModelScope.launch {
             container.syncManager.resetFolderOrder(accountId)
-            transient.update { it.copy(message = "Folder order reset") }
+            transient.update { it.copy(message = container.appContext.getString(R.string.status_order_reset)) }
         }
     }
 

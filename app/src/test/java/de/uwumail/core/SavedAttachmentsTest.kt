@@ -1,45 +1,31 @@
 package de.uwumail.core
 
+import de.uwumail.core.SavedAttachments.Outcome
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SavedAttachmentsTest {
 
-    private val folder = "Downloads/uwuMail"
-
-    private fun summary(
-        saved: Int = 0,
-        missing: Int = 0,
-        selection: Int = 1
-    ) = SavedAttachments(saved, missing).summary(selection, folder)
-
     @Test
-    fun `counts one file in the singular`() {
-        assertEquals("1 file saved to Downloads/uwuMail", summary(saved = 1))
+    fun `nothing found is not the same as nothing worked`() {
+        assertEquals(Outcome.NOTHING_ATTACHED, SavedAttachments().outcome)
+        assertEquals(Outcome.ALL_FAILED, SavedAttachments(missing = 3).outcome)
     }
 
     @Test
-    fun `counts several in the plural`() {
-        assertEquals("7 files saved to Downloads/uwuMail", summary(saved = 7))
+    fun `anything saved counts as saved`() {
+        assertEquals(Outcome.SAVED, SavedAttachments(saved = 1).outcome)
+        assertEquals(Outcome.SAVED, SavedAttachments(saved = 3, missing = 2).outcome)
     }
 
     @Test
-    fun `says so when there was nothing attached`() {
-        assertEquals("Nothing attached to that message", summary(selection = 1))
-        assertEquals("Nothing attached to those messages", summary(selection = 4))
-    }
-
-    @Test
-    fun `a partial result reports what failed rather than hiding it`() {
-        assertEquals(
-            "3 files saved to Downloads/uwuMail · 2 could not be fetched",
-            summary(saved = 3, missing = 2)
-        )
-    }
-
-    @Test
-    fun `a total failure is not reported as success`() {
-        assertEquals("Could not fetch that attachment", summary(missing = 1))
-        assertEquals("Could not fetch those 3 attachments", summary(missing = 3))
+    fun `a partial result has something more to say than its count`() {
+        // The point of counting failures separately: three saved out of five
+        // must not be reported as though five were asked for and three exist.
+        assertTrue(SavedAttachments(saved = 3, missing = 2).partial)
+        assertFalse(SavedAttachments(saved = 3).partial)
+        assertFalse(SavedAttachments(missing = 2).partial)
     }
 }
