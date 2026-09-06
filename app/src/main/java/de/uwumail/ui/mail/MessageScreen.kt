@@ -386,6 +386,7 @@ fun MessageScreen(
                     allowJavaScript = state.settings.allowJavaScript,
                     imagePolicy = state.imagePolicy,
                     onLink = ::follow,
+                    inlineImage = viewModel::inlineImage,
                     darkTheme = isSystemInDarkTheme() || state.settings.theme.isDark,
                     handOverGlyphs = state.gravity,
                     glyphLimit = MAX_GRAVITY_LETTERS,

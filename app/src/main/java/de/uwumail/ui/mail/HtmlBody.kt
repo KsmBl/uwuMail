@@ -27,6 +27,7 @@ import de.uwumail.ui.mail.gravity.FallingPiece
 import de.uwumail.ui.mail.gravity.GlyphReader
 import de.uwumail.ui.mail.gravity.PageGlyphs
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONObject
 import kotlin.coroutines.resume
@@ -54,6 +55,7 @@ fun HtmlBody(
     allowJavaScript: Boolean,
     imagePolicy: RemoteImagePolicy,
     onLink: (String) -> Unit,
+    inlineImage: suspend (String) -> Pair<ByteArray, String>? = { null },
     darkTheme: Boolean = false,
     handOverGlyphs: Boolean = false,
     glyphLimit: Int = 0,
@@ -63,6 +65,7 @@ fun HtmlBody(
     val currentPolicy by rememberUpdatedState(imagePolicy)
     val currentImages by rememberUpdatedState(allowRemoteImages)
     val currentOnGlyphs by rememberUpdatedState(onGlyphs)
+    val currentInline by rememberUpdatedState(inlineImage)
 
     var view by remember { mutableStateOf<WebView?>(null) }
     var loadedPages by remember { mutableStateOf(0) }
@@ -139,9 +142,29 @@ fun HtmlBody(
                         view: WebView?,
                         request: WebResourceRequest?
                     ): WebResourceResponse? {
-                        if (!currentImages) return null
                         val url = request?.url?.toString() ?: return null
+                        // An inline part arrived with the message. Showing it
+                        // asks nobody for anything, so it is never held back.
+                        if (url.startsWith("cid:", ignoreCase = true)) {
+                            return inlinePart(url.substring(4))
+                        }
+                        if (!currentImages) return null
                         return RemoteImageInterceptor.intercept(url, currentPolicy)
+                    }
+
+                    /** Runs on a WebView worker thread, which is allowed to block. */
+                    private fun inlinePart(contentId: String): WebResourceResponse? {
+                        val decoded = runCatching {
+                            java.net.URLDecoder.decode(contentId, "UTF-8")
+                        }.getOrDefault(contentId)
+                        val part = runCatching {
+                            runBlocking { currentInline(decoded) }
+                        }.getOrNull() ?: return null
+                        return WebResourceResponse(
+                            part.second.substringBefore(';').trim().ifBlank { "image/*" },
+                            null,
+                            java.io.ByteArrayInputStream(part.first)
+                        )
                     }
 
                     override fun onPageFinished(view: WebView?, url: String?) {

@@ -9,6 +9,7 @@ import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
 import de.uwumail.core.Json
+import de.uwumail.mail.ContentId
 import de.uwumail.mail.ImagePrefilter
 import de.uwumail.mail.RemoteImagePolicy
 import de.uwumail.mail.Unsubscribe
@@ -153,6 +154,23 @@ class MessageViewModel(
             }.onFailure { e -> local.update { s -> s.copy(error = e.message) } }
             local.update { it.copy(loading = false, everLoaded = true) }
         }
+    }
+
+    /**
+     * The bytes behind a `cid:` reference, with its type.
+     *
+     * Inline parts came down with the message and cost nothing to show: there
+     * is no request to make and so nothing for a sender to learn from it. They
+     * are deliberately not held back by the remote-image setting, which exists
+     * to stop the network being touched.
+     */
+    suspend fun inlineImage(contentId: String): Pair<ByteArray, String>? {
+        if (ContentId.normalise(contentId).isEmpty()) return null
+        val attachment = container.db.attachmentDao().forMessage(messageId).firstOrNull {
+            ContentId.matches(contentId, it.contentId)
+        } ?: return null
+        val file = container.syncManager.downloadAttachment(attachment.id) ?: return null
+        return runCatching { file.readBytes() to attachment.mimeType }.getOrNull()
     }
 
     fun toggleHtml() = local.update { it.copy(showHtml = !it.showHtml) }
