@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.UUID
 
 /** A file waiting to go out with the message, already copied somewhere stable. */
 data class PendingAttachment(val name: String, val path: String, val sizeBytes: Long)
@@ -164,6 +165,10 @@ class ComposeViewModel(
      * A content URI is a loan from whichever app produced it and may not
      * outlive this screen, let alone a spell in the outbox — so the bytes are
      * taken now rather than the reference kept.
+     *
+     * The copy keeps the name the file arrived with and is made unique by the
+     * directory around it rather than by a prefix: the outbox carries paths,
+     * and whatever the file is called on disk is what the recipient sees.
      */
     fun attach(uri: Uri) {
         viewModelScope.launch {
@@ -171,8 +176,11 @@ class ComposeViewModel(
                 withContext(Dispatchers.IO) {
                     val resolver = container.appContext.contentResolver
                     val name = resolver.displayNameOf(uri)
-                    val directory = File(container.appContext.filesDir, "outgoing").apply { mkdirs() }
-                    val file = File(directory, "${System.currentTimeMillis()}_$name")
+                    val directory = File(
+                        File(container.appContext.filesDir, "outgoing"),
+                        UUID.randomUUID().toString()
+                    ).apply { mkdirs() }
+                    val file = File(directory, name)
                     resolver.openInputStream(uri)?.use { input ->
                         file.outputStream().use { input.copyTo(it) }
                     } ?: error(container.appContext.getString(R.string.error_read_file))
@@ -187,8 +195,15 @@ class ComposeViewModel(
     }
 
     fun removeAttachment(attachment: PendingAttachment) {
-        runCatching { File(attachment.path).delete() }
+        runCatching { discard(attachment) }
         _state.update { it.copy(attachments = it.attachments - attachment) }
+    }
+
+    /** Removes a copied-in file and the directory that was only there to hold it. */
+    private fun discard(attachment: PendingAttachment) {
+        val file = File(attachment.path)
+        file.delete()
+        file.parentFile?.takeIf { it.name.isUuid() }?.delete()
     }
 
     /** Saves what is here to the Drafts folder, replacing the draft it came from. */
@@ -403,7 +418,7 @@ class ComposeViewModel(
                 }
             }.onSuccess {
                 // The copies were only ever there to be sent.
-                current.attachments.forEach { runCatching { File(it.path).delete() } }
+                current.attachments.forEach { runCatching { discard(it) } }
                 _state.update { it.copy(sending = false, sent = true) }
             }.onFailure { e ->
                 // Keep the draft; queue it so the user can retry from the outbox.
@@ -416,6 +431,9 @@ class ComposeViewModel(
         val dateFormat = SimpleDateFormat("EEE, d MMM yyyy 'at' HH:mm", Locale.getDefault())
     }
 }
+
+/** Whether a directory name is one of ours, so only our own is removed. */
+private fun String.isUuid(): Boolean = runCatching { UUID.fromString(this) }.isSuccess
 
 /** The name the producing app gives a file, falling back to something usable. */
 private fun ContentResolver.displayNameOf(uri: Uri): String {
