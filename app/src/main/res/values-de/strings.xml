@@ -568,4 +568,11 @@
 
     <!-- Saving a message -->
     <string name="message_saved">Nachricht gespeichert</string>
+
+    <!-- Attachments -->
+    <string name="attachment_open">Öffnen</string>
+    <string name="attachment_open_sub">An eine App übergeben, die sie lesen kann</string>
+    <string name="attachment_save">Speichern</string>
+    <string name="attachment_save_sub">Speicherort auswählen</string>
+    <string name="attachment_saved">Anhang gespeichert</string>
 </resources>

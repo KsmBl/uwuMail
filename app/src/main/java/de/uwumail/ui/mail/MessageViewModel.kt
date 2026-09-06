@@ -236,6 +236,33 @@ class MessageViewModel(
         }
     }
 
+    /**
+     * Writes an attachment to wherever the picker was pointed.
+     *
+     * It is fetched first and then copied into the chosen document, so the
+     * file the user picked is only created once there is something to put in
+     * it — an empty file left behind by a failed download would look like a
+     * saved attachment.
+     */
+    fun saveAttachmentTo(attachmentId: Long, destination: Uri) = guarded {
+        val file = container.syncManager.downloadAttachment(attachmentId)
+        if (file == null) {
+            local.update { it.copy(error = text(R.string.error_no_attachment)) }
+            return@guarded
+        }
+        val written = withContext(Dispatchers.IO) {
+            runCatching {
+                container.appContext.contentResolver.openOutputStream(destination)?.use { out ->
+                    file.inputStream().use { it.copyTo(out) }
+                } ?: error("could not write there")
+            }.isSuccess
+        }
+        local.update {
+            if (written) it.copy(status = text(R.string.attachment_saved))
+            else it.copy(error = text(R.string.error_no_attachment))
+        }
+    }
+
     fun openAttachment(attachmentId: Long, onReady: (File, String) -> Unit) = guarded {
         val file = container.syncManager.downloadAttachment(attachmentId)
         val attachment = container.db.attachmentDao().get(attachmentId)

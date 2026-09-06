@@ -16,6 +16,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Save
+import de.uwumail.data.db.AttachmentEntity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Reply
@@ -106,6 +113,18 @@ fun MessageScreen(
     var trackingLink by remember { mutableStateOf<String?>(null) }
     // The system picker chooses where a saved message goes, so it lands
     // somewhere the user actually chose rather than wherever the app can write.
+    // Which attachment is being asked about, and which one a save is for.
+    var attachmentChoice by remember { mutableStateOf<AttachmentEntity?>(null) }
+    var attachmentToSave by remember { mutableStateOf<AttachmentEntity?>(null) }
+    val saveAttachment = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("*/*")
+    ) { destination ->
+        val attachment = attachmentToSave
+        attachmentToSave = null
+        if (destination != null && attachment != null) {
+            viewModel.saveAttachmentTo(attachment.id, destination)
+        }
+    }
     val saveEml = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("message/rfc822")
     ) { destination -> destination?.let(viewModel::exportTo) }
@@ -347,11 +366,7 @@ fun MessageScreen(
                 ) {
                     state.attachments.filter { !it.isInline }.forEach { attachment ->
                         AssistChip(
-                            onClick = {
-                                viewModel.openAttachment(attachment.id) { file, mime ->
-                                    shareFile(context, file, mime)
-                                }
-                            },
+                            onClick = { attachmentChoice = attachment },
                             leadingIcon = { Icon(Icons.Default.AttachFile, null) },
                             label = {
                                 Text("${attachment.fileName} ${formatSize(attachment.sizeBytes)}")
@@ -440,6 +455,55 @@ fun MessageScreen(
             preferredAccountId = state.message?.accountId,
             onPick = { showCopy = false; viewModel.copyTo(it.id) },
             onDismiss = { showCopy = false }
+        )
+    }
+
+    attachmentChoice?.let { attachment ->
+        AlertDialog(
+            onDismissRequest = { attachmentChoice = null },
+            title = { Text(attachment.fileName) },
+            text = {
+                Column {
+                    Text(
+                        formatSize(attachment.sizeBytes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            attachmentChoice = null
+                            viewModel.openAttachment(attachment.id) { file, mime ->
+                                shareFile(context, file, mime)
+                            }
+                        },
+                        leadingContent = { Icon(Icons.Default.OpenInNew, null) },
+                        headlineContent = { Text(stringResource(R.string.attachment_open)) },
+                        supportingContent = {
+                            Text(stringResource(R.string.attachment_open_sub))
+                        }
+                    )
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            attachmentChoice = null
+                            attachmentToSave = attachment
+                            saveAttachment.launch(
+                                MimeUtil.sanitizeFileName(attachment.fileName)
+                            )
+                        },
+                        leadingContent = { Icon(Icons.Default.Save, null) },
+                        headlineContent = { Text(stringResource(R.string.attachment_save)) },
+                        supportingContent = {
+                            Text(stringResource(R.string.attachment_save_sub))
+                        }
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { attachmentChoice = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
     }
 

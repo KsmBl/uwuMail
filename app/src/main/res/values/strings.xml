@@ -570,4 +570,11 @@
 
     <!-- Saving a message -->
     <string name="message_saved">Message saved</string>
+
+    <!-- Attachments -->
+    <string name="attachment_open">Open</string>
+    <string name="attachment_open_sub">Hand it to an app that can read it</string>
+    <string name="attachment_save">Save</string>
+    <string name="attachment_save_sub">Choose where to put it</string>
+    <string name="attachment_saved">Attachment saved</string>
 </resources>
