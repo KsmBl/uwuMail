@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-179%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-182%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -246,6 +246,8 @@ have.
 
 - Searches **every folder of every account**, over subject, sender, recipients,
   preview and body text — not just the folder you happen to be looking at.
+- Typing does not put the database to work on every letter: the list catches up
+  a moment after the typing stops, and clearing the box puts it back at once.
 - **Also search the server** reaches mail that was never synced, which for
   anything older than the last few hundred messages is all of it. Hits are
   cached like any other message, so the list picks them up and asking twice is
@@ -267,6 +269,9 @@ have.
   screen, so a long scroll always says how much time it has covered. The
   headings carry the full date rather than *Today* and *Yesterday*: two
   relative labels among absolute ones make that harder to read, not easier.
+- The row answers the finger: a knock the moment a swipe has gone far enough
+  to act, and rows that fade out and close the gap behind them rather than the
+  list jumping to its new shape.
 - New mail lands above what is on screen. If you are already at the top the list
   follows it up so the new message is visible; if you had scrolled down, your
   place is kept and nothing jumps. It also will not move during a fling, in a
@@ -466,7 +471,7 @@ to read and to run rules against.
 
 ## Tests
 
-179 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+182 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -494,8 +499,9 @@ to read and to run rules against.
 - `data/repo/BlocklistParserTest` — blocklist line parsing, including the
   entries that must be rejected because they would match everything.
 - `core/` — swipe actions and themes surviving a setting written by a version
-  that knew names this one does not, and the wording of a partial attachment
-  save, which must not report a failure as a smaller success.
+  that knew names this one does not, the wording of a partial attachment save,
+  which must not report a failure as a smaller success, and the waiting that
+  keeps a search off the database until the typing stops.
 - `ui/` — day grouping of the message list, `[mailbox] folder` labelling, and
   the order swiping between messages follows.
 - `ui/NavigationGuardTest` — runs a real NavHost under Robolectric and asserts
@@ -511,7 +517,7 @@ to read and to run rules against.
 
 ```
 app/src/main/java/de/uwumail/
-  core/        enums (fields, operators, actions) and JSON helpers
+  core/        enums (fields, operators, actions), JSON and flow helpers
   data/db/     Room entities, DAOs, database
   data/crypto/ keystore-backed credential storage
   data/settings/ app-wide preferences
