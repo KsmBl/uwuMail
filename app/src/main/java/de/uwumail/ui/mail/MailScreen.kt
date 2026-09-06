@@ -109,6 +109,7 @@ import de.uwumail.data.db.MessageSummary
 import de.uwumail.core.SwipeAction
 import de.uwumail.sync.UndoKind
 import de.uwumail.sync.Undoable
+import de.uwumail.ui.common.rememberHaptics
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.EmptyState
 import de.uwumail.ui.common.FolderPickerSheet
@@ -731,12 +732,16 @@ private fun MessageRow(
     }
     val senderColor =
         if (message.spam) MaterialTheme.colorScheme.error else Color.Unspecified
+    val haptics = rememberHaptics()
+    // Selection begins under the finger and nothing moves when it does, so the
+    // knock is the only thing that says the press was long enough.
+    val pick = { haptics.longPress(); onLongClick() }
     Row(
         verticalAlignment = Alignment.Top,
         modifier = Modifier
             .fillMaxWidth()
             .background(background)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(onClick = onClick, onLongClick = pick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Box(
@@ -752,7 +757,7 @@ private fun MessageRow(
                             ?: MaterialTheme.colorScheme.primaryContainer
                     }
                 )
-                .clickable(onClick = onLongClick),
+                .clickable(onClick = pick),
             contentAlignment = Alignment.Center
         ) {
             if (selected || selectionMode) {
@@ -982,6 +987,7 @@ private fun FolderRow(
     onAction: (FolderAction) -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val haptics = rememberHaptics()
 
     Box {
         Row(
@@ -994,7 +1000,10 @@ private fun FolderRow(
                     if (selected) MaterialTheme.colorScheme.secondaryContainer
                     else Color.Transparent
                 )
-                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { haptics.longPress(); menuOpen = true }
+                )
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Icon(

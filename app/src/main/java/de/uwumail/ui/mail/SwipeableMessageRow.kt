@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import de.uwumail.core.SwipeAction
+import de.uwumail.ui.common.rememberHaptics
 
 /**
  * A message row that can be swiped either way.
@@ -66,6 +67,7 @@ fun SwipeableMessageRow(
     }
 
     val currentOnAction by rememberUpdatedState(onAction)
+    val haptics = rememberHaptics()
     // The row's own width, which is the screen's. Read from the layout rather
     // than from the window so it is right whatever the row is sitting in.
     var rowWidth by remember { mutableIntStateOf(0) }
@@ -110,6 +112,13 @@ fun SwipeableMessageRow(
     )
 
     SideEffect { settled[0] = state }
+
+    // A knock the moment the swipe passes the point where letting go would act.
+    // The row is the same width either side of that point, so without it the
+    // only way to know is to let go and find out.
+    LaunchedEffect(state.targetValue) {
+        if (state.targetValue != SwipeToDismissBoxValue.Settled) haptics.threshold()
+    }
 
     // Ready for the next swipe once this one has come to rest.
     LaunchedEffect(state.targetValue, state.currentValue) {

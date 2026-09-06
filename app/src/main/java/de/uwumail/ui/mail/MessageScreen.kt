@@ -85,6 +85,7 @@ import androidx.core.content.FileProvider
 import de.uwumail.R
 import de.uwumail.core.Json
 import de.uwumail.mail.MimeUtil
+import de.uwumail.ui.common.rememberHaptics
 import de.uwumail.ui.mail.gravity.FallingPiece
 import de.uwumail.ui.mail.gravity.GravityOverlay
 import de.uwumail.ui.mail.gravity.MAX_GRAVITY_LETTERS
@@ -626,6 +627,7 @@ private fun AttachmentChip(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = if (selected) MaterialTheme.colorScheme.secondaryContainer
@@ -634,7 +636,10 @@ private fun AttachmentChip(
                        else MaterialTheme.colorScheme.onSurface,
         border = if (selected) null
                  else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        modifier = Modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = { haptics.longPress(); onLongClick() }
+        )
     ) {
         Row(
             Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
