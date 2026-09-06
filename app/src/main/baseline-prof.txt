@@ -1,0 +1,25 @@
+# What the runtime should compile ahead of time instead of interpreting on the
+# way past. Without one of these every first scroll after an install pays for
+# the just-in-time compiler, which is where a fresh install feels slower than
+# the same app an hour later.
+#
+# These are wildcards over the packages the app actually starts and scrolls
+# through, rather than a recording of a real run. A recorded profile is more
+# precise and wants a macrobenchmark run on a device to make; this covers the
+# same ground more broadly until there is one. R8 rewrites the names here to
+# the obfuscated ones as it minifies, so they stay written as the source has
+# them.
+HSPLde/uwumail/**->**(**)**
+HSPLandroidx/compose/runtime/**->**(**)**
+HSPLandroidx/compose/ui/**->**(**)**
+HSPLandroidx/compose/foundation/**->**(**)**
+HSPLandroidx/compose/material3/**->**(**)**
+HSPLandroidx/compose/animation/**->**(**)**
+HSPLandroidx/navigation/**->**(**)**
+HSPLandroidx/lifecycle/**->**(**)**
+HSPLandroidx/activity/**->**(**)**
+HSPLandroidx/room/**->**(**)**
+HSPLandroidx/sqlite/**->**(**)**
+HSPLandroidx/datastore/**->**(**)**
+HSPLandroidx/collection/**->**(**)**
+HSPLkotlinx/coroutines/**->**(**)**

@@ -145,6 +145,10 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
     implementation(libs.kotlinx.coroutines.android)
+    // Installs the baseline profile in src/main on first run. It arrives here
+    // through WorkManager anyway; asking for it by name means the profile does
+    // not quietly stop being installed if that ever changes.
+    implementation(libs.androidx.profileinstaller)
 
     implementation(libs.javamail.android.mail)
     implementation(libs.javamail.android.activation)
