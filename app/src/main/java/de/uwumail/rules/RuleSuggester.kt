@@ -44,6 +44,9 @@ data class SuggestionReport(
  */
 class RuleSuggester {
 
+    /** Past this a header value is machinery, not something to match on. */
+    private val MAX_HEADER_VALUE = 200
+
     /** Headers that change per message and would only ever produce noise. */
     private val ignoredHeaders = setOf(
         "date", "message-id", "received", "subject", "to", "cc", "bcc", "from", "reply-to",
@@ -217,6 +220,12 @@ class RuleSuggester {
             val values = headerSets.map { it[name]?.firstOrNull().orEmpty() }
             when {
                 values.any { it.isBlank() } -> emptyList()
+                // The ignore list above names the machine headers I know of,
+                // and a list of names can only ever be behind: every server
+                // invents its own, and the long ones are all the same kind of
+                // thing — signatures, spam verdicts, routing. A rule quoting a
+                // fragment of one would match nothing else anyway.
+                values.any { it.length > MAX_HEADER_VALUE } -> emptyList()
                 values.distinct().size == 1 -> listOf(
                     Candidate(
                         condition(RuleField.HEADER, RuleOperator.EQUALS, values.first(), name),

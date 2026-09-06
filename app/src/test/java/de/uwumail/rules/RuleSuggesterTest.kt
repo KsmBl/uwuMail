@@ -144,4 +144,30 @@ class RuleSuggesterTest {
         assertTrue(report.suggestions.isEmpty())
         assertTrue(report.recommended.isEmpty())
     }
+
+    @Test
+    fun `a header too long to be worth matching is not suggested`() {
+        // Not in the ignore list, because no list of names can keep up with
+        // what every server invents. It is skipped for being machinery.
+        val signature = "v=1; b=" + "A1b2C3d4".repeat(80)
+        val mails = (1..2).map {
+            message(
+                subject = "Statement $it",
+                from = "post@bank.example",
+                headers = mapOf(
+                    "x-bank-trace" to listOf(signature + it),
+                    "x-bank-kind" to listOf("statement")
+                )
+            )
+        }
+        val report = RuleSuggester().analyse(mails, mails)
+        assertTrue(
+            "a fragment of a machine header was suggested",
+            report.suggestions.none { it.condition.headerName == "x-bank-trace" }
+        )
+        assertTrue(
+            "the short header should still be suggested",
+            report.suggestions.any { it.condition.headerName == "x-bank-kind" }
+        )
+    }
 }

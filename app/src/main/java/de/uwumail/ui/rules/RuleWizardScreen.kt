@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.rules.Suggestion
@@ -72,6 +73,17 @@ fun RuleWizardScreen(
     // reproduce it on, so the trace is on screen as well as in the file.
     val log by WizardLog.lines.collectAsState()
     val context = LocalContext.current
+    // The trace is always written; it is only put on screen once the analysis
+    // has taken long enough to be worth explaining. A wizard that answers in
+    // half a second does not need to show its working.
+    var slow by remember { mutableStateOf(false) }
+    LaunchedEffect(state.analysing) {
+        slow = false
+        if (state.analysing) {
+            delay(SLOW_ENOUGH_TO_EXPLAIN)
+            slow = true
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -83,8 +95,10 @@ fun RuleWizardScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { shareLog(context) }) {
-                        Icon(Icons.Default.Share, stringResource(R.string.wizard_log_share))
+                    if (slow || state.error != null) {
+                        IconButton(onClick = { shareLog(context) }) {
+                            Icon(Icons.Default.Share, stringResource(R.string.wizard_log_share))
+                        }
                     }
                     IconButton(
                         onClick = { viewModel.save(onSaved) },
@@ -122,7 +136,7 @@ fun RuleWizardScreen(
                         )
                     }
                 }
-                WizardLogView(log, Modifier.weight(1f))
+                if (slow) WizardLogView(log, Modifier.weight(1f))
             }
             return@Scaffold
         }
@@ -364,6 +378,9 @@ private fun WizardLogView(log: List<String>, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/** How long the spinner may spin before it starts explaining itself. */
+private const val SLOW_ENOUGH_TO_EXPLAIN = 5000L
 
 private fun shareLog(context: android.content.Context) {
     val intent = Intent(Intent.ACTION_SEND).apply {
