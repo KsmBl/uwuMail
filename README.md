@@ -12,7 +12,8 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-137%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-176%20passing-brightgreen">
+  <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
 <p align="center">
@@ -525,3 +526,7 @@ app/src/main/java/de/uwumail/
 - OAuth2 is implemented for Google. The provider definition in
   `mail/oauth/OAuthModels.kt` is generic, so Microsoft/Outlook would be a matter
   of adding endpoints and scopes, but it is untested.
+
+## Licence
+
+[MIT](LICENSE). Use it, change it, ship it — just keep the copyright notice.
