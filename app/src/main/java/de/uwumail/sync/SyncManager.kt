@@ -840,19 +840,43 @@ class SyncManager(
             removeFromServer(messageIds)
         }
 
+    /**
+     * Removes mail from the server and only then from here.
+     *
+     * A row dropped whether or not the server agreed is mail that has vanished
+     * from the app and is still sitting in the mailbox — and it will not come
+     * back on the next sync either, since its UID is long past the folder's
+     * high-water mark. So each folder's outcome is kept, only what actually
+     * went is forgotten, and anything refused is reported.
+     */
     private suspend fun removeFromServer(messageIds: List<Long>) {
         val messages = db.messageDao().getAll(messageIds)
+        val removed = mutableListOf<MessageEntity>()
+        val failures = mutableListOf<String>()
+
         messages.filter { !it.isLocal }.groupBy { it.folderId }.forEach { (folderId, group) ->
             val folder = db.folderDao().get(folderId) ?: return@forEach
             val account = db.accountDao().get(folder.accountId) ?: return@forEach
             runCatching {
                 pool.use(account.id) { it.deleteMessages(folder.path, group.map { m -> m.uid }) }
+            }.onSuccess {
+                removed += group
+            }.onFailure { error ->
+                failures += error.message ?: error.toString()
             }
         }
-        messages.mapNotNull { it.rawFilePath }.forEach { runCatching { File(it).delete() } }
-        db.messageDao().deleteAll(messageIds)
-        messageIds.forEach { notifier.cancel(it) }
+        // A device-only message has no server copy to agree with: its row and
+        // its .eml are the whole of it.
+        removed += messages.filter { it.isLocal }
+
+        removed.mapNotNull { it.rawFilePath }.forEach { runCatching { File(it).delete() } }
+        db.messageDao().deleteAll(removed.map { it.id })
+        removed.forEach { notifier.cancel(it.id) }
         refreshCountsFor(messageIds)
+
+        if (failures.isNotEmpty()) {
+            throw MailException(failures.first())
+        }
     }
 
     // -------------------------------------------------------------- folders
