@@ -20,6 +20,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import de.uwumail.mail.RemoteImagePolicy
 import de.uwumail.ui.mail.gravity.FallingPiece
 import de.uwumail.ui.mail.gravity.GlyphReader
@@ -52,6 +54,7 @@ fun HtmlBody(
     allowJavaScript: Boolean,
     imagePolicy: RemoteImagePolicy,
     onLink: (String) -> Unit,
+    darkTheme: Boolean = false,
     handOverGlyphs: Boolean = false,
     glyphLimit: Int = 0,
     onGlyphs: (List<FallingPiece>) -> Unit = {}
@@ -68,7 +71,7 @@ fun HtmlBody(
     var position by remember { mutableStateOf(Offset.Zero) }
     // What the view currently shows, so a recomposition does not reload the
     // body and throw the reader's scroll position away.
-    val loaded = remember { mutableStateOf<Triple<String, Boolean, Boolean>?>(null) }
+    val loaded = remember { mutableStateOf<Triple<Pair<String, Boolean>, Boolean, Boolean>?>(null) }
 
     LaunchedEffect(view, loadedPages, handOverGlyphs, position) {
         val web = view ?: return@LaunchedEffect
@@ -145,6 +148,11 @@ fun HtmlBody(
                         loadedPages++
                     }
                 }
+                // Darkens a page that has no dark styling of its own, which is
+                // most mail. Senders who do have their own are left alone.
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                    WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+                }
                 settings.allowFileAccess = false
                 settings.allowContentAccess = false
                 settings.builtInZoomControls = true
@@ -157,12 +165,12 @@ fun HtmlBody(
             }
         },
         update = { web ->
-            val stamp = Triple(html, allowRemoteImages, allowJavaScript)
+            val stamp = Triple(html to darkTheme, allowRemoteImages, allowJavaScript)
             if (loaded.value == stamp) return@AndroidView
             web.settings.javaScriptEnabled = allowJavaScript
             web.settings.blockNetworkLoads = !allowRemoteImages
             web.settings.loadsImagesAutomatically = allowRemoteImages
-            web.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+            web.loadDataWithBaseURL(null, colourSchemeOf(html, darkTheme), "text/html", "UTF-8", null)
             loaded.value = stamp
             // A fresh document draws its own text again.
             textHidden = false
@@ -241,6 +249,18 @@ private fun isBlank(bitmap: Bitmap): Boolean {
         y += stepY
     }
     return true
+}
+
+/**
+ * Tells the page which scheme it is being read in.
+ *
+ * A sender who wrote `prefers-color-scheme` styling gets to use it, which is a
+ * far better result than any darkening applied from outside. The meta goes in
+ * front of the body, where a fragment without a head will still be given one.
+ */
+private fun colourSchemeOf(html: String, dark: Boolean): String {
+    val scheme = if (dark) "dark light" else "light dark"
+    return "<meta name=\"color-scheme\" content=\"$scheme\">" + html
 }
 
 private suspend fun WebView.evaluate(script: String): String =

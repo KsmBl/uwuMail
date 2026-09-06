@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.runtime.LaunchedEffect
+import de.uwumail.core.AppTheme
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,6 +46,19 @@ class MainActivity : AppCompatActivity() {
             // The theme is a setting, so it has to be read before it is applied
             // — the container is provided inside so everything else can reach it.
             val settings by container.settings.state.collectAsState()
+            // The window's night mode follows the chosen theme, not just the
+            // system's. A WebView decides whether to darken a page from the
+            // activity's theme, so without this a white mail would still be a
+            // white mail behind a dark app.
+            LaunchedEffect(settings.theme) {
+                AppCompatDelegate.setDefaultNightMode(
+                    when (settings.theme) {
+                        AppTheme.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        AppTheme.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                        AppTheme.DARK, AppTheme.MOCHA -> AppCompatDelegate.MODE_NIGHT_YES
+                    }
+                )
+            }
             UwuMailTheme(theme = settings.theme) {
                 CompositionLocalProvider(LocalAppContainer provides container) {
                     // Land on the account setup flow until there is something to show.

@@ -112,6 +112,9 @@ enum class AppTheme(@StringRes val label: Int) {
     DARK(R.string.theme_dark),
     MOCHA(R.string.theme_mocha);
 
+    /** Whether this theme is a dark one, for everything outside Compose. */
+    val isDark: Boolean get() = this == DARK || this == MOCHA;
+
     companion object {
         /** Tolerates a name that is no longer known, rather than losing the setting. */
         fun of(name: String?): AppTheme = entries.firstOrNull { it.name == name } ?: SYSTEM

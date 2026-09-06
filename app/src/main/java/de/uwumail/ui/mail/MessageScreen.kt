@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -385,6 +386,7 @@ fun MessageScreen(
                     allowJavaScript = state.settings.allowJavaScript,
                     imagePolicy = state.imagePolicy,
                     onLink = ::follow,
+                    darkTheme = isSystemInDarkTheme() || state.settings.theme.isDark,
                     handOverGlyphs = state.gravity,
                     glyphLimit = MAX_GRAVITY_LETTERS,
                     onGlyphs = { lifted["3body"] = it }

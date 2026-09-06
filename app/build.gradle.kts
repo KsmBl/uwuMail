@@ -151,6 +151,8 @@ dependencies {
     implementation(libs.androidx.browser)
     // Per-app language, which the framework only offers from API 33 and this app runs from 31.
     implementation(libs.androidx.appcompat)
+    // Algorithmic darkening, so a white mail is not a flashbang in a dark theme.
+    implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
     // Android ships org.json as stubs; the real implementation lets the rule
