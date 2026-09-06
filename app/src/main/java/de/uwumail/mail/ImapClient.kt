@@ -385,6 +385,18 @@ class ImapClient(
 
     companion object {
         /**
+         * Whether an envelope's content type suggests something is attached.
+         *
+         * `multipart/mixed` is a body with other parts beside it. `multipart/
+         * related` is a body with the pictures it draws itself with, which is
+         * every HTML newsletter ever sent — counting those put a paperclip on
+         * mail carrying nothing anybody could open. The guess is corrected the
+         * moment the message is opened and its parts are actually read.
+         */
+        fun looksLikeAttachments(contentType: String): Boolean =
+            contentType.trim().lowercase().startsWith("multipart/mixed")
+
+        /**
          * Whether a blanket `EXPUNGE` would remove only what was asked for.
          *
          * True when every `\Deleted` message in the mailbox is one of ours.
@@ -507,8 +519,7 @@ class ImapClient(
             answered = flags.contains(Flags.Flag.ANSWERED),
             draft = flags.contains(Flags.Flag.DRAFT),
             sizeBytes = runCatching { message.size.toLong() }.getOrDefault(0L).coerceAtLeast(0L),
-            likelyHasAttachments = contentType.startsWith("multipart/mixed") ||
-                contentType.startsWith("multipart/related"),
+            likelyHasAttachments = looksLikeAttachments(contentType),
             headers = headers
         )
     }.getOrNull()
