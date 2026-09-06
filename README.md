@@ -214,7 +214,12 @@ have.
   append has been acknowledged, and a message whose source could not be fetched
   stays where it is. The destination folder is synced straight afterwards, so
   the mail shows up where it landed.
-- Archive, trash, delete permanently, and save any message as `.eml`.
+- Archive, trash, delete permanently, and save any message as `.eml` — the
+  system picker chooses where it goes.
+- A move or a copy is **checked, not assumed**: the target is asked whether it
+  really holds the message before the local copy is discarded. A server can
+  accept a `COPY` and still not keep it, and mail that quietly went nowhere is
+  the worst outcome there is.
 - **Attach files** to a message from the system document picker. The bytes are
   copied into app storage rather than the content URI being kept, since a URI
   is a loan from the app that produced it and may not outlive a spell in the
