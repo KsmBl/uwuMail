@@ -102,6 +102,21 @@ class Notifier(private val context: Context) {
                 }
             )
             .setSilent(priority == NotificationPriority.SILENT)
+            .addAction(
+                R.drawable.ic_stat_mail,
+                context.getString(R.string.notif_action_read),
+                actionIntent(message.id, NotificationActionReceiver.ACTION_READ)
+            )
+            .addAction(
+                R.drawable.ic_stat_mail,
+                context.getString(R.string.notif_action_archive),
+                actionIntent(message.id, NotificationActionReceiver.ACTION_ARCHIVE)
+            )
+            .addAction(
+                R.drawable.ic_stat_mail,
+                context.getString(R.string.notif_action_trash),
+                actionIntent(message.id, NotificationActionReceiver.ACTION_TRASH)
+            )
             .build()
 
         runCatching { manager.notify(message.id.toInt(), notification) }
@@ -124,6 +139,25 @@ class Notifier(private val context: Context) {
     }
 
     fun cancel(messageId: Long) = manager.cancel(messageId.toInt())
+
+    /**
+     * One button on a notification.
+     *
+     * The request code mixes the message with the action, so the three buttons
+     * on one notification do not collide and neither do two notifications.
+     */
+    private fun actionIntent(messageId: Long, action: String): PendingIntent {
+        val intent = Intent(context, NotificationActionReceiver::class.java).apply {
+            this.action = action
+            putExtra(NotificationActionReceiver.EXTRA_MESSAGE_ID, messageId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            (messageId.toInt() * 31) + action.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
 
     private fun openMessageIntent(messageId: Long): PendingIntent {
         val intent = Intent(context, de.uwumail.ui.MainActivity::class.java).apply {

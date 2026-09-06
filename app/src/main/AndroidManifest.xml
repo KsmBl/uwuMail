@@ -56,6 +56,16 @@
             android:stopWithTask="false" />
 
         <receiver
+            android:name=".notify.NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="de.uwumail.action.MARK_READ" />
+                <action android:name="de.uwumail.action.ARCHIVE" />
+                <action android:name="de.uwumail.action.TRASH" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".sync.BootReceiver"
             android:exported="false">
             <intent-filter>

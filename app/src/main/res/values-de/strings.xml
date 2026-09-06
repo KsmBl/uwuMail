@@ -448,4 +448,9 @@
     <string name="language_system">Systemeinstellung folgen</string>
     <string name="language_english">English</string>
     <string name="language_german">Deutsch</string>
+
+    <!-- Notification actions -->
+    <string name="notif_action_read">Gelesen</string>
+    <string name="notif_action_archive">Archivieren</string>
+    <string name="notif_action_trash">Papierkorb</string>
 </resources>

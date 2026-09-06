@@ -450,4 +450,9 @@
     <string name="language_system">Follow the system</string>
     <string name="language_english">English</string>
     <string name="language_german">Deutsch</string>
+
+    <!-- Notification actions -->
+    <string name="notif_action_read">Mark read</string>
+    <string name="notif_action_archive">Archive</string>
+    <string name="notif_action_trash">Trash</string>
 </resources>
