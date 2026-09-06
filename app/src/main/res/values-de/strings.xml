@@ -526,6 +526,10 @@
     <string name="signin_unverified">Anmeldung konnte nicht überprüft werden.</string>
     <string name="signin_no_code">Anmeldung lieferte keinen Code.</string>
     <string name="forwarded_separator">---------- Weitergeleitete Nachricht ----------</string>
+    <plurals name="attachments_saved">
+        <item quantity="one">Anhang gespeichert</item>
+        <item quantity="other">%d Anhänge gespeichert</item>
+    </plurals>
     <plurals name="undo_archived">
         <item quantity="one">Nachricht archiviert</item>
         <item quantity="other">%d Nachrichten archiviert</item>
@@ -575,5 +579,8 @@
     <string name="attachment_save">Speichern</string>
     <string name="attachment_save_sub">Speicherort auswählen</string>
     <string name="attachment_saved">Anhang gespeichert</string>
+    <string name="attachments_selected">%1$d ausgewählt</string>
+    <string name="attachments_save_selected">Auswahl speichern</string>
+    <string name="attachments_saved_partial">Nur %1$d von %2$d Anhängen konnten gespeichert werden</string>
     <string name="wizard_failed">Diese Nachrichten konnten nicht ausgewertet werden</string>
 </resources>

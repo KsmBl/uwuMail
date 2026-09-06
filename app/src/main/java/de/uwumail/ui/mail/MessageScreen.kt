@@ -6,6 +6,18 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material3.Button
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,7 +96,7 @@ import de.uwumail.ui.common.formatSize
 import de.uwumail.ui.containerViewModel
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun MessageScreen(
     messageId: Long,
@@ -124,6 +136,16 @@ fun MessageScreen(
         if (destination != null && attachment != null) {
             viewModel.saveAttachmentTo(attachment.id, destination)
         }
+    }
+    // Attachments picked out for a bulk save; empty means nothing is being
+    // picked and a tap means "what shall I do with this one".
+    var picked by remember { mutableStateOf(emptySet<Long>()) }
+    val saveAll = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { folder ->
+        val chosen = picked.toList()
+        picked = emptySet()
+        if (folder != null && chosen.isNotEmpty()) viewModel.saveAttachmentsTo(chosen, folder)
     }
     val saveEml = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("message/rfc822")
@@ -357,21 +379,49 @@ fun MessageScreen(
                 )
             }
 
-            if (state.attachments.isNotEmpty()) {
-                Row(
+            val files = state.attachments.filter { !it.isInline }
+            if (files.isNotEmpty()) {
+                // A long press starts picking; a plain tap on a single one
+                // still asks what to do with it.
+                Column(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    state.attachments.filter { !it.isInline }.forEach { attachment ->
-                        AssistChip(
-                            onClick = { attachmentChoice = attachment },
-                            leadingIcon = { Icon(Icons.Default.AttachFile, null) },
-                            label = {
-                                Text("${attachment.fileName} ${formatSize(attachment.sizeBytes)}")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        files.forEach { attachment ->
+                            AttachmentChip(
+                                attachment = attachment,
+                                picking = picked.isNotEmpty(),
+                                selected = attachment.id in picked,
+                                onClick = {
+                                    if (picked.isEmpty()) attachmentChoice = attachment
+                                    else picked = picked.toggle(attachment.id)
+                                },
+                                onLongClick = { picked = picked.toggle(attachment.id) }
+                            )
+                        }
+                    }
+                    if (picked.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.attachments_selected, picked.size),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { picked = emptySet() }) {
+                                Text(stringResource(R.string.cancel))
                             }
-                        )
+                            // Several files need somewhere to go, not a name
+                            // each, so this picks the folder once.
+                            Button(onClick = { saveAll.launch(null) }) {
+                                Text(stringResource(R.string.attachments_save_selected))
+                            }
+                        }
                     }
                 }
             }
@@ -556,5 +606,54 @@ private fun shareFile(context: android.content.Context, file: File, mimeType: St
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.open_with)))
+    }
+}
+
+private fun Set<Long>.toggle(id: Long): Set<Long> =
+    if (id in this) this - id else this + id
+
+/**
+ * A chip that can also be held. The Material chips take a click and nothing
+ * else, and holding one is how a selection starts here, so this wears their
+ * shape rather than borrowing their code.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AttachmentChip(
+    attachment: AttachmentEntity,
+    picking: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+                       else MaterialTheme.colorScheme.onSurface,
+        border = if (selected) null
+                 else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    ) {
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = when {
+                    selected -> Icons.Default.Check
+                    picking -> Icons.Default.CheckBoxOutlineBlank
+                    else -> Icons.Default.AttachFile
+                },
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                "${attachment.fileName} ${formatSize(attachment.sizeBytes)}",
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
     }
 }

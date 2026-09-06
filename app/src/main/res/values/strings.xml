@@ -528,6 +528,10 @@
     <string name="signin_unverified">Sign-in could not be verified.</string>
     <string name="signin_no_code">Sign-in returned no code.</string>
     <string name="forwarded_separator">---------- Forwarded message ----------</string>
+    <plurals name="attachments_saved">
+        <item quantity="one">Attachment saved</item>
+        <item quantity="other">%d attachments saved</item>
+    </plurals>
     <plurals name="undo_archived">
         <item quantity="one">Message archived</item>
         <item quantity="other">%d messages archived</item>
@@ -577,5 +581,8 @@
     <string name="attachment_save">Save</string>
     <string name="attachment_save_sub">Choose where to put it</string>
     <string name="attachment_saved">Attachment saved</string>
+    <string name="attachments_selected">%1$d selected</string>
+    <string name="attachments_save_selected">Save selected</string>
+    <string name="attachments_saved_partial">Only %1$d of %2$d attachments could be saved</string>
     <string name="wizard_failed">Could not analyse those messages</string>
 </resources>

@@ -11,8 +11,10 @@ import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
 import de.uwumail.core.Json
 import android.net.Uri
+import android.provider.DocumentsContract
 import de.uwumail.mail.ContentId
 import de.uwumail.mail.ImagePrefilter
+import de.uwumail.mail.MimeUtil
 import de.uwumail.mail.RemoteImagePolicy
 import de.uwumail.mail.Unsubscribe
 import de.uwumail.mail.UnsubscribeTarget
@@ -263,6 +265,52 @@ class MessageViewModel(
         }
     }
 
+    /**
+     * Writes several attachments into a folder the user picked. One file at a
+     * time: the download is per attachment anyway, and a folder that refuses
+     * one name should not cost the others.
+     */
+    fun saveAttachmentsTo(attachmentIds: List<Long>, folder: Uri) = guarded {
+        val resolver = container.appContext.contentResolver
+        val parent = runCatching {
+            DocumentsContract.buildDocumentUriUsingTree(
+                folder, DocumentsContract.getTreeDocumentId(folder)
+            )
+        }.getOrNull()
+        if (parent == null) {
+            local.update { it.copy(error = text(R.string.error_no_attachment)) }
+            return@guarded
+        }
+        var written = 0
+        for (id in attachmentIds) {
+            val file = container.syncManager.downloadAttachment(id) ?: continue
+            val attachment = container.db.attachmentDao().get(id) ?: continue
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    val target = DocumentsContract.createDocument(
+                        resolver,
+                        parent,
+                        attachment.mimeType.ifBlank { "application/octet-stream" },
+                        MimeUtil.sanitizeFileName(attachment.fileName)
+                    ) ?: error("could not write there")
+                    resolver.openOutputStream(target)?.use { out ->
+                        file.inputStream().use { it.copyTo(out) }
+                    } ?: error("could not write there")
+                }.isSuccess
+            }
+            if (saved) written++
+        }
+        local.update {
+            when {
+                written == 0 -> it.copy(error = text(R.string.error_no_attachment))
+                written < attachmentIds.size -> it.copy(
+                    error = text(R.string.attachments_saved_partial, written, attachmentIds.size)
+                )
+                else -> it.copy(status = quantity(R.plurals.attachments_saved, written, written))
+            }
+        }
+    }
+
     fun openAttachment(attachmentId: Long, onReady: (File, String) -> Unit) = guarded {
         val file = container.syncManager.downloadAttachment(attachmentId)
         val attachment = container.db.attachmentDao().get(attachmentId)
@@ -271,6 +319,9 @@ class MessageViewModel(
     }
 
     private fun text(id: Int, vararg args: Any) = container.appContext.getString(id, *args)
+
+    private fun quantity(id: Int, count: Int, vararg args: Any) =
+        container.appContext.resources.getQuantityString(id, count, *args)
 
     private fun guarded(block: suspend () -> Unit) {
         local.update { it.copy(busy = true) }
