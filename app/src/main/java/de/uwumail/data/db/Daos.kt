@@ -191,6 +191,28 @@ interface MessageDao {
     )
     fun searchInFolder(folderId: Long, q: String, limit: Int): Flow<List<MessageSummary>>
 
+    /**
+     * The same search, restricted to the folders playing [type] — what the
+     * unified views need. Without it a query typed into "All inboxes" would
+     * have nowhere to go and the list would sit there unfiltered.
+     */
+    @Query(
+        """
+        SELECT $SUMMARY_COLUMNS FROM messages
+        WHERE pendingRemoval = 0
+          AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+          AND (
+            subject LIKE '%' || :q || '%' OR
+            fromAddress LIKE '%' || :q || '%' OR
+            fromName LIKE '%' || :q || '%' OR
+            toList LIKE '%' || :q || '%' OR
+            preview LIKE '%' || :q || '%' OR
+            bodyPlain LIKE '%' || :q || '%')
+        ORDER BY receivedAt DESC LIMIT :limit
+        """
+    )
+    fun searchUnified(type: String, q: String, limit: Int): Flow<List<MessageSummary>>
+
     /** The same search across every folder of every account. */
     @Query(
         """

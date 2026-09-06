@@ -127,6 +127,7 @@
     <string name="undo">Rückgängig</string>
     <string name="folders">Ordner</string>
     <string name="search_folder">In diesem Ordner suchen</string>
+    <string name="search_these_folders">Diese Ordner durchsuchen</string>
     <string name="search">Suchen</string>
     <string name="refresh">Aktualisieren</string>
     <string name="more">Mehr</string>

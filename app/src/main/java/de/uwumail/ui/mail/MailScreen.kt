@@ -329,10 +329,13 @@ fun MailScreen(
                                     onValueChange = viewModel::setQuery,
                                     placeholder = {
                                         Text(
-                                            if (state.target == MailTarget.Search) {
-                                                stringResource(R.string.search_everywhere)
-                                            } else {
-                                                stringResource(R.string.search_folder)
+                                            when (state.target) {
+                                                MailTarget.Search ->
+                                                    stringResource(R.string.search_everywhere)
+                                                is MailTarget.Unified ->
+                                                    stringResource(R.string.search_these_folders)
+                                                is MailTarget.Folder ->
+                                                    stringResource(R.string.search_folder)
                                             }
                                         )
                                     },

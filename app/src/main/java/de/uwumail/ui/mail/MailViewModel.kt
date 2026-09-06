@@ -141,7 +141,8 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         .flatMapLatest { (selected, q) ->
             when (selected) {
                 is MailTarget.Unified ->
-                    container.db.messageDao().observeUnified(selected.type.name, PAGE)
+                    if (q.isBlank()) container.db.messageDao().observeUnified(selected.type.name, PAGE)
+                    else container.db.messageDao().searchUnified(selected.type.name, q, PAGE)
                 is MailTarget.Folder ->
                     if (q.isBlank()) container.db.messageDao().observeFolder(selected.id, PAGE)
                     else container.db.messageDao().searchInFolder(selected.id, q, PAGE)

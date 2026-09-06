@@ -244,6 +244,9 @@ have.
 
 ## Searching
 
+- **The search box narrows whatever is on screen.** In a folder it searches that
+  folder, in a unified view every folder feeding it, and *Search every folder*
+  in the overflow widens it to all of them at once.
 - Searches **every folder of every account**, over subject, sender, recipients,
   preview and body text — not just the folder you happen to be looking at.
 - Typing does not put the database to work on every letter: the list catches up

@@ -129,6 +129,7 @@
     <string name="undo">Undo</string>
     <string name="folders">Folders</string>
     <string name="search_folder">Search this folder</string>
+    <string name="search_these_folders">Search these folders</string>
     <string name="search">Search</string>
     <string name="refresh">Refresh</string>
     <string name="more">More</string>
