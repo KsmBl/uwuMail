@@ -273,6 +273,10 @@ interface MessageDao {
     @Query("UPDATE messages SET pendingRemoval = :pending WHERE id IN (:ids)")
     suspend fun setPendingRemoval(ids: List<Long>, pending: Boolean)
 
+    /** Un-hides everything left hidden by a removal that never finished. */
+    @Query("UPDATE messages SET pendingRemoval = 0 WHERE pendingRemoval = 1")
+    suspend fun clearPendingRemovals()
+
     @Query("UPDATE messages SET folderId = :folderId, uid = :uid, isLocal = :isLocal WHERE id = :id")
     suspend fun reassign(id: Long, folderId: Long, uid: Long, isLocal: Boolean)
 

@@ -11,6 +11,7 @@ import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
 import de.uwumail.di.AppContainer
 import de.uwumail.sync.SyncManager
+import de.uwumail.sync.Undoable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -66,6 +67,8 @@ data class MailUiState(
     val busy: Boolean = false,
     val error: String? = null,
     val status: String? = null,
+    /** Set while a removal can still be taken back; the snackbar offers it. */
+    val undo: Undoable? = null,
     /** What a swipe across a row does, per direction. */
     val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
     val swipeLeft: SwipeAction = SwipeAction.TRASH
@@ -104,7 +107,8 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         /** Counted rather than a flag, so overlapping actions cannot clear it early. */
         val pending: Int = 0,
         val error: String? = null,
-        val status: String? = null
+        val status: String? = null,
+        val undo: Undoable? = null
     ) {
         val busy: Boolean get() = pending > 0
     }
@@ -154,6 +158,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             busy = rest.extra.busy,
             error = rest.extra.error,
             status = rest.extra.status,
+            undo = rest.extra.undo,
             swipeRight = rest.settings.swipeRight,
             swipeLeft = rest.settings.swipeLeft
         )
@@ -173,6 +178,14 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             container.syncManager.alerts.collect { alert ->
                 transient.update { it.copy(error = alert) }
+            }
+        }
+
+        // Removals wait a few seconds before they happen, and this is the offer
+        // to spend them differently.
+        viewModelScope.launch {
+            container.syncManager.undoable.collect { offer ->
+                transient.update { it.copy(undo = offer, status = null, error = null) }
             }
         }
 
@@ -314,21 +327,23 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     // These four hide the rows immediately and finish on the server afterwards,
     // so they neither block nor show a progress bar; a failure puts the rows back.
-    fun archiveSelection() = withSelection(
-        optimisticStatus = { "${it.size} archived" }
-    ) { ids -> container.syncManager.archive(ids) }
+    // None of these four announce themselves any more: the removal is held
+    // back for a moment first, and the offer to take it back is the message.
+    fun archiveSelection() = withSelection(silent = true) { ids ->
+        container.syncManager.archive(ids)
+    }
 
-    fun trashSelection() = withSelection(
-        optimisticStatus = { "${it.size} moved to trash" }
-    ) { ids -> container.syncManager.moveToTrash(ids) }
+    fun trashSelection() = withSelection(silent = true) { ids ->
+        container.syncManager.moveToTrash(ids)
+    }
 
-    fun deleteSelectionPermanently() = withSelection(
-        optimisticStatus = { "${it.size} deleted" }
-    ) { ids -> container.syncManager.deletePermanently(ids) }
+    fun deleteSelectionPermanently() = withSelection(silent = true) { ids ->
+        container.syncManager.deletePermanently(ids)
+    }
 
-    fun moveSelection(targetFolderId: Long) = withSelection(
-        optimisticStatus = { "${it.size} moved" }
-    ) { ids -> container.syncManager.moveMessages(ids, targetFolderId) }
+    fun moveSelection(targetFolderId: Long) = withSelection(silent = true) { ids ->
+        container.syncManager.moveMessages(ids, targetFolderId)
+    }
 
     // A copy leaves the rows in place, so unlike a move there is nothing to
     // report optimistically: the progress bar runs until the server is done.
@@ -365,34 +380,32 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         when (action) {
             SwipeAction.TOGGLE_READ -> toggleSeen(message.id, !message.seen)
             SwipeAction.TOGGLE_STAR -> toggleStar(message.id, !message.flagged)
-            SwipeAction.ARCHIVE -> removeOne(message.id, "Archived") {
-                container.syncManager.archive(it)
-            }
-            SwipeAction.TRASH -> removeOne(message.id, "Moved to trash") {
-                container.syncManager.moveToTrash(it)
-            }
+            SwipeAction.ARCHIVE -> removeOne(message.id) { container.syncManager.archive(it) }
+            SwipeAction.TRASH -> removeOne(message.id) { container.syncManager.moveToTrash(it) }
             SwipeAction.NONE, SwipeAction.MOVE, SwipeAction.DELETE -> Unit
         }
     }
 
-    fun deleteMessage(messageId: Long) = removeOne(messageId, "Deleted") {
+    fun deleteMessage(messageId: Long) = removeOne(messageId) {
         container.syncManager.deletePermanently(it)
     }
 
-    fun moveMessage(messageId: Long, targetFolderId: Long) = removeOne(messageId, "Moved") {
+    fun moveMessage(messageId: Long, targetFolderId: Long) = removeOne(messageId) {
         container.syncManager.moveMessages(it, targetFolderId)
     }
 
-    /**
-     * The row is hidden the moment this starts, so the outcome is reported at
-     * once rather than after the server has answered — by then it is gone.
-     */
-    private fun removeOne(messageId: Long, done: String, block: suspend (List<Long>) -> Unit) {
-        report(done)
+    /** The row is hidden at once; the undo offer is what says so. */
+    private fun removeOne(messageId: Long, block: suspend (List<Long>) -> Unit) =
         launchGuarded { block(listOf(messageId)) }
-    }
 
-    fun clearStatus() = transient.update { it.copy(status = null, error = null) }
+    fun clearStatus() = transient.update { it.copy(status = null, error = null, undo = null) }
+
+    fun undo(token: Long) {
+        transient.update { it.copy(undo = null) }
+        launchGuarded {
+            if (!container.syncManager.undo(token)) report("Too late to undo that")
+        }
+    }
 
     /** Returns true only the first time, so the screen knows when to say so. */
     fun unlockGravity(): Boolean {
@@ -409,13 +422,14 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
      */
     private fun withSelection(
         optimisticStatus: ((List<Long>) -> String)? = null,
+        silent: Boolean = false,
         block: suspend (List<Long>) -> Unit
     ) {
         val ids = selection.value.toList()
         if (ids.isEmpty()) return
         selection.value = emptySet()
         optimisticStatus?.let { report(it(ids)) }
-        launchGuarded(showBusy = optimisticStatus == null) { block(ids) }
+        launchGuarded(showBusy = optimisticStatus == null && !silent) { block(ids) }
     }
 
     private fun launchGuarded(showBusy: Boolean = false, block: suspend () -> Unit) {

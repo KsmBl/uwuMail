@@ -24,6 +24,9 @@ class UwuMailApp : Application() {
         container = AppContainer(this)
 
         appScope.launch(Dispatchers.IO) {
+            // A removal hides its rows before it is attempted, so anything the
+            // last run left hidden has no one to finish it and must come back.
+            runCatching { container.syncManager.releaseAbandonedRemovals() }
             runCatching { container.blocklistRepository.seedIfEmpty() }
             val accounts = container.db.accountDao().getAll()
             container.notifier.ensureChannels(accounts)

@@ -27,16 +27,28 @@ import de.uwumail.notify.Notifier
 import de.uwumail.rules.MatchContext
 import de.uwumail.rules.RuleEngine
 import de.uwumail.rules.RulePlan
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import javax.mail.Flags
+
+/** What kind of removal is waiting to be undone; the wording is the UI's business. */
+enum class UndoKind { ARCHIVE, TRASH, DELETE, MOVE }
+
+/** A removal the user has a moment to take back. */
+data class Undoable(val token: Long, val kind: UndoKind, val count: Int)
 
 data class SyncState(
     val running: Set<Long> = emptySet(),
@@ -71,6 +83,21 @@ class SyncManager(
      */
     private val _alerts = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val alerts = _alerts.asSharedFlow()
+
+    /** Removals that have been started but can still be taken back. */
+    private val _undoable = MutableSharedFlow<Undoable>(extraBufferCapacity = 8)
+    val undoable = _undoable.asSharedFlow()
+
+    /**
+     * Deferred removals outlive the screen that asked for them, so they cannot
+     * run in a view model's scope: leaving the list would cancel the delete and
+     * silently leave the mail where it was.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val waiting = ConcurrentHashMap<Long, Waiting>()
+    private val tokens = AtomicLong()
+
+    private class Waiting(val job: Job, val messageIds: List<Long>)
 
     // ------------------------------------------------------------------ sync
 
@@ -456,20 +483,75 @@ class SyncManager(
      * flag is written — the user never waits on the round trip. If the server
      * refuses, the rows come back and the failure is announced rather than
      * leaving mail silently missing.
+     *
+     * When [undo] is given the server work is held back for a few seconds
+     * first, so taking it back is a matter of not doing it rather than of
+     * undoing it. That is the only honest way to offer it: a permanent
+     * deletion cannot be reversed once the server has been told, and an
+     * archive can only be approximated by moving the message back.
      */
-    private suspend fun optimistically(messageIds: List<Long>, block: suspend () -> Unit) {
+    private suspend fun optimistically(
+        messageIds: List<Long>,
+        undo: UndoKind? = null,
+        block: suspend () -> Unit
+    ) {
         if (messageIds.isEmpty()) return
         db.messageDao().setPendingRemoval(messageIds, true)
         db.folderDao().refreshAllCounts()
         messageIds.forEach { notifier.cancel(it) }
+
+        if (undo == null) {
+            attempt(messageIds, block)
+            return
+        }
+
+        val token = tokens.incrementAndGet()
+        val job = scope.launch {
+            delay(UNDO_WINDOW_MILLIS)
+            waiting.remove(token)
+            runCatching { attempt(messageIds, block) }
+        }
+        waiting[token] = Waiting(job, messageIds)
+        _undoable.tryEmit(Undoable(token, undo, messageIds.size))
+    }
+
+    private suspend fun attempt(messageIds: List<Long>, block: suspend () -> Unit) {
         try {
             block()
         } catch (e: Throwable) {
-            db.messageDao().setPendingRemoval(messageIds, false)
-            db.folderDao().refreshAllCounts()
+            restore(messageIds)
             _alerts.tryEmit("Could not complete that: ${e.message ?: e.toString()}")
             throw e
         }
+    }
+
+    /**
+     * Takes back a removal that has not happened yet. Returns false when the
+     * moment has passed, which the caller should treat as "too late" rather
+     * than as an error.
+     */
+    suspend fun undo(token: Long): Boolean {
+        val entry = waiting.remove(token) ?: return false
+        entry.job.cancel()
+        restore(entry.messageIds)
+        return true
+    }
+
+    private suspend fun restore(messageIds: List<Long>) {
+        db.messageDao().setPendingRemoval(messageIds, false)
+        db.folderDao().refreshAllCounts()
+    }
+
+    /**
+     * Puts back anything that was hidden when the process last died.
+     *
+     * A row is hidden before its removal is attempted, so a crash — or a swipe
+     * a moment before the app was killed — would otherwise leave mail present
+     * but invisible, with nothing left running to finish the job.
+     */
+    suspend fun releaseAbandonedRemovals() {
+        db.messageDao().clearPendingRemovals()
+        db.folderDao().refreshAllCounts()
     }
 
     suspend fun setSeen(messageIds: List<Long>, seen: Boolean) {
@@ -488,7 +570,8 @@ class SyncManager(
         db.messageDao().setFlagged(messageIds, flagged)
     }
 
-    suspend fun archive(messageIds: List<Long>) = optimistically(messageIds) {
+    suspend fun archive(messageIds: List<Long>, allowUndo: Boolean = true) =
+        optimistically(messageIds, UndoKind.ARCHIVE.takeIf { allowUndo }) {
         val messages = db.messageDao().getAll(messageIds)
         messages.groupBy { it.accountId }.forEach { (accountId, group) ->
             val account = db.accountDao().get(accountId) ?: return@forEach
@@ -498,7 +581,8 @@ class SyncManager(
         }
     }
 
-    suspend fun moveToTrash(messageIds: List<Long>) = optimistically(messageIds) {
+    suspend fun moveToTrash(messageIds: List<Long>, allowUndo: Boolean = true) =
+        optimistically(messageIds, UndoKind.TRASH.takeIf { allowUndo }) {
         val messages = db.messageDao().getAll(messageIds)
         messages.groupBy { it.accountId }.forEach { (accountId, group) ->
             val account = db.accountDao().get(accountId) ?: return@forEach
@@ -523,7 +607,7 @@ class SyncManager(
             return
         }
         val account = db.accountDao().get(target.accountId) ?: return
-        optimistically(messageIds) {
+        optimistically(messageIds, UndoKind.MOVE) {
             val messages = db.messageDao().getAll(messageIds)
             val (sameMailbox, otherMailbox) = messages.partition { it.accountId == account.id }
             if (sameMailbox.isNotEmpty()) {
@@ -684,8 +768,10 @@ class SyncManager(
         db.folderDao().getByPath(account.id, targetPath)?.let { db.folderDao().refreshCounts(it.id) }
     }
 
-    suspend fun deletePermanently(messageIds: List<Long>) =
-        optimistically(messageIds) { removeFromServer(messageIds) }
+    suspend fun deletePermanently(messageIds: List<Long>, allowUndo: Boolean = true) =
+        optimistically(messageIds, UndoKind.DELETE.takeIf { allowUndo }) {
+            removeFromServer(messageIds)
+        }
 
     private suspend fun removeFromServer(messageIds: List<Long>) {
         val messages = db.messageDao().getAll(messageIds)
@@ -1150,8 +1236,11 @@ class SyncManager(
                 ActionType.ARCHIVE -> account.archiveFolder?.let {
                     moveMessagesToPath(account, listOf(message.id), it)
                 }
-                ActionType.MOVE_TO_TRASH -> moveToTrash(listOf(message.id))
-                ActionType.DELETE_PERMANENTLY -> deletePermanently(listOf(message.id))
+                // A rule runs unattended, so there is no one to offer the
+                // moment of second thought to.
+                ActionType.MOVE_TO_TRASH -> moveToTrash(listOf(message.id), allowUndo = false)
+                ActionType.DELETE_PERMANENTLY ->
+                    deletePermanently(listOf(message.id), allowUndo = false)
                 ActionType.MOVE_TO_FOLDER -> action.arg?.let {
                     moveMessagesToPath(account, listOf(message.id), it)
                 }
@@ -1239,6 +1328,8 @@ class SyncManager(
         const val INITIAL_FETCH = 100
         const val INCREMENTAL_FETCH = 200
         const val PAGE_SIZE = 50
+        /** How long a removal waits, so it can be taken back rather than reversed. */
+        const val UNDO_WINDOW_MILLIS = 5_000L
         /** How many unread messages the list screen preloads ahead of the user. */
         const val PREFETCH_LIMIT = 30
         private const val PREFETCH_GAP_MILLIS = 400L

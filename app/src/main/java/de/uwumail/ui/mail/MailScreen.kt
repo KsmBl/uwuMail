@@ -66,7 +66,9 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -98,6 +100,8 @@ import de.uwumail.R
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
 import de.uwumail.core.SwipeAction
+import de.uwumail.sync.UndoKind
+import de.uwumail.sync.Undoable
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.EmptyState
 import de.uwumail.ui.common.FolderPickerSheet
@@ -110,6 +114,17 @@ import kotlinx.coroutines.launch
 
 private const val TAPS_TO_UNLOCK = 5
 private const val TAP_GAP_MILLIS = 1_500L
+
+/** How a removal that is still cancellable describes itself. */
+private fun undoMessage(offer: Undoable): String {
+    val what = if (offer.count == 1) "Message" else "${offer.count} messages"
+    return when (offer.kind) {
+        UndoKind.ARCHIVE -> "$what archived"
+        UndoKind.TRASH -> "$what moved to trash"
+        UndoKind.DELETE -> "$what deleted"
+        UndoKind.MOVE -> "$what moved"
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -138,11 +153,24 @@ fun MailScreen(
     var showSearch by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.status, state.error) {
+    LaunchedEffect(state.status, state.error, state.undo) {
+        val offer = state.undo
         val message = state.error?.let { "Error: $it" } ?: state.status
-        if (message != null) {
-            snackbarHost.showSnackbar(message)
-            viewModel.clearStatus()
+        when {
+            offer != null -> {
+                val result = snackbarHost.showSnackbar(
+                    message = undoMessage(offer),
+                    actionLabel = "Undo",
+                    withDismissAction = false,
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) viewModel.undo(offer.token)
+                else viewModel.clearStatus()
+            }
+            message != null -> {
+                snackbarHost.showSnackbar(message)
+                viewModel.clearStatus()
+            }
         }
     }
 
