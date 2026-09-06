@@ -156,6 +156,8 @@ dependencies {
     implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
+    // Virtual time, so a test for "wait until the typing stops" takes no time.
+    testImplementation(libs.kotlinx.coroutines.test)
     // Runs the Compose and navigation tests on the JVM. A navigation bug that
     // empties the back stack cannot be caught by testing pure functions.
     testImplementation(libs.robolectric)

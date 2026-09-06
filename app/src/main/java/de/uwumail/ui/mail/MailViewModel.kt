@@ -7,6 +7,7 @@ import de.uwumail.core.DeviceDownloads
 import de.uwumail.core.SavedAttachments
 import de.uwumail.core.FolderType
 import de.uwumail.core.SwipeAction
+import de.uwumail.core.settled
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
@@ -129,7 +130,14 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             (selected as? MailTarget.Folder)?.let { folder -> list.firstOrNull { it.id == folder.id } }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    private val messages = combine(target, query) { selected, q -> selected to q }
+    /**
+     * What the list is actually searched for. The box itself reports every
+     * letter, so that the field keeps up with the typing; the database is only
+     * asked once the typing stops.
+     */
+    private val typedQuery = query.settled(SEARCH_SETTLE_MILLIS) { it.isBlank() }
+
+    private val messages = combine(target, typedQuery) { selected, q -> selected to q }
         .flatMapLatest { (selected, q) ->
             when (selected) {
                 is MailTarget.Unified ->
@@ -526,6 +534,9 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     companion object {
         private const val PAGE = 300
+
+        /** How long the typing has to stop before the database is asked. */
+        private const val SEARCH_SETTLE_MILLIS = 150L
         private const val PREFETCH_DELAY_MILLIS = 1_500L
     }
 }

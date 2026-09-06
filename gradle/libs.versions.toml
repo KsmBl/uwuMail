@@ -47,6 +47,7 @@ androidx-browser = { group = "androidx.browser", name = "browser", version.ref =
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 javamail-android-mail = { group = "com.sun.mail", name = "android-mail", version.ref = "javamail" }
 javamail-android-activation = { group = "com.sun.mail", name = "android-activation", version.ref = "javamail" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
