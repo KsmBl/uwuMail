@@ -130,6 +130,7 @@ private fun undoMessage(offer: Undoable): String {
 @Composable
 fun MailScreen(
     onOpenMessage: (Long) -> Unit,
+    onOpenDraft: (Long) -> Unit,
     onCompose: (Long?) -> Unit,
     onManageRules: () -> Unit,
     onManageFolders: (Long) -> Unit,
@@ -429,8 +430,12 @@ fun MailScreen(
                                         accountColor = state.accounts
                                             .firstOrNull { it.id == message.accountId }?.color,
                                         onClick = {
-                                            if (state.inSelectionMode) viewModel.toggleSelection(message.id)
-                                            else onOpenMessage(message.id)
+                                            when {
+                                                state.inSelectionMode ->
+                                                    viewModel.toggleSelection(message.id)
+                                                state.showsDrafts -> onOpenDraft(message.id)
+                                                else -> onOpenMessage(message.id)
+                                            }
                                         },
                                         onLongClick = { viewModel.toggleSelection(message.id) },
                                         onStar = { viewModel.toggleStar(message.id, !message.flagged) }

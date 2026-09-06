@@ -47,7 +47,7 @@ fun UwuMailNavHost(
     LaunchedEffect(mailtoUri) {
         mailtoUri?.let {
             navController.navigate(
-                "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false&forward=0&mailto=" +
+                "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false&forward=0&draft=0&mailto=" +
                     java.net.URLEncoder.encode(it, "UTF-8")
             )
         }
@@ -59,10 +59,17 @@ fun UwuMailNavHost(
     ) {
         composable(Routes.MAIL) {
             MailScreen(
+                // A draft is unfinished writing, so it opens in the composer.
                 onOpenMessage = { navController.navigate("${Routes.MESSAGE}/$it") },
+                onOpenDraft = { id ->
+                    navController.navigate(
+                        "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false" +
+                            "&forward=0&draft=$id"
+                    )
+                },
                 onCompose = { accountId ->
                     navController.navigate(
-                        "${Routes.COMPOSE}?accountId=${accountId ?: 0}&reply=0&replyAll=false&forward=0"
+                        "${Routes.COMPOSE}?accountId=${accountId ?: 0}&reply=0&replyAll=false&forward=0&draft=0"
                     )
                 },
                 onManageRules = { navController.navigate(Routes.RULES) },
@@ -111,12 +118,12 @@ fun UwuMailNavHost(
                 onBack = { navController.popBackStack() },
                 onReply = { id, all ->
                     navController.navigate(
-                        "${Routes.COMPOSE}?accountId=0&reply=$id&replyAll=$all&forward=0"
+                        "${Routes.COMPOSE}?accountId=0&reply=$id&replyAll=$all&forward=0&draft=0"
                     )
                 },
                 onForward = { id ->
                     navController.navigate(
-                        "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false&forward=$id"
+                        "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false&forward=$id&draft=0"
                     )
                 },
                 // Swiping between messages replaces this one rather than
@@ -132,12 +139,13 @@ fun UwuMailNavHost(
 
         composable(
             "${Routes.COMPOSE}?accountId={accountId}&reply={reply}&replyAll={replyAll}" +
-                "&forward={forward}&mailto={mailto}",
+                "&forward={forward}&draft={draft}&mailto={mailto}",
             arguments = listOf(
                 navArgument("accountId") { type = NavType.LongType; defaultValue = 0L },
                 navArgument("reply") { type = NavType.LongType; defaultValue = 0L },
                 navArgument("replyAll") { type = NavType.BoolType; defaultValue = false },
                 navArgument("forward") { type = NavType.LongType; defaultValue = 0L },
+                navArgument("draft") { type = NavType.LongType; defaultValue = 0L },
                 navArgument("mailto") {
                     type = NavType.StringType; nullable = true; defaultValue = null
                 }
@@ -149,6 +157,7 @@ fun UwuMailNavHost(
                 replyToMessageId = args?.getLong("reply") ?: 0L,
                 replyAll = args?.getBoolean("replyAll") ?: false,
                 forwardMessageId = args?.getLong("forward") ?: 0L,
+                draftMessageId = args?.getLong("draft") ?: 0L,
                 mailto = args?.getString("mailto")?.let {
                     runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it)
                 },

@@ -311,13 +311,15 @@ class ImapClient(
         }
     }
 
-    fun append(path: String, raw: ByteArray, seen: Boolean) {
+    fun append(path: String, raw: ByteArray, seen: Boolean, draft: Boolean = false) {
         val folder = connect().getFolder(path)
         if (!folder.exists()) throw MailException("Folder \"$path\" does not exist")
         if (!folder.isOpen) folder.open(Folder.READ_WRITE)
         val session = Session.getInstance(Properties())
         val message = MimeMessage(session, raw.inputStream())
         if (seen) message.setFlag(Flags.Flag.SEEN, true)
+        // \Draft is what tells every other client this is unfinished.
+        if (draft) message.setFlag(Flags.Flag.DRAFT, true)
         folder.appendMessages(arrayOf(message))
         folder.close(false)
     }

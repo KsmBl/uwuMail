@@ -14,7 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Delete
@@ -57,12 +60,17 @@ fun ComposeScreen(
     replyToMessageId: Long,
     replyAll: Boolean,
     forwardMessageId: Long,
+    draftMessageId: Long,
     mailto: String?,
     onDone: () -> Unit
 ) {
     val viewModel = containerViewModel(
-        key = "compose-$accountId-$replyToMessageId-$forwardMessageId"
-    ) { ComposeViewModel(it, accountId, replyToMessageId, replyAll, forwardMessageId, mailto) }
+        key = "compose-$accountId-$replyToMessageId-$forwardMessageId-$draftMessageId"
+    ) {
+        ComposeViewModel(
+            it, accountId, replyToMessageId, replyAll, forwardMessageId, draftMessageId, mailto
+        )
+    }
     val state by viewModel.state.collectAsState()
     val snackbarHost = remember { SnackbarHostState() }
 
@@ -70,7 +78,16 @@ fun ComposeScreen(
     var identityMenu by remember { mutableStateOf(false) }
     var identityToDelete by remember { mutableStateOf<IdentityEntity?>(null) }
 
+    var confirmLeave by remember { mutableStateOf(false) }
+
     LaunchedEffect(state.sent) { if (state.sent) onDone() }
+    LaunchedEffect(state.savedDraft) { if (state.savedDraft) onDone() }
+
+    // Leaving with something written should not throw it away silently.
+    fun leave() {
+        if (state.canSaveDraft) confirmLeave = true else onDone()
+    }
+    BackHandler(enabled = state.canSaveDraft) { confirmLeave = true }
     LaunchedEffect(state.error, state.status) {
         val message = state.error?.let { "Failed: $it" } ?: state.status
         if (message != null) {
@@ -83,16 +100,22 @@ fun ComposeScreen(
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
             TopAppBar(
-                title = { Text("New message") },
+                title = { Text(if (state.editingDraftId != null) "Draft" else "New message") },
                 navigationIcon = {
-                    IconButton(onClick = onDone) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Discard")
+                    IconButton(onClick = ::leave) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
-                    if (state.sending) {
+                    if (state.sending || state.savingDraft) {
                         CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp))
                     } else {
+                        IconButton(
+                            onClick = viewModel::saveDraft,
+                            enabled = state.canSaveDraft
+                        ) {
+                            Icon(Icons.Default.Save, "Save draft")
+                        }
                         IconButton(onClick = viewModel::send, enabled = state.canSend) {
                             Icon(Icons.AutoMirrored.Filled.Send, "Send")
                         }
@@ -268,6 +291,29 @@ fun ComposeScreen(
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
         }
+    }
+
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text("Keep this message?") },
+            text = {
+                Text(
+                    if (state.editingDraftId != null) "Save your changes to the draft?"
+                    else "Save it as a draft so you can finish it later?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmLeave = false; viewModel.saveDraft() }) {
+                    Text("Save draft")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmLeave = false; onDone() }) {
+                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        )
     }
 
     identityToDelete?.let { identity ->

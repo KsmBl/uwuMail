@@ -1160,6 +1160,42 @@ class SyncManager(
         file
     }
 
+    // --------------------------------------------------------------- drafts
+
+    /**
+     * Puts an unfinished message in the account's Drafts folder, replacing the
+     * draft it grew out of.
+     *
+     * The old copy goes only after the new one has been accepted, so a failure
+     * halfway leaves the earlier draft rather than nothing at all. Losing what
+     * someone was in the middle of writing is the one outcome worth building
+     * the whole thing around.
+     */
+    suspend fun saveDraft(item: OutboxEntity, replacing: Long?): Long? {
+        val account = db.accountDao().get(item.accountId) ?: return null
+        val drafts = account.draftsFolder
+            ?: throw MailException("No drafts folder on ${account.displayName}")
+
+        val raw = smtp.buildRaw(item)
+        pool.use(account.id) { it.append(drafts, raw, seen = true, draft = true) }
+
+        replacing?.let { previous ->
+            val message = db.messageDao().get(previous)
+            val folder = message?.let { db.folderDao().get(it.folderId) }
+            if (message != null && folder != null && !message.isLocal) {
+                runCatching {
+                    pool.use(account.id) { it.deleteMessages(folder.path, listOf(message.uid)) }
+                }
+                db.messageDao().delete(previous)
+            }
+        }
+
+        val folder = db.folderDao().getByPath(account.id, drafts)
+        folder?.let { runCatching { syncFolder(it.id) } }
+        db.folderDao().refreshAllCounts()
+        return folder?.id
+    }
+
     // ------------------------------------------------------------- outgoing
 
     suspend fun sendOutbox() {

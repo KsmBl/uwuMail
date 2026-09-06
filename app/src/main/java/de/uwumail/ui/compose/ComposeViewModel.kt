@@ -33,10 +33,39 @@ data class ComposeUiState(
     val showCcBcc: Boolean = false,
     val sending: Boolean = false,
     val sent: Boolean = false,
+    /** The draft this was opened from, which a save replaces. */
+    val editingDraftId: Long? = null,
+    val savingDraft: Boolean = false,
+    val savedDraft: Boolean = false,
     val status: String? = null,
     val error: String? = null
 ) {
     val account: AccountEntity? get() = accounts.firstOrNull { it.id == accountId }
+
+    /** Whether there is anything here that would be a shame to lose. */
+    val hasContent: Boolean
+        get() = to.isNotBlank() || cc.isNotBlank() || bcc.isNotBlank() ||
+            subject.isNotBlank() || body.isNotBlank()
+
+    val canSaveDraft: Boolean get() = hasContent && account?.draftsFolder != null
+
+    /** The one shape both sending and saving a draft need. */
+    fun toOutbox() = OutboxEntity(
+        accountId = accountId,
+        identityId = null,
+        fromAddress = fromAddress,
+        fromName = fromName,
+        to = to,
+        cc = cc,
+        bcc = bcc,
+        replyTo = null,
+        subject = subject,
+        bodyPlain = body,
+        bodyHtml = null,
+        inReplyTo = inReplyTo,
+        references = references,
+        createdAt = System.currentTimeMillis()
+    )
     val accountIdentities: List<IdentityEntity> get() = identities.filter { it.accountId == accountId }
     val canSend: Boolean
         get() = to.isNotBlank() && fromAddress.contains('@') && !sending
@@ -55,6 +84,7 @@ class ComposeViewModel(
     private val replyToMessageId: Long,
     private val replyAll: Boolean,
     private val forwardMessageId: Long,
+    private val draftMessageId: Long,
     private val mailto: String?
 ) : ViewModel() {
 
@@ -85,9 +115,51 @@ class ComposeViewModel(
             }
 
             when {
+                draftMessageId > 0 -> prefillDraft(draftMessageId)
                 replyToMessageId > 0 -> prefillReply(replyToMessageId, replyAll)
                 forwardMessageId > 0 -> prefillForward(forwardMessageId)
                 mailto != null -> prefillMailto(mailto)
+            }
+        }
+    }
+
+    /** Reopens a saved draft as what it is: the message, mid-sentence. */
+    private suspend fun prefillDraft(messageId: Long) {
+        val message = container.syncManager.ensureBody(messageId)
+            ?: container.db.messageDao().get(messageId) ?: return
+        val body = message.bodyPlain
+            ?: message.bodyHtml?.let { MimeUtil.htmlToText(it) }
+            ?: ""
+        _state.update {
+            it.copy(
+                accountId = message.accountId,
+                fromAddress = message.fromAddress ?: it.fromAddress,
+                fromName = message.fromName ?: it.fromName,
+                to = message.toList,
+                cc = message.ccList,
+                bcc = message.bccList,
+                subject = message.subject,
+                body = body,
+                showCcBcc = message.ccList.isNotBlank() || message.bccList.isNotBlank(),
+                editingDraftId = messageId
+            )
+        }
+    }
+
+    /** Saves what is here to the Drafts folder, replacing the draft it came from. */
+    fun saveDraft() {
+        val current = _state.value
+        if (!current.canSaveDraft || current.savingDraft) return
+        _state.update { it.copy(savingDraft = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                container.syncManager.saveDraft(current.toOutbox(), current.editingDraftId)
+            }.onSuccess {
+                _state.update { it.copy(savingDraft = false, savedDraft = true) }
+            }.onFailure { e ->
+                _state.update {
+                    it.copy(savingDraft = false, error = e.message ?: e.toString())
+                }
             }
         }
     }
@@ -274,27 +346,15 @@ class ComposeViewModel(
                 val account = container.db.accountDao().get(current.accountId)
                     ?: error("No account selected")
                 val secret = container.accountRepository.smtpSecret(account)
-                val item = OutboxEntity(
-                    accountId = account.id,
-                    identityId = null,
-                    fromAddress = current.fromAddress,
-                    fromName = current.fromName,
-                    to = current.to,
-                    cc = current.cc,
-                    bcc = current.bcc,
-                    replyTo = null,
-                    subject = current.subject,
-                    bodyPlain = current.body,
-                    bodyHtml = null,
-                    inReplyTo = current.inReplyTo,
-                    references = current.references,
-                    createdAt = System.currentTimeMillis()
-                )
-                val raw = container.smtpSender.send(account, secret, item)
+                val raw = container.smtpSender.send(account, secret, current.toOutbox())
                 account.sentFolder?.let { sent ->
                     runCatching {
                         container.imapPool.use(account.id) { it.append(sent, raw, seen = true) }
                     }
+                }
+                // The draft it grew from is finished with now.
+                current.editingDraftId?.let { draft ->
+                    runCatching { container.syncManager.deletePermanently(listOf(draft), false) }
                 }
             }.onSuccess {
                 _state.update { it.copy(sending = false, sent = true) }

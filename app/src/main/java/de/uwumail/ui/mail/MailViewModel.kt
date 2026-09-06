@@ -80,6 +80,10 @@ data class MailUiState(
             ?: MailTarget.UNIFIED.firstOrNull { it.first == target }?.second
             ?: "Mail"
 
+    /** Whether this list is the Drafts folder, where a tap means "carry on writing". */
+    val showsDrafts: Boolean
+        get() = currentFolder?.type == FolderType.DRAFTS.name
+
     /** Folders the drawer shows; hidden ones are kept out of every list. */
     val visibleFolders: List<FolderEntity> get() = folders.filter { !it.hidden }
 

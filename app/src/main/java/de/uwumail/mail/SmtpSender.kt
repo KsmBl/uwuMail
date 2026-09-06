@@ -80,6 +80,19 @@ class SmtpSender {
             ByteArrayOutputStream().also { message.writeTo(it) }.toByteArray()
         }
 
+    /**
+     * The message as bytes, without sending it.
+     *
+     * Saving a draft must not need the SMTP password: the draft goes to the
+     * IMAP server, and asking for send credentials to save unfinished work
+     * would be asking for the wrong thing at the wrong time.
+     */
+    fun buildRaw(item: OutboxEntity): ByteArray {
+        val message = buildMessage(Session.getInstance(Properties()), item)
+        message.saveChanges()
+        return ByteArrayOutputStream().also { message.writeTo(it) }.toByteArray()
+    }
+
     fun buildMessage(session: Session, item: OutboxEntity): MimeMessage {
         val message = MimeMessage(session)
         message.setFrom(InternetAddress(item.fromAddress, item.fromName, "UTF-8"))
