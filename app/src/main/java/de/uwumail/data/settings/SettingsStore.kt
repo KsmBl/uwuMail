@@ -1,6 +1,7 @@
 package de.uwumail.data.settings
 
 import android.content.Context
+import de.uwumail.core.SwipeAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +35,8 @@ class SettingsStore(context: Context) {
             putBoolean(FILTER_TINY, next.filterTinyImages)
             putInt(MIN_WIDTH, next.minImageWidth)
             putInt(MIN_HEIGHT, next.minImageHeight)
+            putString(SWIPE_RIGHT, next.swipeRight.name)
+            putString(SWIPE_LEFT, next.swipeLeft.name)
             putBoolean(GRAVITY, next.gravityUnlocked)
             putBoolean(WINDOW_ON, next.syncWindowEnabled)
             putStringSet(WINDOW_DAYS, next.syncDays.map(Int::toString).toSet())
@@ -54,6 +57,10 @@ class SettingsStore(context: Context) {
             filterTinyImages = prefs.getBoolean(FILTER_TINY, defaults.filterTinyImages),
             minImageWidth = prefs.getInt(MIN_WIDTH, defaults.minImageWidth),
             minImageHeight = prefs.getInt(MIN_HEIGHT, defaults.minImageHeight),
+            swipeRight = prefs.getString(SWIPE_RIGHT, null)
+                ?.let(SwipeAction::of) ?: defaults.swipeRight,
+            swipeLeft = prefs.getString(SWIPE_LEFT, null)
+                ?.let(SwipeAction::of) ?: defaults.swipeLeft,
             gravityUnlocked = prefs.getBoolean(GRAVITY, defaults.gravityUnlocked),
             syncWindowEnabled = prefs.getBoolean(WINDOW_ON, defaults.syncWindowEnabled),
             syncDays = prefs.getStringSet(WINDOW_DAYS, null)
@@ -74,6 +81,8 @@ class SettingsStore(context: Context) {
         const val FILTER_TINY = "filter_tiny_images"
         const val MIN_WIDTH = "min_image_width"
         const val MIN_HEIGHT = "min_image_height"
+        const val SWIPE_RIGHT = "swipe_right_action"
+        const val SWIPE_LEFT = "swipe_left_action"
         const val GRAVITY = "gravity_unlocked"
         const val WINDOW_ON = "sync_window_enabled"
         const val WINDOW_DAYS = "sync_window_days"

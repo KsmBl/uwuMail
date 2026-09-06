@@ -68,3 +68,36 @@ enum class ActionType(val label: String, val needsTargetFolder: Boolean = false)
         get() = this == ARCHIVE || this == MOVE_TO_TRASH || this == DELETE_PERMANENTLY ||
                 this == MOVE_TO_FOLDER || this == MOVE_TO_LOCAL
 }
+
+/**
+ * What a swipe across a message in the list does.
+ *
+ * Each direction is configured separately, and [NONE] is how a direction is
+ * turned off — a swipe that does nothing simply does not start.
+ */
+enum class SwipeAction(val label: String) {
+    NONE("Nothing"),
+    TOGGLE_READ("Mark read / unread"),
+    TOGGLE_STAR("Star / unstar"),
+    ARCHIVE("Archive"),
+    TRASH("Move to trash"),
+    MOVE("Move to folder…"),
+    DELETE("Delete permanently");
+
+    /**
+     * Whether the row is on its way out, so the swipe can carry it off the
+     * screen instead of springing back. A move springs back: the folder picker
+     * has still to be answered, and it can be dismissed.
+     */
+    val carriesRowAway: Boolean
+        get() = this == ARCHIVE || this == TRASH || this == DELETE
+
+    /** A swipe is easy to do by accident, and this one cannot be undone. */
+    val needsConfirmation: Boolean get() = this == DELETE
+
+    companion object {
+        /** Tolerates a name that is no longer known, rather than losing the setting. */
+        fun of(name: String?): SwipeAction =
+            entries.firstOrNull { it.name == name } ?: NONE
+    }
+}

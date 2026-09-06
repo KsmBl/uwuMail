@@ -3,6 +3,8 @@ package de.uwumail.ui.mail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.uwumail.core.FolderType
+import de.uwumail.core.SwipeAction
+import de.uwumail.data.settings.AppSettings
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
@@ -62,7 +64,10 @@ data class MailUiState(
     /** A user-initiated action is waiting on the server. */
     val busy: Boolean = false,
     val error: String? = null,
-    val status: String? = null
+    val status: String? = null,
+    /** What a swipe across a row does, per direction. */
+    val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
+    val swipeLeft: SwipeAction = SwipeAction.TRASH
 ) {
     val inSelectionMode: Boolean get() = selection.isNotEmpty()
 
@@ -124,8 +129,14 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     val state: StateFlow<MailUiState> = combine(
         accounts, folders, currentFolder, messages,
-        combine(selection, query, container.syncManager.state, transient) { sel, q, sync, extra ->
-            Quad(sel, q, sync.running.isNotEmpty(), extra)
+        combine(
+            selection,
+            query,
+            container.syncManager.state,
+            transient,
+            container.settings.state
+        ) { sel, q, sync, extra, settings ->
+            Quad(sel, q, sync.running.isNotEmpty(), extra, settings)
         }
     ) { accountList, folderList, folder, messageList, rest ->
         MailUiState(
@@ -141,7 +152,9 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             loadingMore = rest.extra.loadingMore,
             busy = rest.extra.busy,
             error = rest.extra.error,
-            status = rest.extra.status
+            status = rest.extra.status,
+            swipeRight = rest.settings.swipeRight,
+            swipeLeft = rest.settings.swipeLeft
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MailUiState())
 
@@ -149,7 +162,8 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         val selection: Set<Long>,
         val query: String,
         val syncing: Boolean,
-        val extra: TransientState
+        val extra: TransientState,
+        val settings: AppSettings
     )
 
     init {
@@ -325,6 +339,42 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     fun toggleStar(messageId: Long, flagged: Boolean) = launchGuarded {
         container.syncManager.setFlagged(listOf(messageId), flagged)
+    }
+
+    /**
+     * Runs what a swipe asked for. The two that need an answer first —
+     * choosing a folder, confirming a deletion — are left to the screen, which
+     * is where the asking happens.
+     */
+    fun applySwipe(message: MessageSummary, action: SwipeAction) {
+        when (action) {
+            SwipeAction.TOGGLE_READ -> toggleSeen(message.id, !message.seen)
+            SwipeAction.TOGGLE_STAR -> toggleStar(message.id, !message.flagged)
+            SwipeAction.ARCHIVE -> removeOne(message.id, "Archived") {
+                container.syncManager.archive(it)
+            }
+            SwipeAction.TRASH -> removeOne(message.id, "Moved to trash") {
+                container.syncManager.moveToTrash(it)
+            }
+            SwipeAction.NONE, SwipeAction.MOVE, SwipeAction.DELETE -> Unit
+        }
+    }
+
+    fun deleteMessage(messageId: Long) = removeOne(messageId, "Deleted") {
+        container.syncManager.deletePermanently(it)
+    }
+
+    fun moveMessage(messageId: Long, targetFolderId: Long) = removeOne(messageId, "Moved") {
+        container.syncManager.moveMessages(it, targetFolderId)
+    }
+
+    /**
+     * The row is hidden the moment this starts, so the outcome is reported at
+     * once rather than after the server has answered — by then it is gone.
+     */
+    private fun removeOne(messageId: Long, done: String, block: suspend (List<Long>) -> Unit) {
+        report(done)
+        launchGuarded { block(listOf(messageId)) }
     }
 
     fun clearStatus() = transient.update { it.copy(status = null, error = null) }

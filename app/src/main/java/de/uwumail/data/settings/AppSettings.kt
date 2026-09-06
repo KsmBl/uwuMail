@@ -1,5 +1,6 @@
 package de.uwumail.data.settings
 
+import de.uwumail.core.SwipeAction
 import java.util.Calendar
 
 /**
@@ -29,6 +30,14 @@ data class AppSettings(
     val filterTinyImages: Boolean = true,
     val minImageWidth: Int = 10,
     val minImageHeight: Int = 10,
+
+    /**
+     * What a swipe across a message in the list does, per direction. The
+     * defaults are the two everyone expects, and either can be set to
+     * [SwipeAction.NONE] to turn that direction off.
+     */
+    val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
+    val swipeLeft: SwipeAction = SwipeAction.TRASH,
 
     /** Set by the easter egg; until then the gravity menu entry does not exist. */
     val gravityUnlocked: Boolean = false,

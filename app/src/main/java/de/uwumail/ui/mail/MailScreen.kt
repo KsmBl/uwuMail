@@ -97,6 +97,8 @@ import androidx.compose.ui.unit.dp
 import de.uwumail.R
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
+import de.uwumail.core.SwipeAction
+import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.EmptyState
 import de.uwumail.ui.common.FolderPickerSheet
 import de.uwumail.ui.common.SectionHeader
@@ -130,6 +132,9 @@ fun MailScreen(
 
     var showMovePicker by remember { mutableStateOf(false) }
     var showCopyPicker by remember { mutableStateOf(false) }
+    // A swipe that needs an answer before it can finish.
+    var swipeMoveFor by remember { mutableStateOf<Long?>(null) }
+    var swipeDeleteFor by remember { mutableStateOf<Long?>(null) }
     var showSearch by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
 
@@ -372,19 +377,36 @@ fun MailScreen(
                         sections.forEach { section ->
                             stickyHeader(key = section.dayStart) { DayHeader(section.label) }
                             items(section.messages, key = { it.id }) { message ->
-                                MessageRow(
-                                    message = message,
-                                    selected = message.id in state.selection,
-                                    selectionMode = state.inSelectionMode,
-                                    accountColor = state.accounts
-                                        .firstOrNull { it.id == message.accountId }?.color,
-                                    onClick = {
-                                        if (state.inSelectionMode) viewModel.toggleSelection(message.id)
-                                        else onOpenMessage(message.id)
-                                    },
-                                    onLongClick = { viewModel.toggleSelection(message.id) },
-                                    onStar = { viewModel.toggleStar(message.id, !message.flagged) }
-                                )
+                                SwipeableMessageRow(
+                                    rightAction = state.swipeRight,
+                                    leftAction = state.swipeLeft,
+                                    seen = message.seen,
+                                    flagged = message.flagged,
+                                    // Swiping and picking rows out of a list are
+                                    // the same gesture's worth of attention.
+                                    enabled = !state.inSelectionMode,
+                                    onAction = { action ->
+                                        when (action) {
+                                            SwipeAction.MOVE -> swipeMoveFor = message.id
+                                            SwipeAction.DELETE -> swipeDeleteFor = message.id
+                                            else -> viewModel.applySwipe(message, action)
+                                        }
+                                    }
+                                ) {
+                                    MessageRow(
+                                        message = message,
+                                        selected = message.id in state.selection,
+                                        selectionMode = state.inSelectionMode,
+                                        accountColor = state.accounts
+                                            .firstOrNull { it.id == message.accountId }?.color,
+                                        onClick = {
+                                            if (state.inSelectionMode) viewModel.toggleSelection(message.id)
+                                            else onOpenMessage(message.id)
+                                        },
+                                        onLongClick = { viewModel.toggleSelection(message.id) },
+                                        onStar = { viewModel.toggleStar(message.id, !message.flagged) }
+                                    )
+                                }
                                 HorizontalDivider(thickness = 0.5.dp)
                             }
                         }
@@ -400,6 +422,27 @@ fun MailScreen(
                 }
             }
         }
+    }
+
+    swipeMoveFor?.let { messageId ->
+        FolderPickerSheet(
+            folders = state.moveTargets(),
+            accounts = state.accounts,
+            preferredAccountId = state.currentFolder?.accountId,
+            onPick = { swipeMoveFor = null; viewModel.moveMessage(messageId, it.id) },
+            onDismiss = { swipeMoveFor = null }
+        )
+    }
+
+    swipeDeleteFor?.let { messageId ->
+        ConfirmDialog(
+            title = "Delete permanently?",
+            message = "This removes the message from the server. It cannot be undone.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = { viewModel.deleteMessage(messageId) },
+            onDismiss = { swipeDeleteFor = null }
+        )
     }
 
     if (showCopyPicker) {
