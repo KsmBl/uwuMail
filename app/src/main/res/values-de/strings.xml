@@ -565,4 +565,7 @@
     <string name="google_no_refresh">Google hat kein Refresh-Token geliefert. Entferne uwuMail unter %1$s und melde dich erneut an.</string>
     <string name="wizard_only_selection">Diese Regel trifft genau auf deine %1$d ausgewählten Mails zu und auf nichts anderes im Zwischenspeicher.</string>
     <string name="section_name">Name</string>
+
+    <!-- Saving a message -->
+    <string name="message_saved">Nachricht gespeichert</string>
 </resources>

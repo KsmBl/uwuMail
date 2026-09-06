@@ -34,6 +34,16 @@ class MainActivity : AppCompatActivity() {
     private var pendingMessageId by mutableStateOf<Long?>(null)
     private var pendingMailto by mutableStateOf<String?>(null)
 
+    /**
+     * Anything held back for an undo is done now. The offer lived on a screen
+     * that has just gone, so there is nothing left to hold it back for — and a
+     * process killed while it waited would lose the work entirely.
+     */
+    override fun onStop() {
+        super.onStop()
+        runCatching { (application as UwuMailApp).container.syncManager.flushPendingRemovals() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

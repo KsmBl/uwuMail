@@ -10,12 +10,14 @@ import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
 import de.uwumail.core.Json
+import android.net.Uri
 import de.uwumail.mail.ContentId
 import de.uwumail.mail.ImagePrefilter
 import de.uwumail.mail.RemoteImagePolicy
 import de.uwumail.mail.Unsubscribe
 import de.uwumail.mail.UnsubscribeTarget
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -197,6 +199,31 @@ class MessageViewModel(
     fun copyTo(folderId: Long) = guarded {
         container.syncManager.copyMessages(listOf(messageId), folderId)
         local.update { it.copy(status = text(R.string.status_copied)) }
+    }
+
+    /**
+     * Writes the message to wherever the picker was pointed.
+     *
+     * The bytes are fetched first and copied into the chosen document, so the
+     * file only exists once there is something to put in it.
+     */
+    fun exportTo(destination: Uri) = guarded {
+        val file = container.syncManager.downloadRaw(messageId)
+        if (file == null) {
+            local.update { it.copy(error = text(R.string.error_no_download)) }
+            return@guarded
+        }
+        val written = withContext(Dispatchers.IO) {
+            runCatching {
+                container.appContext.contentResolver.openOutputStream(destination)?.use { out ->
+                    file.inputStream().use { it.copyTo(out) }
+                } ?: error("could not write there")
+            }.isSuccess
+        }
+        local.update {
+            if (written) it.copy(status = text(R.string.message_saved))
+            else it.copy(error = text(R.string.error_no_download))
+        }
     }
 
     fun download(onReady: (File) -> Unit) = guarded {

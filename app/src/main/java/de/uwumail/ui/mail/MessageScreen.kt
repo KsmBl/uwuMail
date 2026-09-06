@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,6 +104,11 @@ fun MessageScreen(
     // Set when a tapped link carries tracking parameters and the user has asked
     // to be consulted; the dialog is what actually opens it.
     var trackingLink by remember { mutableStateOf<String?>(null) }
+    // The system picker chooses where a saved message goes, so it lands
+    // somewhere the user actually chose rather than wherever the app can write.
+    val saveEml = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("message/rfc822")
+    ) { destination -> destination?.let(viewModel::exportTo) }
     // Every part of the message hands its characters over separately; the
     // overlay wants them as one list.
     val lifted = remember { mutableStateMapOf<String, List<FallingPiece>>() }
@@ -205,7 +212,7 @@ fun MessageScreen(
                             leadingIcon = { Icon(Icons.Default.Download, null) },
                             onClick = {
                                 overflow = false
-                                viewModel.download { shareFile(context, it, "message/rfc822") }
+                                saveEml.launch(state.message.emlFileName())
                             }
                         )
                         DropdownMenuItem(
@@ -468,6 +475,12 @@ private fun android.content.Context.findActivity(): Activity? {
 
 /** The subject and sender are short; the body is what needs a budget. */
 private const val HEADER_LETTERS = 120
+
+/** A name the picker can offer, from the subject rather than the row id. */
+private fun de.uwumail.data.db.MessageEntity?.emlFileName(): String {
+    val subject = this?.subject?.takeIf { it.isNotBlank() } ?: "message"
+    return MimeUtil.sanitizeFileName(subject).take(80) + ".eml"
+}
 
 private fun shareFile(context: android.content.Context, file: File, mimeType: String) {
     runCatching {

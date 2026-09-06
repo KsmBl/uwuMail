@@ -567,4 +567,7 @@
     <string name="google_no_refresh">Google did not return a refresh token. Remove uwuMail at %1$s and sign in again.</string>
     <string name="wizard_only_selection">This rule catches your %1$d selected mails and nothing else in the cache.</string>
     <string name="section_name">Name</string>
+
+    <!-- Saving a message -->
+    <string name="message_saved">Message saved</string>
 </resources>

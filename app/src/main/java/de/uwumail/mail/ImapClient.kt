@@ -11,6 +11,7 @@ import java.util.Properties
 import javax.mail.FetchProfile
 import javax.mail.Flags
 import javax.mail.search.FromStringTerm
+import javax.mail.search.MessageIDTerm
 import javax.mail.search.OrTerm
 import javax.mail.search.RecipientStringTerm
 import javax.mail.search.SubjectTerm
@@ -313,8 +314,12 @@ class ImapClient(
         if (!target.exists()) throw MailException("Target folder \"$toPath\" does not exist")
         val messages = source.messagesFor(uids)
         if (messages.isEmpty()) return
+        // The copy must succeed and is allowed to throw: swallowing it here
+        // would report a move that never put the mail anywhere. Only the
+        // removal afterwards may find the message already gone, which is a
+        // request to remove it that has been satisfied.
+        source.copyMessages(messages, target)
         ignoringRemoved {
-            source.copyMessages(messages, target)
             source.setFlags(messages, Flags(Flags.Flag.DELETED), true)
             expunge(source, messages)
         }
@@ -327,7 +332,24 @@ class ImapClient(
         if (!target.exists()) throw MailException("Target folder \"$toPath\" does not exist")
         val messages = source.messagesFor(uids)
         if (messages.isEmpty()) return
-        ignoringRemoved { source.copyMessages(messages, target) }
+        // Allowed to throw: a copy that quietly did nothing is worse than one
+        // that says so.
+        source.copyMessages(messages, target)
+    }
+
+    /**
+     * Whether [path] holds a message with this Message-ID.
+     *
+     * Used to check that a move or a copy actually arrived. IMAP reports
+     * success for a COPY the server may still have refused for its own
+     * reasons — quota, permissions, a folder that cannot hold messages — and
+     * mail that silently went nowhere is the worst outcome of the lot.
+     */
+    fun containsMessageId(path: String, messageId: String): Boolean {
+        if (messageId.isBlank()) return false
+        val folder = runCatching { open(path, Folder.READ_ONLY) }.getOrNull() ?: return false
+        return runCatching { folder.search(MessageIDTerm(messageId)).isNotEmpty() }
+            .getOrDefault(false)
     }
 
     fun deleteMessages(path: String, uids: List<Long>) {

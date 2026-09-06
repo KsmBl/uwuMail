@@ -97,7 +97,11 @@ class SyncManager(
     private val waiting = ConcurrentHashMap<Long, Waiting>()
     private val tokens = AtomicLong()
 
-    private class Waiting(val job: Job, val messageIds: List<Long>)
+    private class Waiting(
+        val job: Job,
+        val messageIds: List<Long>,
+        val work: suspend () -> Unit
+    )
 
     // ------------------------------------------------------------------ sync
 
@@ -511,7 +515,7 @@ class SyncManager(
             waiting.remove(token)
             runCatching { attempt(messageIds, block) }
         }
-        waiting[token] = Waiting(job, messageIds)
+        waiting[token] = Waiting(job, messageIds, block)
         _undoable.tryEmit(Undoable(token, undo, messageIds.size))
     }
 
@@ -535,6 +539,22 @@ class SyncManager(
         entry.job.cancel()
         restore(entry.messageIds)
         return true
+    }
+
+    /**
+     * Does everything that is still waiting, now.
+     *
+     * An undo nobody can reach is not worth holding work back for: once the
+     * app is out of sight the offer has gone with it, and leaving a move
+     * sitting in a five-second delay is how it ends up never reaching the
+     * server at all when the process is killed.
+     */
+    fun flushPendingRemovals() {
+        waiting.keys.toList().forEach { token ->
+            val entry = waiting.remove(token) ?: return@forEach
+            entry.job.cancel()
+            scope.launch { runCatching { attempt(entry.messageIds, entry.work) } }
+        }
     }
 
     private suspend fun restore(messageIds: List<Long>) {
@@ -727,6 +747,7 @@ class SyncManager(
             val folder = db.folderDao().get(folderId) ?: return@forEach
             if (folder.path == targetPath) return@forEach
             pool.use(account.id) { it.moveMessages(folder.path, group.map { m -> m.uid }, targetPath) }
+            confirmArrived(account, group, targetPath)
             db.messageDao().deleteAll(group.map { it.id })
             db.folderDao().refreshCounts(folderId)
         }
@@ -755,6 +776,7 @@ class SyncManager(
             val folder = db.folderDao().get(folderId) ?: return@forEach
             if (folder.path == targetPath) return@forEach
             pool.use(account.id) { it.copyMessages(folder.path, group.map { m -> m.uid }, targetPath) }
+            confirmArrived(account, group, targetPath)
         }
 
         // A device-only message has no server copy to duplicate, so its stored
@@ -766,6 +788,34 @@ class SyncManager(
         }
 
         db.folderDao().getByPath(account.id, targetPath)?.let { db.folderDao().refreshCounts(it.id) }
+    }
+
+    /**
+     * Checks the mail is really in [targetPath] before the local copy is
+     * thrown away.
+     *
+     * A server can accept a COPY and still not keep it — quota, permissions, a
+     * folder that holds no messages — and there is no worse outcome than mail
+     * that quietly went nowhere. Only messages carrying a Message-ID can be
+     * checked; one without is trusted, as there is nothing to look for.
+     */
+    private suspend fun confirmArrived(
+        account: AccountEntity,
+        messages: List<MessageEntity>,
+        targetPath: String
+    ) {
+        val identifiable = messages.mapNotNull { it.messageIdHeader?.takeIf { id -> id.isNotBlank() } }
+        if (identifiable.isEmpty()) return
+        val missing = identifiable.filterNot { id ->
+            runCatching { pool.use(account.id) { it.containsMessageId(targetPath, id) } }
+                // A server that cannot be asked is not a server that refused.
+                .getOrDefault(true)
+        }
+        if (missing.isNotEmpty()) {
+            throw MailException(
+                "$targetPath did not accept ${missing.size} message(s); they have been left alone"
+            )
+        }
     }
 
     suspend fun deletePermanently(messageIds: List<Long>, allowUndo: Boolean = true) =

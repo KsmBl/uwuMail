@@ -228,6 +228,8 @@ have.
   is the only honest way to do it: a permanent deletion cannot be reversed once
   the server has been told. The rows disappear at once regardless, so nothing
   feels slower, and anything a crash left hidden comes back on the next start.
+  Several can be waiting at once — swiping through a few messages is exactly
+  how — so the offers stack, each with its own few seconds to answer it.
 - Removals are otherwise optimistic: the message goes from the list at once and
   the server catches up behind it. If the server refuses, the message comes back
   and the failure is reported rather than the mail going quietly missing.
@@ -245,8 +247,10 @@ have.
 ## The message list
 
 - **Swipe either way**, with each direction set separately in
-  *Settings → Swipe actions*: archive, trash, move, delete, mark read/unread,
-  star, or nothing at all. Right archives and left trashes to begin with. Only
+  *Settings → Swipe actions*: select, archive, trash, move, delete, mark
+  read/unread, star, or nothing at all. Left selects and right archives to
+  begin with, and a swipe must cross **half the row** before it counts — a
+  quick flick should not be able to delete mail. Only
   the actions that empty the row carry it off the screen — the toggles spring
   back, since the row is still there — and permanent deletion asks first,
   because a swipe is far too easy to do by accident for something irreversible.
@@ -261,6 +265,12 @@ have.
   selection, or while you are reading further down.
 
 ## Accounts and sending
+
+- **Configure folders** per account: which folder is archive, sent, drafts and
+  trash. These are guessed from what the server advertises when an account is
+  first seen, which is right for most and wrong for the rest — a server with no
+  SPECIAL-USE attributes, or folders named in another language, leaves them
+  pointing nowhere.
 
 **Accounts**
 - Any number of IMAP/SMTP accounts, each with its own sync interval, colour and
