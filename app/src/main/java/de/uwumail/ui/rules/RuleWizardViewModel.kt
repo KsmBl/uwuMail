@@ -3,6 +3,7 @@ package de.uwumail.ui.rules
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.uwumail.core.ActionType
+import de.uwumail.core.WizardLog
 import de.uwumail.core.MatchMode
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageEntity
@@ -15,6 +16,7 @@ import de.uwumail.rules.RuleMatcher
 import de.uwumail.rules.Suggestion
 import de.uwumail.rules.SuggestionReport
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -62,35 +64,81 @@ class RuleWizardViewModel(
      */
     private var otherContexts: List<MatchContext> = emptyList()
 
+    /** What the analysis is doing, for the watchdog to name. */
+    @Volatile private var step: String = "starting"
+
+    /** The thread the heavy half runs on, so its stack can be asked for. */
+    @Volatile private var worker: Thread? = null
+
     init {
         viewModelScope.launch {
+            WizardLog.begin("rule wizard, ${messageIds.size} messages selected")
             // Anything thrown in here used to leave the screen saying it was
             // still working, for ever. A mailbox large enough to run the
             // analysis out of memory is exactly the case that reaches it.
+            val watchdog = launch { watch() }
             runCatching { analyse() }
                 .onFailure { error ->
+                    WizardLog.failure("analyse", error)
                     _state.update {
                         it.copy(analysing = false, error = error.message ?: error.toString())
                     }
                 }
+            watchdog.cancel()
+            WizardLog.write("done, log at ${WizardLog.path()}")
+        }
+    }
+
+    /**
+     * Says, out loud and repeatedly, which step is taking so long — and where
+     * the working thread actually is while it does. A spinner that never stops
+     * tells nobody anything; this tells us the step and then the line.
+     */
+    private suspend fun watch() {
+        var waited = 0L
+        while (true) {
+            delay(WATCHDOG_INTERVAL)
+            waited += WATCHDOG_INTERVAL
+            WizardLog.write("still in '$step' after ${waited / 1000}s")
+            if (waited >= WATCHDOG_STACK_AFTER) WizardLog.stackOf(worker)
         }
     }
 
     private suspend fun analyse() {
-        val samples = container.db.messageDao().getAll(messageIds)
-        val folders = container.db.folderDao().let { dao ->
-            container.db.accountDao().getAll().flatMap { dao.forAccount(it.id) }
+        val samples = mark("reading the selected messages") {
+            container.db.messageDao().getAll(messageIds)
+        }
+        WizardLog.write("read ${samples.size} of ${messageIds.size} selected messages")
+        val folders = mark("reading folders") {
+            container.db.folderDao().let { dao ->
+                container.db.accountDao().getAll().flatMap { dao.forAccount(it.id) }
+            }
         }
         val pathById = folders.associate { it.id to it.path }
-        val corpus = container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
+        val corpus = mark("reading the corpus") {
+            container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
+        }
+        WizardLog.write("corpus is ${corpus.size} messages (limit $CORPUS_LIMIT)")
 
         val report = withContext(Dispatchers.Default) {
+            worker = Thread.currentThread()
             val selectedIds = samples.mapTo(HashSet()) { it.id }
-            otherContexts = corpus
-                .filter { it.id !in selectedIds }
-                .map { MatchContext.of(it, pathById[it.folderId].orEmpty()) }
-            container.ruleSuggester.analyse(samples, corpus) { pathById[it.folderId].orEmpty() }
+            otherContexts = mark("building match contexts") {
+                corpus
+                    .filter { it.id !in selectedIds }
+                    .map { MatchContext.of(it, pathById[it.folderId].orEmpty()) }
+            }
+            WizardLog.write("built ${otherContexts.size} match contexts")
+            mark("looking for what they share") {
+                container.ruleSuggester.analyse(samples, corpus) {
+                    pathById[it.folderId].orEmpty()
+                }
+            }
         }
+        WizardLog.write(
+            "report: ${report.suggestions.size} suggestions, " +
+                "${report.recommended.size} recommended"
+        )
 
         _state.update {
             it.copy(
@@ -177,7 +225,19 @@ class RuleWizardViewModel(
         }
     }
 
+    /** Names a step while it runs, and says how long it took when it ends. */
+    private inline fun <T> mark(what: String, body: () -> T): T {
+        step = what
+        WizardLog.write("-> $what")
+        val began = System.currentTimeMillis()
+        val result = body()
+        WizardLog.write("<- $what took ${System.currentTimeMillis() - began}ms")
+        return result
+    }
+
     private companion object {
         const val CORPUS_LIMIT = 3000
+        const val WATCHDOG_INTERVAL = 2000L
+        const val WATCHDOG_STACK_AFTER = 6000L
     }
 }
