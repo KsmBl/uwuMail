@@ -186,8 +186,8 @@ have.
 
 ## Folders and mailboxes
 
-- Unified views across every account: **All inboxes**, **All outboxes** (the Sent
-  folders) and **All deleted mails**. Pull to refresh in any of them syncs that
+- Unified views across every account: **All inboxes**, **All sent mail** and
+  **All deleted mails**. Pull to refresh in any of them syncs that
   folder across every account, whether or not those folders are set to sync in
   the background.
 - Long-press any folder in the drawer to reorder it, hide it on this device,

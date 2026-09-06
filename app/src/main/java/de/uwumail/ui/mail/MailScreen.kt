@@ -926,7 +926,7 @@ private fun MailDrawer(
                     icon = {
                         Icon(
                             when (destination) {
-                                MailTarget.OUTBOXES -> Icons.AutoMirrored.Filled.Send
+                                MailTarget.SENT -> Icons.AutoMirrored.Filled.Send
                                 MailTarget.DELETED -> Icons.Default.Delete
                                 else -> Icons.Default.Inbox
                             },

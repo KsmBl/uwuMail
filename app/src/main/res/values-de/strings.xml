@@ -162,7 +162,7 @@
     <string name="unknown_sender">(unbekannter Absender)</string>
     <string name="no_subject">(kein Betreff)</string>
     <string name="all_inboxes">Alle Posteingänge</string>
-    <string name="all_outboxes">Alle Postausgänge</string>
+    <string name="all_sent">Alle gesendeten Mails</string>
     <string name="all_deleted">Alle gelöschten Mails</string>
     <string name="settings">Einstellungen</string>
     <string name="edit_folders">Ordner bearbeiten</string>

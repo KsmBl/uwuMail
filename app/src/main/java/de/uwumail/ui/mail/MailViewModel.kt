@@ -45,13 +45,19 @@ sealed interface MailTarget {
 
     companion object {
         val INBOXES = Unified(FolderType.INBOX)
-        val OUTBOXES = Unified(FolderType.SENT)
+
+        /**
+         * Every account's Sent folder. Named for what it holds: everywhere else
+         * on a phone an outbox is mail that has not gone yet, which is a real
+         * and different thing — see [de.uwumail.data.db.OutboxEntity].
+         */
+        val SENT = Unified(FolderType.SENT)
         val DELETED = Unified(FolderType.TRASH)
 
         /** The unified rows shown at the top of the drawer, in order. */
         val UNIFIED = listOf(
             INBOXES to R.string.all_inboxes,
-            OUTBOXES to R.string.all_outboxes,
+            SENT to R.string.all_sent,
             DELETED to R.string.all_deleted
         )
     }
