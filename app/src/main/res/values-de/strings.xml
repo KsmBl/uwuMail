@@ -583,4 +583,7 @@
     <string name="attachments_save_selected">Auswahl speichern</string>
     <string name="attachments_saved_partial">Nur %1$d von %2$d Anhängen konnten gespeichert werden</string>
     <string name="wizard_failed">Diese Nachrichten konnten nicht ausgewertet werden</string>
+    <string name="wizard_log_title">Assistenten-Protokoll</string>
+    <string name="wizard_log_share">Protokoll teilen</string>
+    <string name="wizard_log_path">Gespeichert unter %1$s</string>
 </resources>

@@ -1,0 +1,68 @@
+15:47:27.950 +     1ms [main] === rule wizard, 2 messages selected ===
+15:47:27.950 +     1ms [main] device samsung SM-G988U1, Android 13 (API 33)
+15:47:27.950 +     1ms [main] -> reading the selected messages
+15:47:27.977 +    28ms [main] <- reading the selected messages took 27ms
+15:47:27.977 +    28ms [main] read 2 of 2 selected messages
+15:47:27.977 +    28ms [main] -> reading folders
+15:47:27.987 +    38ms [main] <- reading folders took 9ms
+15:47:27.987 +    38ms [main] -> reading the corpus
+15:47:28.019 +    70ms [main] <- reading the corpus took 31ms
+15:47:28.019 +    70ms [main] corpus is 125 messages (limit 3000)
+15:47:28.019 +    70ms [DefaultDispatcher-worker-4] -> building match contexts
+15:47:28.054 +   105ms [DefaultDispatcher-worker-4] <- building match contexts took 34ms
+15:47:28.055 +   106ms [DefaultDispatcher-worker-4] built 123 match contexts
+15:47:28.055 +   106ms [DefaultDispatcher-worker-4] -> looking for what they share
+15:47:28.092 +   143ms [DefaultDispatcher-worker-4] suggester: 2 selected, 123 others
+15:47:28.093 +   144ms [DefaultDispatcher-worker-4] suggester -> sender candidates
+15:47:28.093 +   144ms [DefaultDispatcher-worker-4] suggester <- sender candidates took 0ms
+15:47:28.093 +   144ms [DefaultDispatcher-worker-4] suggester -> header candidates
+15:47:29.953 +  2004ms [main] still in 'looking for what they share' after 2s
+15:47:31.954 +  4005ms [main] still in 'looking for what they share' after 4s
+15:47:33.957 +  6008ms [main] still in 'looking for what they share' after 6s
+15:47:33.958 +  6009ms [main] stack of DefaultDispatcher-worker-4:
+15:47:33.958 +  6009ms [main]     at R2.j.g(SourceFile:0)
+15:47:33.958 +  6009ms [main]     at Z2.q.R(SourceFile:7)
+15:47:33.958 +  6009ms [main]     at Z2.j.c0(SourceFile:78)
+15:47:33.958 +  6009ms [main]     at Z2.j.e0(SourceFile:11)
+15:47:33.959 +  6010ms [main]     at Z2.j.X(SourceFile:12)
+15:47:33.959 +  6010ms [main]     at r2.d.c(SourceFile:191)
+15:47:33.959 +  6010ms [main]     at A2.r0.invokeSuspend(SourceFile:1407)
+15:47:33.959 +  6010ms [main]     at J2.a.resumeWith(SourceFile:7)
+15:47:33.959 +  6010ms [main]     at a3.C.run(SourceFile:106)
+15:47:33.959 +  6010ms [main]     at h3.a.run(SourceFile:126)
+15:47:35.962 +  8013ms [main] still in 'looking for what they share' after 8s
+15:47:35.963 +  8014ms [main] stack of DefaultDispatcher-worker-4:
+15:47:35.963 +  8014ms [main]     at R2.j.g(SourceFile:0)
+15:47:35.963 +  8014ms [main]     at Z2.q.R(SourceFile:2)
+15:47:35.963 +  8014ms [main]     at Z2.j.c0(SourceFile:78)
+15:47:35.963 +  8014ms [main]     at Z2.j.e0(SourceFile:11)
+15:47:35.964 +  8015ms [main]     at Z2.j.X(SourceFile:12)
+15:47:35.964 +  8015ms [main]     at r2.d.c(SourceFile:191)
+15:47:35.964 +  8015ms [main]     at A2.r0.invokeSuspend(SourceFile:1407)
+15:47:35.964 +  8015ms [main]     at J2.a.resumeWith(SourceFile:7)
+15:47:35.964 +  8015ms [main]     at a3.C.run(SourceFile:106)
+15:47:35.964 +  8015ms [main]     at h3.a.run(SourceFile:126)
+15:47:37.967 + 10018ms [main] still in 'looking for what they share' after 10s
+15:47:37.968 + 10019ms [main] stack of DefaultDispatcher-worker-4:
+15:47:37.968 + 10019ms [main]     at java.lang.String.regionMatches(String.java:2127)
+15:47:37.968 + 10019ms [main]     at Z2.q.R(SourceFile:23)
+15:47:37.968 + 10019ms [main]     at Z2.j.c0(SourceFile:78)
+15:47:37.968 + 10019ms [main]     at Z2.j.e0(SourceFile:11)
+15:47:37.968 + 10019ms [main]     at Z2.j.X(SourceFile:12)
+15:47:37.968 + 10019ms [main]     at r2.d.c(SourceFile:191)
+15:47:37.969 + 10020ms [main]     at A2.r0.invokeSuspend(SourceFile:1407)
+15:47:37.969 + 10020ms [main]     at J2.a.resumeWith(SourceFile:7)
+15:47:37.969 + 10020ms [main]     at a3.C.run(SourceFile:106)
+15:47:37.969 + 10020ms [main]     at h3.a.run(SourceFile:126)
+15:47:39.971 + 12022ms [main] still in 'looking for what they share' after 12s
+15:47:39.971 + 12022ms [main] stack of DefaultDispatcher-worker-4:
+15:47:39.972 + 12023ms [main]     at R2.j.g(SourceFile:0)
+15:47:39.972 + 12023ms [main]     at Z2.q.R(SourceFile:7)
+15:47:39.972 + 12023ms [main]     at Z2.j.c0(SourceFile:78)
+15:47:39.972 + 12023ms [main]     at Z2.j.e0(SourceFile:11)
+15:47:39.972 + 12023ms [main]     at Z2.j.X(SourceFile:12)
+15:47:39.972 + 12023ms [main]     at r2.d.c(SourceFile:191)
+15:47:39.972 + 12023ms [main]     at A2.r0.invokeSuspend(SourceFile:1407)
+15:47:39.973 + 12024ms [main]     at J2.a.resumeWith(SourceFile:7)
+15:47:39.973 + 12024ms [main]     at a3.C.run(SourceFile:106)
+15:47:39.973 + 12024ms [main]     at h3.a.run(SourceFile:126)

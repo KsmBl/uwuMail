@@ -585,4 +585,7 @@
     <string name="attachments_save_selected">Save selected</string>
     <string name="attachments_saved_partial">Only %1$d of %2$d attachments could be saved</string>
     <string name="wizard_failed">Could not analyse those messages</string>
+    <string name="wizard_log_title">Wizard log</string>
+    <string name="wizard_log_share">Share the log</string>
+    <string name="wizard_log_path">Written to %1$s</string>
 </resources>

@@ -1,6 +1,7 @@
 package de.uwumail
 
 import android.app.Application
+import de.uwumail.core.WizardLog
 import de.uwumail.di.AppContainer
 import de.uwumail.sync.PushService
 import de.uwumail.sync.SyncScheduler
@@ -21,6 +22,7 @@ class UwuMailApp : Application() {
     override fun onCreate() {
         super.onCreate()
         registerMailHandlers()
+        WizardLog.attach(this)
         container = AppContainer(this)
 
         appScope.launch(Dispatchers.IO) {

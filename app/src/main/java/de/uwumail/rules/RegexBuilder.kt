@@ -12,6 +12,9 @@ package de.uwumail.rules
  */
 object RegexBuilder {
 
+    /** How much of a sample [longestCommonSubstring] is willing to look at. */
+    private const val MAX_SUBSTRING_SCAN = 512
+
     private val TOKEN = Regex("""\d+|[A-Za-z]+|\s+|.""")
     private val DIGITS = Regex("""\d+""")
     private val HEX = Regex("""[0-9a-fA-F]+""")
@@ -51,20 +54,83 @@ object RegexBuilder {
         return if (runCatching { Regex(result) }.isSuccess) result else null
     }
 
-    /** Longest run of characters shared by every sample, or null if shorter than [minLength]. */
+    /**
+     * Longest run of characters shared by every sample, or null if shorter than
+     * [minLength].
+     *
+     * Counting down from the longest possible length and scanning for each
+     * candidate reads well and is far too slow to survive real input: every
+     * length tries every start, and every start searches every other sample, so
+     * a pair of four-kilobyte header values is thousands of millions of
+     * character comparisons. It once left the rule wizard spinning for as long
+     * as anyone was willing to watch.
+     *
+     * A run of length L contains one of length L - 1, so a length that works
+     * means every shorter one works too, and the answer can be found by halving
+     * the range instead of walking it. Each length is then tested by putting
+     * the shortest sample's runs in a set and passing the other samples through
+     * it, which is one pass each rather than one search per candidate.
+     */
     fun longestCommonSubstring(samples: List<String>, minLength: Int = 4): String? {
         val cleaned = samples.filter { it.isNotEmpty() }
         if (cleaned.isEmpty()) return null
         if (cleaned.size == 1) return cleaned.first().takeIf { it.length >= minLength }
-        val shortest = cleaned.minBy { it.length }
-        val others = cleaned.filter { it !== shortest }
-        for (length in shortest.length downTo minLength) {
-            for (start in 0..shortest.length - length) {
-                val candidate = shortest.substring(start, start + length)
-                if (others.all { it.contains(candidate, ignoreCase = true) }) return candidate
+        // Nobody wants a rule built out of a kilobyte of machine header, and
+        // the work still grows with the length, so only the front of each
+        // sample is considered.
+        val capped = cleaned.map { it.take(MAX_SUBSTRING_SCAN) }
+        val shortestAt = capped.indices.minBy { capped[it].length }
+        val shortest = capped[shortestAt]
+        if (shortest.length < minLength) return null
+        val others = capped.filterIndexed { index, _ -> index != shortestAt }
+
+        var low = minLength
+        var high = shortest.length
+        var best: String? = null
+        while (low <= high) {
+            val middle = (low + high) / 2
+            val found = sharedRunOfLength(shortest, others, middle)
+            if (found == null) {
+                high = middle - 1
+            } else {
+                best = found
+                low = middle + 1
             }
         }
-        return null
+        return best
+    }
+
+    /**
+     * The earliest run of exactly [length] characters that [shortest] shares
+     * with every one of [others], or null if they share none. Earliest, so that
+     * two samples always produce the same answer.
+     */
+    private fun sharedRunOfLength(
+        shortest: String,
+        others: List<String>,
+        length: Int
+    ): String? {
+        if (length > shortest.length) return null
+        val lowered = shortest.lowercase()
+        var shared = HashSet<String>()
+        for (start in 0..lowered.length - length) {
+            shared.add(lowered.substring(start, start + length))
+        }
+        for (other in others) {
+            val text = other.lowercase()
+            if (text.length < length) return null
+            val surviving = HashSet<String>()
+            for (start in 0..text.length - length) {
+                val run = text.substring(start, start + length)
+                if (run in shared) surviving.add(run)
+            }
+            if (surviving.isEmpty()) return null
+            shared = surviving
+        }
+        val start = (0..lowered.length - length).firstOrNull {
+            lowered.substring(it, it + length) in shared
+        } ?: return null
+        return shortest.substring(start, start + length)
     }
 
     fun commonPrefix(samples: List<String>, minLength: Int = 4): String? {

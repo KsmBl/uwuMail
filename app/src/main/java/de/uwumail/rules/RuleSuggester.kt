@@ -1,5 +1,6 @@
 package de.uwumail.rules
 
+import de.uwumail.core.WizardLog
 import de.uwumail.core.Json
 import de.uwumail.core.RuleField
 import de.uwumail.core.RuleOperator
@@ -43,6 +44,9 @@ data class SuggestionReport(
  */
 class RuleSuggester {
 
+    /** Past this a header value is machinery, not something to match on. */
+    private val MAX_HEADER_VALUE = 200
+
     /** Headers that change per message and would only ever produce noise. */
     private val ignoredHeaders = setOf(
         "date", "message-id", "received", "subject", "to", "cc", "bcc", "from", "reply-to",
@@ -68,17 +72,23 @@ class RuleSuggester {
         val others = corpus.filter { it.id !in selectedIds }
         val selectedContexts = selected.map { MatchContext.of(it, folderPathOf(it)) }
         val otherContexts = others.map { MatchContext.of(it, folderPathOf(it)) }
+        WizardLog.write("suggester: ${selected.size} selected, ${others.size} others")
 
         val candidates = buildList {
-            addAll(senderCandidates(selected))
-            addAll(headerCandidates(selected))
-            addAll(subjectCandidates(selected))
-            addAll(recipientCandidates(selected))
+            addAll(phase("sender candidates") { senderCandidates(selected) })
+            addAll(phase("header candidates") { headerCandidates(selected) })
+            addAll(phase("subject candidates") { subjectCandidates(selected) })
+            addAll(phase("recipient candidates") { recipientCandidates(selected) })
         }
+        WizardLog.write("suggester: ${candidates.size} candidates before scoring")
 
-        val scored = candidates
+        val scored = phase("scoring") { candidates
             .distinctBy { it.field + "|" + it.headerName + "|" + it.operator + "|" + it.value }
             .mapNotNull { candidate ->
+                WizardLog.write(
+                    "  scoring ${candidate.field}/${candidate.operator} " +
+                        "'${candidate.value.take(60)}'"
+                )
                 val hitsSelected = selectedContexts.count { RuleMatcher.matches(candidate.condition, it) }
                 // A condition that misses part of the selection is not a candidate at all.
                 if (hitsSelected < selected.size) return@mapNotNull null
@@ -94,11 +104,17 @@ class RuleSuggester {
                 )
             }
             .sortedWith(compareByDescending<Suggestion> { it.precision }.thenBy { it.condition.value.length })
+        }
+        WizardLog.write("suggester: ${scored.size} scored")
 
-        val recommended = chooseCombination(scored, selectedContexts, otherContexts)
-        val remaining = if (recommended.isEmpty()) others.size else {
-            val conditions = recommended.map { scored[it].condition }
-            otherContexts.count { ctx -> conditions.all { RuleMatcher.matches(it, ctx) } }
+        val recommended = phase("choosing a combination") {
+            chooseCombination(scored, selectedContexts, otherContexts)
+        }
+        val remaining = phase("counting what else it catches") {
+            if (recommended.isEmpty()) others.size else {
+                val conditions = recommended.map { scored[it].condition }
+                otherContexts.count { ctx -> conditions.all { RuleMatcher.matches(it, ctx) } }
+            }
         }
 
         return SuggestionReport(
@@ -108,6 +124,15 @@ class RuleSuggester {
             corpusSize = others.size,
             suggestedRuleName = suggestName(selected, scored, recommended)
         )
+    }
+
+    /** Times one phase of the analysis into the wizard log. */
+    private inline fun <T> phase(what: String, body: () -> T): T {
+        WizardLog.write("suggester -> $what")
+        val began = System.currentTimeMillis()
+        val result = body()
+        WizardLog.write("suggester <- $what took ${System.currentTimeMillis() - began}ms")
+        return result
     }
 
     // ------------------------------------------------------------- candidates
@@ -195,6 +220,12 @@ class RuleSuggester {
             val values = headerSets.map { it[name]?.firstOrNull().orEmpty() }
             when {
                 values.any { it.isBlank() } -> emptyList()
+                // The ignore list above names the machine headers I know of,
+                // and a list of names can only ever be behind: every server
+                // invents its own, and the long ones are all the same kind of
+                // thing — signatures, spam verdicts, routing. A rule quoting a
+                // fragment of one would match nothing else anyway.
+                values.any { it.length > MAX_HEADER_VALUE } -> emptyList()
                 values.distinct().size == 1 -> listOf(
                     Candidate(
                         condition(RuleField.HEADER, RuleOperator.EQUALS, values.first(), name),
@@ -292,6 +323,7 @@ class RuleSuggester {
         var survivors = otherContexts.filter { RuleMatcher.matches(scored[0].condition, it) }
 
         while (survivors.isNotEmpty() && chosen.size < 3) {
+            WizardLog.write("  combining: ${chosen.size} chosen, ${survivors.size} survivors")
             var bestIndex = -1
             var bestSurvivors = survivors
             for (index in scored.indices) {

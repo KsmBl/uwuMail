@@ -1,5 +1,12 @@
 package de.uwumail.ui.rules
 
+import android.content.Intent
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import de.uwumail.core.WizardLog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -40,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.rules.Suggestion
@@ -60,6 +69,21 @@ fun RuleWizardScreen(
     }
     val state by viewModel.state.collectAsState()
     var actionMenu by remember { mutableStateOf(false) }
+    // The wizard has been seen to sit on its spinner on a device I cannot
+    // reproduce it on, so the trace is on screen as well as in the file.
+    val log by WizardLog.lines.collectAsState()
+    val context = LocalContext.current
+    // The trace is always written; it is only put on screen once the analysis
+    // has taken long enough to be worth explaining. A wizard that answers in
+    // half a second does not need to show its working.
+    var slow by remember { mutableStateOf(false) }
+    LaunchedEffect(state.analysing) {
+        slow = false
+        if (state.analysing) {
+            delay(SLOW_ENOUGH_TO_EXPLAIN)
+            slow = true
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -71,6 +95,11 @@ fun RuleWizardScreen(
                     }
                 },
                 actions = {
+                    if (slow || state.error != null) {
+                        IconButton(onClick = { shareLog(context) }) {
+                            Icon(Icons.Default.Share, stringResource(R.string.wizard_log_share))
+                        }
+                    }
                     IconButton(
                         onClick = { viewModel.save(onSaved) },
                         enabled = state.canSave
@@ -80,22 +109,34 @@ fun RuleWizardScreen(
         }
     ) { padding ->
         state.error?.let { failure ->
-            EmptyState(
-                title = stringResource(R.string.wizard_failed),
-                subtitle = failure
-            )
+            Column(Modifier.padding(padding).fillMaxSize()) {
+                EmptyState(
+                    title = stringResource(R.string.wizard_failed),
+                    subtitle = failure
+                )
+                WizardLogView(log, Modifier.weight(1f))
+            }
             return@Scaffold
         }
         if (state.analysing) {
-            Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
-                    Text(
-                        stringResource(R.string.wizard_looking),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
+            Column(
+                Modifier.padding(padding).fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(Modifier.fillMaxWidth().padding(top = 32.dp)) {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            stringResource(R.string.wizard_looking),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 }
+                if (slow) WizardLogView(log, Modifier.weight(1f))
             }
             return@Scaffold
         }
@@ -304,5 +345,52 @@ private fun WizardActionMenu(
                 }
             )
         }
+    }
+}
+
+/**
+ * The trace, newest at the bottom, kept scrolled there. It is on screen and
+ * not only in the file because the phone this happens on is not always the
+ * phone with a cable attached.
+ */
+@Composable
+private fun WizardLogView(log: List<String>, modifier: Modifier = Modifier) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(log.size) {
+        if (log.isNotEmpty()) listState.scrollToItem(log.lastIndex)
+    }
+    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        SectionHeader(stringResource(R.string.wizard_log_title))
+        Text(
+            stringResource(R.string.wizard_log_path, WizardLog.path()),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState) {
+            items(log) { line ->
+                Text(
+                    line,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 3
+                )
+            }
+        }
+    }
+}
+
+/** How long the spinner may spin before it starts explaining itself. */
+private const val SLOW_ENOUGH_TO_EXPLAIN = 5000L
+
+private fun shareLog(context: android.content.Context) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "uwuMail rule wizard log")
+        putExtra(Intent.EXTRA_TEXT, WizardLog.text())
+    }
+    runCatching {
+        context.startActivity(
+            Intent.createChooser(intent, context.getString(R.string.wizard_log_share))
+        )
     }
 }
