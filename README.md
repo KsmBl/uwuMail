@@ -39,6 +39,8 @@ pixels that are never requested · folders that live only on your phone.
 - [Folders and mailboxes](#folders-and-mailboxes) — device folders, moving mail across accounts
 - [The message list](#the-message-list) — grouped by day, and where new mail lands
 - [Accounts and sending](#accounts-and-sending) — OAuth2, and a From address you choose
+- [Drafts](#drafts) — save an unfinished message and come back to it
+- [Appearance and language](#appearance-and-language) — themes, German and English
 - [Background mail](#background-mail) — push, and the hours you allow it
 - [Building](#building) · [Google sign-in](#google-sign-in) · [Tests](#tests) · [Layout](#layout) · [Notes and limits](#notes-and-limits)
 
@@ -202,12 +204,27 @@ have.
   stays where it is. The destination folder is synced straight afterwards, so
   the mail shows up where it landed.
 - Archive, trash, delete permanently, and save any message as `.eml`.
-- Removals are optimistic: the message disappears from the list at once and the
-  server catches up in the background. If the server refuses, the message comes
-  back and the failure is reported rather than the mail going quietly missing.
+- **Save the attachments** of one message or twenty at once, from the selection
+  menu. They go to `Downloads/uwuMail` through MediaStore rather than into the
+  app's private storage, because a download you cannot open from a file manager
+  is not one.
+- **Undo.** Archiving, trashing, moving and deleting wait five seconds before
+  touching the server, and offer an Undo in the meantime. Holding the work back
+  is the only honest way to do it: a permanent deletion cannot be reversed once
+  the server has been told. The rows disappear at once regardless, so nothing
+  feels slower, and anything a crash left hidden comes back on the next start.
+- Removals are otherwise optimistic: the message goes from the list at once and
+  the server catches up behind it. If the server refuses, the message comes back
+  and the failure is reported rather than the mail going quietly missing.
 
 ## The message list
 
+- **Swipe either way**, with each direction set separately in
+  *Settings → Swipe actions*: archive, trash, move, delete, mark read/unread,
+  star, or nothing at all. Right archives and left trashes to begin with. Only
+  the actions that empty the row carry it off the screen — the toggles spring
+  back, since the row is still there — and permanent deletion asks first,
+  because a swipe is far too easy to do by accident for something irreversible.
 - **Grouped by day.** Every run of mail from one day sits under a heading like
   *Tuesday, 01.09.2026*, pinned to the top of the list while that day is on
   screen, so a long scroll always says how much time it has covered. The
@@ -243,6 +260,35 @@ have.
 - `Envelope sender follows the From address` (per account) controls whether
   `MAIL FROM` tracks the From header or stays on the account address, since some
   servers require one or the other.
+
+## Drafts
+
+- **Save an unfinished message** to the account's Drafts folder, and leaving the
+  composer with something written asks rather than discarding it quietly.
+- Tapping a message in Drafts reopens it in the composer where it can be
+  finished, not in the reader where it can only be looked at. Saving again
+  replaces the earlier copy; sending deletes the draft it grew from.
+- The old copy goes only once the new one has been accepted, so a failure
+  halfway leaves the earlier draft rather than nothing at all.
+- Saving needs no SMTP password: the draft goes to the IMAP server.
+
+## Reading between messages
+
+- **Swipe sideways in an open message** to move to the next or previous one,
+  following the order the list was showing. Opened from a notification, with no
+  list behind it, there is nowhere to swipe and nothing happens.
+
+## Appearance and language
+
+- **Themes**: follow the system (with Material You dynamic colour where the
+  device offers it), or pick Light, Dark or **Catppuccin Mocha**. Choosing one
+  by name turns dynamic colour off, since a wallpaper overriding your choice
+  would make it meaningless.
+- **German and English.** Every user-facing string is a resource with a German
+  translation beside it, so the app follows the phone's language. The rule
+  activity log deliberately keeps the English action names: it is a record of
+  what happened, not a screen, and should not change meaning with the display
+  language.
 
 ## Background mail
 
@@ -363,7 +409,7 @@ to read and to run rules against.
 
 ## Tests
 
-137 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+158 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -390,7 +436,11 @@ to read and to run rules against.
   windows and which day their small hours belong to.
 - `data/repo/BlocklistParserTest` — blocklist line parsing, including the
   entries that must be rejected because they would match everything.
-- `ui/` — day grouping of the message list, and `[mailbox] folder` labelling.
+- `core/` — swipe actions and themes surviving a setting written by a version
+  that knew names this one does not, and the wording of a partial attachment
+  save, which must not report a failure as a smaller success.
+- `ui/` — day grouping of the message list, `[mailbox] folder` labelling, and
+  the order swiping between messages follows.
 
 ## Layout
 
