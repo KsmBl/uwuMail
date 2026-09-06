@@ -12,6 +12,10 @@
          socket and mail stops arriving until the screen comes on. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- enableOnBackInvokedCallback: from Android 13 the system draws the
+         screen behind while a back gesture is still under the finger, so it can
+         be taken back halfway. Without it the framework keeps the older
+         all-or-nothing callback and the preview never appears. -->
     <application
         android:name=".UwuMailApp"
         android:allowBackup="false"
@@ -20,6 +24,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.UwuMail">
 
         <activity
