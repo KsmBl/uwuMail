@@ -456,4 +456,16 @@
 
     <!-- Composer attachments -->
     <string name="attach_file">Datei anhängen</string>
+
+    <!-- Backup -->
+    <string name="section_backup">Sicherung</string>
+    <string name="backup_export">Regeln und Einstellungen sichern</string>
+    <string name="backup_export_sub">Schreibt eine Datei zum Aufbewahren. Konten und Passwörter sind nicht enthalten.</string>
+    <string name="backup_import">Aus einer Datei wiederherstellen</string>
+    <string name="backup_import_sub">Fügt die gesicherten Regeln zu den vorhandenen hinzu und übernimmt die gesicherten Einstellungen.</string>
+    <string name="backup_saved">In %1$s gesichert</string>
+    <string name="backup_restored">%1$d Regeln wiederhergestellt</string>
+    <string name="backup_export_failed">Sicherung fehlgeschlagen</string>
+    <string name="backup_import_failed">Wiederherstellen fehlgeschlagen</string>
+    <string name="backup_not_a_backup">Diese Datei ist keine uwuMail-Sicherung</string>
 </resources>

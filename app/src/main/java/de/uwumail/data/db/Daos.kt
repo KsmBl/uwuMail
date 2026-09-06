@@ -315,6 +315,11 @@ interface RuleDao {
     @Query("SELECT * FROM rules WHERE enabled = 1 ORDER BY priority, id")
     suspend fun enabledRules(): List<RuleWithDetails>
 
+    /** Every rule, enabled or not — a backup that dropped the disabled ones would lie. */
+    @Transaction
+    @Query("SELECT * FROM rules ORDER BY priority, id")
+    suspend fun enabledRulesForBackup(): List<RuleWithDetails>
+
     @Transaction
     @Query("SELECT * FROM rules WHERE id = :id")
     suspend fun get(id: Long): RuleWithDetails?

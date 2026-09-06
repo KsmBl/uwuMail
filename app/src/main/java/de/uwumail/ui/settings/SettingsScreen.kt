@@ -183,6 +183,11 @@ fun SettingsScreen(onBack: () -> Unit) {
             item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_google)) }
             item { GoogleSignInSettings() }
 
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_backup)) }
+            item {
+                BackupSection { message -> scope.launch { snackbarHost.showSnackbar(message) } }
+            }
+
             item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_maintenance)) }
             item {
                 ListItem(

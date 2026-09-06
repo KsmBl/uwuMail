@@ -458,4 +458,16 @@
 
     <!-- Composer attachments -->
     <string name="attach_file">Attach a file</string>
+
+    <!-- Backup -->
+    <string name="section_backup">Backup</string>
+    <string name="backup_export">Save rules and settings</string>
+    <string name="backup_export_sub">Writes a file you can keep. Accounts and passwords are not included.</string>
+    <string name="backup_import">Restore from a file</string>
+    <string name="backup_import_sub">Adds the saved rules to the ones you have, and applies the saved settings.</string>
+    <string name="backup_saved">Saved to %1$s</string>
+    <string name="backup_restored">Restored %1$d rules</string>
+    <string name="backup_export_failed">Could not save the backup</string>
+    <string name="backup_import_failed">Could not restore</string>
+    <string name="backup_not_a_backup">That file is not a uwuMail backup</string>
 </resources>

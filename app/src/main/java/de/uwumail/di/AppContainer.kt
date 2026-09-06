@@ -4,6 +4,7 @@ import android.content.Context
 import de.uwumail.data.crypto.CredentialStore
 import de.uwumail.data.db.AppDatabase
 import de.uwumail.data.repo.AccountRepository
+import de.uwumail.data.repo.BackupRepository
 import de.uwumail.data.repo.BlocklistRepository
 import de.uwumail.data.settings.SettingsStore
 import de.uwumail.mail.ImapPool
@@ -57,6 +58,8 @@ class AppContainer(private val context: Context) {
     }
 
     val blocklistRepository: BlocklistRepository by lazy { BlocklistRepository(db.blocklistDao()) }
+
+    val backupRepository: BackupRepository by lazy { BackupRepository(db, settings) }
 
     val accountRepository: AccountRepository by lazy {
         AccountRepository(context, db, credentials, imapPool, tokenStore, notifier)
