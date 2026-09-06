@@ -1,5 +1,12 @@
 <resources>
-    <style name="Theme.UwuMail" parent="android:Theme.Material.NoActionBar">
+    <!--
+        An AppCompat parent, which is what lets the per-app language work below
+        API 33: the framework only gained locale support in 33, and AppCompat's
+        backport applies it through its own activity delegate. Every colour the
+        app actually shows comes from Compose, so this theme only dresses the
+        window itself.
+    -->
+    <style name="Theme.UwuMail" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>

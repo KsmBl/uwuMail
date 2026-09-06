@@ -89,6 +89,11 @@ android {
         compose = true
         buildConfig = true
     }
+    androidResources {
+        // Builds locales_config.xml from the values-* folders, which is what
+        // puts uwuMail in Android's own per-app language list as well.
+        generateLocaleConfig = true
+    }
     packaging {
         resources {
             excludes += setOf(
@@ -144,6 +149,8 @@ dependencies {
     implementation(libs.javamail.android.activation)
     implementation(libs.jsoup)
     implementation(libs.androidx.browser)
+    // Per-app language, which the framework only offers from API 33 and this app runs from 31.
+    implementation(libs.androidx.appcompat)
 
     testImplementation(libs.junit)
     // Android ships org.json as stubs; the real implementation lets the rule

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.uwumail.R
+import de.uwumail.core.AppLanguage
 import de.uwumail.core.AppTheme
 import de.uwumail.ui.LocalAppContainer
 
@@ -37,6 +39,10 @@ fun AppearanceSection() {
     val container = LocalAppContainer.current
     val settings by container.settings.state.collectAsState()
     var open by remember { mutableStateOf(false) }
+    var languageOpen by remember { mutableStateOf(false) }
+    // Read from Android's own per-app locale rather than from our settings, so
+    // this and the system's language screen cannot disagree.
+    val language = AppLanguage.current()
 
     Box {
         ListItem(
@@ -52,6 +58,23 @@ fun AppearanceSection() {
                     text = { Text(stringResource(theme.label)) },
                     leadingIcon = { ThemeDots(theme) },
                     onClick = { open = false; container.settings.update { it.copy(theme = theme) } }
+                )
+            }
+        }
+    }
+
+    Box {
+        ListItem(
+            modifier = Modifier.clickable { languageOpen = true },
+            leadingContent = { Icon(Icons.Default.Language, null) },
+            headlineContent = { Text(stringResource(R.string.set_language)) },
+            supportingContent = { Text(stringResource(language.label)) }
+        )
+        DropdownMenu(expanded = languageOpen, onDismissRequest = { languageOpen = false }) {
+            AppLanguage.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.label)) },
+                    onClick = { languageOpen = false; AppLanguage.apply(option) }
                 )
             }
         }

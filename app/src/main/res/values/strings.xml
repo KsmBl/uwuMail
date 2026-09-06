@@ -444,4 +444,10 @@
     <string name="identities_hint">Addresses you can send as from this account. The default is used for new messages.</string>
     <string name="google_needs_id">Needs a Google OAuth client id. Add one under Settings &gt; Google sign-in, then come back.</string>
     <string name="google_only_option">For Gmail this is the only option that works — Google no longer accepts your account password over IMAP.</string>
+
+    <!-- Language -->
+    <string name="set_language">Language</string>
+    <string name="language_system">Follow the system</string>
+    <string name="language_english">English</string>
+    <string name="language_german">Deutsch</string>
 </resources>
