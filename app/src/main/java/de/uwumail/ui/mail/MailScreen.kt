@@ -118,6 +118,7 @@ import de.uwumail.ui.common.formatListDate
 import de.uwumail.ui.containerViewModel
 import android.widget.Toast
 import de.uwumail.ui.mail.gravity.rememberDeviceOrientation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val TAPS_TO_UNLOCK = 5
@@ -144,6 +145,9 @@ private fun undoMessage(offer: Undoable): String = pluralStringResource(
 )
 
 /** What the list is looking at in each slot, so it reuses like for like. */
+/** How long the list gets to itself before the browser engine is started. */
+private const val WARM_UP_DELAY = 1_200L
+
 private const val DAY_HEADER = "day-header"
 private const val MESSAGE_ROW = "message-row"
 
@@ -219,6 +223,14 @@ fun MailScreen(
     LaunchedEffect(state.target) {
         pinnedToTop = true
         listState.scrollToItem(0)
+    }
+
+    // The engine behind a mail body takes a while to start, so it is started
+    // here rather than when the reader is already looking at an empty screen.
+    // Not straight away: the list's own first frames come first.
+    LaunchedEffect(Unit) {
+        delay(WARM_UP_DELAY)
+        WebViewWarmup.start(context)
     }
 
     // Day headings, recomputed only when the list itself changes.
