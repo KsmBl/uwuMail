@@ -8,13 +8,22 @@ import de.uwumail.data.db.IdentityEntity
 import de.uwumail.data.db.OutboxEntity
 import de.uwumail.data.repo.IdentitySaveResult
 import de.uwumail.di.AppContainer
+import android.content.ContentResolver
+import android.net.Uri
+import android.provider.OpenableColumns
 import de.uwumail.mail.MimeUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+/** A file waiting to go out with the message, already copied somewhere stable. */
+data class PendingAttachment(val name: String, val path: String, val sizeBytes: Long)
 
 data class ComposeUiState(
     val accounts: List<AccountEntity> = emptyList(),
@@ -34,6 +43,7 @@ data class ComposeUiState(
     val sending: Boolean = false,
     val sent: Boolean = false,
     /** The draft this was opened from, which a save replaces. */
+    val attachments: List<PendingAttachment> = emptyList(),
     val editingDraftId: Long? = null,
     val savingDraft: Boolean = false,
     val savedDraft: Boolean = false,
@@ -45,7 +55,7 @@ data class ComposeUiState(
     /** Whether there is anything here that would be a shame to lose. */
     val hasContent: Boolean
         get() = to.isNotBlank() || cc.isNotBlank() || bcc.isNotBlank() ||
-            subject.isNotBlank() || body.isNotBlank()
+            subject.isNotBlank() || body.isNotBlank() || attachments.isNotEmpty()
 
     val canSaveDraft: Boolean get() = hasContent && account?.draftsFolder != null
 
@@ -62,6 +72,7 @@ data class ComposeUiState(
         subject = subject,
         bodyPlain = body,
         bodyHtml = null,
+        attachmentPaths = attachments.joinToString("\n") { it.path },
         inReplyTo = inReplyTo,
         references = references,
         createdAt = System.currentTimeMillis()
@@ -144,6 +155,39 @@ class ComposeViewModel(
                 editingDraftId = messageId
             )
         }
+    }
+
+    /**
+     * Copies a picked file somewhere the sender can reach it.
+     *
+     * A content URI is a loan from whichever app produced it and may not
+     * outlive this screen, let alone a spell in the outbox — so the bytes are
+     * taken now rather than the reference kept.
+     */
+    fun attach(uri: Uri) {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val resolver = container.appContext.contentResolver
+                    val name = resolver.displayNameOf(uri)
+                    val directory = File(container.appContext.filesDir, "outgoing").apply { mkdirs() }
+                    val file = File(directory, "${System.currentTimeMillis()}_$name")
+                    resolver.openInputStream(uri)?.use { input ->
+                        file.outputStream().use { input.copyTo(it) }
+                    } ?: error("Could not read that file")
+                    PendingAttachment(name, file.absolutePath, file.length())
+                }
+            }.onSuccess { attachment ->
+                _state.update { it.copy(attachments = it.attachments + attachment) }
+            }.onFailure { e ->
+                _state.update { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
+    fun removeAttachment(attachment: PendingAttachment) {
+        runCatching { File(attachment.path).delete() }
+        _state.update { it.copy(attachments = it.attachments - attachment) }
     }
 
     /** Saves what is here to the Drafts folder, replacing the draft it came from. */
@@ -357,6 +401,8 @@ class ComposeViewModel(
                     runCatching { container.syncManager.deletePermanently(listOf(draft), false) }
                 }
             }.onSuccess {
+                // The copies were only ever there to be sent.
+                current.attachments.forEach { runCatching { File(it.path).delete() } }
                 _state.update { it.copy(sending = false, sent = true) }
             }.onFailure { e ->
                 // Keep the draft; queue it so the user can retry from the outbox.
@@ -368,4 +414,14 @@ class ComposeViewModel(
     private companion object {
         val dateFormat = SimpleDateFormat("EEE, d MMM yyyy 'at' HH:mm", Locale.getDefault())
     }
+}
+
+/** The name the producing app gives a file, falling back to something usable. */
+private fun ContentResolver.displayNameOf(uri: Uri): String {
+    val name = runCatching {
+        query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }.getOrNull()
+    return MimeUtil.sanitizeFileName(name ?: uri.lastPathSegment ?: "attachment")
 }

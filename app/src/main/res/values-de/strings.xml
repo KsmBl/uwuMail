@@ -453,4 +453,7 @@
     <string name="notif_action_read">Gelesen</string>
     <string name="notif_action_archive">Archivieren</string>
     <string name="notif_action_trash">Papierkorb</string>
+
+    <!-- Composer attachments -->
+    <string name="attach_file">Datei anhängen</string>
 </resources>

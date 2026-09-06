@@ -455,4 +455,7 @@
     <string name="notif_action_read">Mark read</string>
     <string name="notif_action_archive">Archive</string>
     <string name="notif_action_trash">Trash</string>
+
+    <!-- Composer attachments -->
+    <string name="attach_file">Attach a file</string>
 </resources>

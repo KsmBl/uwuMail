@@ -15,7 +15,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.InputChip
+import de.uwumail.ui.common.formatSize
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.filled.Bookmark
@@ -55,7 +62,7 @@ import de.uwumail.data.db.IdentityEntity
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.containerViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ComposeScreen(
     accountId: Long,
@@ -81,6 +88,9 @@ fun ComposeScreen(
     var identityToDelete by remember { mutableStateOf<IdentityEntity?>(null) }
 
     var confirmLeave by remember { mutableStateOf(false) }
+    val pickFile = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let(viewModel::attach) }
 
     LaunchedEffect(state.sent) { if (state.sent) onDone() }
     LaunchedEffect(state.savedDraft) { if (state.savedDraft) onDone() }
@@ -112,6 +122,9 @@ fun ComposeScreen(
                     if (state.sending || state.savingDraft) {
                         CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp))
                     } else {
+                        IconButton(onClick = { pickFile.launch(arrayOf("*/*")) }) {
+                            Icon(Icons.Default.AttachFile, stringResource(R.string.attach_file))
+                        }
                         IconButton(
                             onClick = viewModel::saveDraft,
                             enabled = state.canSaveDraft
@@ -284,6 +297,25 @@ fun ComposeScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
             )
+
+            if (state.attachments.isNotEmpty()) {
+                FlowRow(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    state.attachments.forEach { attachment ->
+                        InputChip(
+                            selected = false,
+                            onClick = { viewModel.removeAttachment(attachment) },
+                            label = { Text("${attachment.name} ${formatSize(attachment.sizeBytes)}") },
+                            avatar = { Icon(Icons.Default.AttachFile, null) },
+                            trailingIcon = {
+                                Icon(Icons.Default.Close, stringResource(R.string.remove))
+                            }
+                        )
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = state.body,
