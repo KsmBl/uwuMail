@@ -275,6 +275,18 @@ interface MessageDao {
     suspend fun pendingNotifications(accountId: Long): List<MessageEntity>
 
     /**
+     * Notifications currently standing in the shade for an account: posted,
+     * still unread, and not on their way out. What decides whether a group
+     * summary belongs there — which cannot be answered from one sync's worth of
+     * new mail, since push delivers it a message at a time.
+     */
+    @Query(
+        """SELECT COUNT(*) FROM messages
+           WHERE accountId = :accountId AND notified = 1 AND seen = 0 AND pendingRemoval = 0"""
+    )
+    suspend fun standingNotifications(accountId: Long): Int
+
+    /**
      * Corpus used to score candidate rules in the rule wizard.
      *
      * The bodies are left behind on purpose. The suggester looks at senders,

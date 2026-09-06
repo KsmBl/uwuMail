@@ -406,7 +406,10 @@ have.
   the rules engine is to handle mail before it asks for attention; finishing
   the job without opening the app is the end of the same idea.
 - One notification channel group per account, with default / silent / high
-  channels so rules can downgrade or mute specific mail.
+  channels so rules can downgrade or mute specific mail. An account's
+  notifications gather under one summary line as soon as there are two of them
+  standing, however far apart they arrived; the summary itself never makes a
+  sound, since the mail under it already did or was deliberately told not to.
 
 <p align="center">
   <img src="docs/screenshots/sync-window.png" width="300"

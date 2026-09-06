@@ -122,9 +122,17 @@ class Notifier(private val context: Context) {
         runCatching { manager.notify(message.id.toInt(), notification) }
     }
 
+    /**
+     * The line that gathers an account's notifications into one group.
+     *
+     * Posted on the silent channel and told to leave the alerting to its
+     * children: the individual notifications have already made whatever sound
+     * their rule asked for, and a summary on the default channel was able to
+     * ring for mail a rule had deliberately silenced.
+     */
     fun postSummary(account: AccountEntity, newCount: Int) {
-        if (newCount <= 0 || !manager.areNotificationsEnabled()) return
-        val summary = NotificationCompat.Builder(context, defaultChannel(account.id))
+        if (!shouldPostSummary(newCount) || !manager.areNotificationsEnabled()) return
+        val summary = NotificationCompat.Builder(context, silentChannel(account.id))
             .setSmallIcon(R.drawable.ic_stat_mail)
             .setContentTitle(account.displayName)
             .setContentText(
@@ -132,11 +140,17 @@ class Notifier(private val context: Context) {
             )
             .setGroup(groupId(account.id))
             .setGroupSummary(true)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+            .setSilent(true)
             .setAutoCancel(true)
             .setContentIntent(openAccountIntent(account.id))
             .build()
         runCatching { manager.notify(SUMMARY_BASE + account.id.toInt(), summary) }
     }
+
+    /** Takes the group line away once there is nothing left under it. */
+    fun cancelSummary(accountId: Long) =
+        manager.cancel(SUMMARY_BASE + accountId.toInt())
 
     fun cancel(messageId: Long) = manager.cancel(messageId.toInt())
 
@@ -184,6 +198,14 @@ class Notifier(private val context: Context) {
     }
 
     companion object {
+        /**
+         * Whether a group summary belongs in the shade.
+         *
+         * One notification groups with nothing, and Android draws a summary
+         * over a single child as a second, emptier copy of it.
+         */
+        fun shouldPostSummary(standing: Int): Boolean = standing > 1
+
         const val CHANNEL_SERVICE = "background_sync"
         private const val SUMMARY_BASE = 1_000_000
 

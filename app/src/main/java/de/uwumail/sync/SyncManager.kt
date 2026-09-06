@@ -459,7 +459,11 @@ class SyncManager(
             db.messageDao().markNotified(listOf(entity.id))
             posted++
         }
-        if (posted > 1) notifier.postSummary(account, posted)
+        if (posted == 0) return
+        // Counted from what is actually still in the shade rather than from this
+        // one batch: push delivers mail a message at a time, so a summary that
+        // waited for two in a single sync was almost never posted at all.
+        notifier.postSummary(account, db.messageDao().standingNotifications(account.id))
     }
 
     private suspend fun syncFlags(account: AccountEntity, folder: FolderEntity) {
