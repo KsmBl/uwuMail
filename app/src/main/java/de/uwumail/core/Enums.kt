@@ -26,6 +26,14 @@ enum class RuleField(@StringRes val label: Int) {
 
     /** Body matching forces a full body fetch during sync, so we track it. */
     val needsBody: Boolean get() = this == BODY
+
+    /**
+     * Attachment names are only known once the message structure has been
+     * read, which the envelope does not carry — so this forces the same fetch
+     * [needsBody] does. Without it the condition matched against nothing and
+     * quietly never fired.
+     */
+    val needsAttachmentNames: Boolean get() = this == ATTACHMENT_NAME
 }
 
 /** How a condition's value is compared against the extracted field text. */

@@ -355,12 +355,23 @@ interface AttachmentDao {
     @Insert
     suspend fun insertAll(items: List<AttachmentEntity>)
 
+    /**
+     * Every stored attachment name, for scoring a rule against cached mail.
+     * Read in one go and grouped in memory: the corpus is thousands of
+     * messages and a query each would be thousands of queries.
+     */
+    @Query("SELECT messageId, fileName FROM attachments WHERE isInline = 0 AND fileName != ''")
+    suspend fun fileNames(): List<AttachmentName>
+
     @Query("DELETE FROM attachments WHERE messageId = :messageId")
     suspend fun clearFor(messageId: Long)
 
     @Update
     suspend fun update(item: AttachmentEntity)
 }
+
+/** One attachment's name against the message carrying it. */
+data class AttachmentName(val messageId: Long, val fileName: String)
 
 @Dao
 interface RuleDao {

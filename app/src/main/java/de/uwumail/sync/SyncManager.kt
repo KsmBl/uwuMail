@@ -274,9 +274,12 @@ class SyncManager(
         notify: Boolean
     ) {
         val rules = db.ruleDao().enabledRules()
-        val needsBody = rules.any { entry ->
-            entry.conditions.any { it.field == de.uwumail.core.RuleField.BODY.name }
-        }
+        val fields = rules.flatMap { entry -> entry.conditions }
+            .mapNotNull { runCatching { de.uwumail.core.RuleField.valueOf(it.field) }.getOrNull() }
+        val needsBody = fields.any { it.needsBody }
+        // Attachment names live in the structure, not the envelope, so a rule
+        // that reads them needs the same fetch a body condition does.
+        val needsAttachmentNames = fields.any { it.needsAttachmentNames }
 
         val archivePath = account.archiveFolder
         val trashPath = account.trashFolder
@@ -296,19 +299,26 @@ class SyncManager(
         for (message in fetched) {
             var entity = message.toEntity(account.id, folder.id)
 
-            if (needsBody) {
+            var attachmentNames = emptyList<String>()
+            if (needsBody || needsAttachmentNames) {
                 runCatching { pool.use(account.id) { it.fetchBody(folder.path, message.uid) } }
                     .getOrNull()?.let { body ->
-                        entity = entity.copy(
-                            bodyPlain = body.plain,
-                            bodyHtml = body.html,
-                            bodyDownloaded = true,
-                            preview = MimeUtil.preview(body.plain, body.html)
-                        )
+                        attachmentNames = body.attachments
+                            .filter { !it.isInline }
+                            .map { it.fileName }
+                            .filter { it.isNotBlank() }
+                        if (needsBody) {
+                            entity = entity.copy(
+                                bodyPlain = body.plain,
+                                bodyHtml = body.html,
+                                bodyDownloaded = true,
+                                preview = MimeUtil.preview(body.plain, body.html)
+                            )
+                        }
                     }
             }
 
-            val ctx = MatchContext.of(entity, folder.path)
+            val ctx = MatchContext.of(entity, folder.path, attachmentNames)
             val plan = ruleEngine.plan(ctx, rules)
             plans[message.uid] = plan
 
@@ -1353,12 +1363,28 @@ class SyncManager(
         val rules = db.ruleDao().enabledRules()
         if (rules.isEmpty()) return 0
 
+        // A rule reading attachment names needs the message structure, which
+        // cached mail only has once it has been opened. Fetching it here is
+        // slow, but a rule that silently matches nothing is worse, and this
+        // runs only when the user asks for it.
+        val needsAttachmentNames = rules.flatMap { it.conditions }
+            .mapNotNull { runCatching { de.uwumail.core.RuleField.valueOf(it.field) }.getOrNull() }
+            .any { it.needsAttachmentNames }
+
         val uids = db.messageDao().uidsIn(folderId)
         var affected = 0
         uids.chunked(100).forEach { chunk ->
             chunk.forEach { uid ->
-                val message = db.messageDao().getByUid(folderId, uid) ?: return@forEach
-                val plan = ruleEngine.plan(MatchContext.of(message, folder.path), rules)
+                var message = db.messageDao().getByUid(folderId, uid) ?: return@forEach
+                if (needsAttachmentNames && !message.bodyDownloaded && !message.isLocal) {
+                    message = runCatching { ensureBody(message.id) }.getOrNull() ?: message
+                }
+                val names = if (needsAttachmentNames) {
+                    db.attachmentDao().forMessage(message.id)
+                        .filter { !it.isInline && it.fileName.isNotBlank() }
+                        .map { it.fileName }
+                } else emptyList()
+                val plan = ruleEngine.plan(MatchContext.of(message, folder.path, names), rules)
                 if (!plan.matched) return@forEach
                 affected++
                 runCatching { applyPlanToExisting(account, folder, message, plan) }

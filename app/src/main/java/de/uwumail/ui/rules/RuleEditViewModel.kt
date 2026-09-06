@@ -138,16 +138,20 @@ class RuleEditViewModel(
         _state.update { it.copy(previewing = true) }
         viewModelScope.launch {
             val current = _state.value
+            val attachmentNames = container.db.attachmentDao().fileNames()
             val result = withContext(Dispatchers.Default) {
                 val corpus = container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
                 val paths = current.folders.associate { it.id to it.path }
+                // So a condition on an attachment name is scored against the
+                // names actually held rather than against nothing at all.
+                val names = attachmentNames.groupBy({ it.messageId }, { it.fileName })
                 val matched = corpus.count { message ->
                     if (current.accountId != null && message.accountId != current.accountId) return@count false
                     val path = paths[message.folderId].orEmpty()
                     if (current.folderPath != null && !current.folderPath.equals(path, true)) return@count false
                     RuleMatcher.matchesAll(
                         current.conditions.filter { it.value.isNotBlank() },
-                        MatchContext.of(message, path),
+                        MatchContext.of(message, path, names[message.id].orEmpty()),
                         current.matchMode == MatchMode.ALL
                     )
                 }
