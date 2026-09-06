@@ -129,6 +129,33 @@ class MessageSearchTest {
     }
 
     @Test
+    fun `a folder search covers recipients`() = runBlocking {
+        put(inboxA, 1, subject = "Nothing", to = "treasurer@club.org")
+
+        val hits = messages.searchInFolder(inboxA, "treasurer", 50).first()
+
+        assertEquals(1, hits.size)
+    }
+
+    @Test
+    fun `a folder search covers the body`() = runBlocking {
+        put(inboxA, 1, subject = "Nothing", body = "the meeting is on Tuesday")
+
+        val hits = messages.searchInFolder(inboxA, "Tuesday", 50).first()
+
+        assertEquals(1, hits.size)
+    }
+
+    @Test
+    fun `the three searches agree on what a word matches`() = runBlocking {
+        put(inboxA, 1, subject = "Nothing", to = "treasurer@club.org")
+
+        assertEquals(1, messages.searchInFolder(inboxA, "treasurer", 50).first().size)
+        assertEquals(1, messages.searchUnified("INBOX", "treasurer", 50).first().size)
+        assertEquals(1, messages.searchEverywhere("treasurer", 50).first().size)
+    }
+
+    @Test
     fun `an empty unified view is not filtered by an unrelated query`() = runBlocking {
         put(inboxA, 1, subject = "Invoice for August")
 

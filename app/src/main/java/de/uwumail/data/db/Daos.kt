@@ -17,6 +17,21 @@ private const val SPAM_FLAG =
           AND (e.pattern = messages.senderDomain OR e.pattern = LOWER(messages.fromAddress))
     ) AS spam"""
 
+/**
+ * What a typed query is matched against.
+ *
+ * Shared by all three searches on purpose: a folder search that quietly covered
+ * less than the global one meant the same words found a mail from one screen and
+ * not from another, which reads as mail having gone missing.
+ */
+private const val TEXT_MATCH =
+    """(subject LIKE '%' || :q || '%' OR
+        fromAddress LIKE '%' || :q || '%' OR
+        fromName LIKE '%' || :q || '%' OR
+        toList LIKE '%' || :q || '%' OR
+        preview LIKE '%' || :q || '%' OR
+        bodyPlain LIKE '%' || :q || '%')"""
+
 private const val SUMMARY_COLUMNS =
     "id, accountId, folderId, uid, subject, fromName, fromAddress, toList, receivedAt, " +
         "seen, flagged, answered, hasAttachments, sizeBytes, preview, isLocal, bodyDownloaded, " +
@@ -181,11 +196,7 @@ interface MessageDao {
     @Query(
         """
         SELECT $SUMMARY_COLUMNS FROM messages
-        WHERE folderId = :folderId AND pendingRemoval = 0 AND (
-            subject LIKE '%' || :q || '%' OR
-            fromAddress LIKE '%' || :q || '%' OR
-            fromName LIKE '%' || :q || '%' OR
-            preview LIKE '%' || :q || '%')
+        WHERE folderId = :folderId AND pendingRemoval = 0 AND $TEXT_MATCH
         ORDER BY receivedAt DESC LIMIT :limit
         """
     )
@@ -201,13 +212,7 @@ interface MessageDao {
         SELECT $SUMMARY_COLUMNS FROM messages
         WHERE pendingRemoval = 0
           AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
-          AND (
-            subject LIKE '%' || :q || '%' OR
-            fromAddress LIKE '%' || :q || '%' OR
-            fromName LIKE '%' || :q || '%' OR
-            toList LIKE '%' || :q || '%' OR
-            preview LIKE '%' || :q || '%' OR
-            bodyPlain LIKE '%' || :q || '%')
+          AND $TEXT_MATCH
         ORDER BY receivedAt DESC LIMIT :limit
         """
     )
@@ -219,13 +224,7 @@ interface MessageDao {
         SELECT $SUMMARY_COLUMNS FROM messages
         WHERE pendingRemoval = 0
           AND folderId IN (SELECT id FROM folders WHERE hidden = 0)
-          AND (
-            subject LIKE '%' || :q || '%' OR
-            fromAddress LIKE '%' || :q || '%' OR
-            fromName LIKE '%' || :q || '%' OR
-            toList LIKE '%' || :q || '%' OR
-            preview LIKE '%' || :q || '%' OR
-            bodyPlain LIKE '%' || :q || '%')
+          AND $TEXT_MATCH
         ORDER BY receivedAt DESC LIMIT :limit
         """
     )
