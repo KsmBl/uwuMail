@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material3.Button
@@ -32,9 +31,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Save
 import de.uwumail.data.db.AttachmentEntity
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material.icons.automirrored.filled.ReplyAll
+import androidx.compose.material.icons.automirrored.filled.Forward
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Reply
@@ -194,6 +198,35 @@ fun MessageScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHost) },
+        bottomBar = {
+            // Answering a message is the commonest thing anyone does with one,
+            // and it was two taps into an overflow menu. Hidden while the
+            // letters are loose, which is not a message to reply to.
+            if (showsReplyBar(hasMessage = message != null, gravity = state.gravity)) {
+                BottomAppBar(actions = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        ReplyAction(
+                            icon = Icons.AutoMirrored.Filled.Reply,
+                            label = stringResource(R.string.reply),
+                            onClick = { onReply(messageId, false) }
+                        )
+                        ReplyAction(
+                            icon = Icons.AutoMirrored.Filled.ReplyAll,
+                            label = stringResource(R.string.reply_all),
+                            onClick = { onReply(messageId, true) }
+                        )
+                        ReplyAction(
+                            icon = Icons.AutoMirrored.Filled.Forward,
+                            label = stringResource(R.string.forward),
+                            onClick = { onForward(messageId) }
+                        )
+                    }
+                })
+            }
+        },
         topBar = {
             Column {
             TopAppBar(
@@ -220,20 +253,6 @@ fun MessageScreen(
                         Icon(Icons.Default.MoreVert, stringResource(R.string.more))
                     }
                     DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.reply)) },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Reply, null) },
-                            onClick = { overflow = false; onReply(messageId, false) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.reply_all)) },
-                            onClick = { overflow = false; onReply(messageId, true) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.forward)) },
-                            onClick = { overflow = false; onForward(messageId) }
-                        )
-                        HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.move_to_folder)) },
                             leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
@@ -662,3 +681,33 @@ private fun AttachmentChip(
         }
     }
 }
+
+/**
+ * One labelled action on the message's bottom bar. The word is under the icon
+ * because "reply" and "reply all" are the same picture at a glance.
+ */
+@Composable
+private fun ReplyAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Icon(icon, contentDescription = null)
+        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+    }
+}
+
+/**
+ * Whether the reply bar belongs on screen.
+ *
+ * Not before the message has loaded, since there is nothing to answer yet, and
+ * not while the letters are falling: a heap on the floor is not a message.
+ */
+fun showsReplyBar(hasMessage: Boolean, gravity: Boolean): Boolean = hasMessage && !gravity
