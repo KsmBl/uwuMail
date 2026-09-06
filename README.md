@@ -569,7 +569,10 @@ app/src/main/java/de/uwumail/
 ## Notes and limits
 
 - HTML bodies render in a WebView with JavaScript, remote loads and file access
-  all disabled — mail is untrusted input. Remote images load only when the
+  all disabled — mail is untrusted input. The one exception is the gravity
+  easter egg, which needs scripting for a single call to measure where the
+  characters sit; the network is shut for the length of that call and both
+  settings are put back however it ends. Remote images load only when the
   banner in that message is tapped, and uwuMail fetches them itself so it can
   refuse the ones that are only there to report the open.
 - Message moves use `COPY` + `\Deleted` + `UID EXPUNGE`, rather than depending on

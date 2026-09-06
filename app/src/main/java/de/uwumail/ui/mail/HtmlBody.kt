@@ -84,9 +84,7 @@ fun HtmlBody(
                 // evaluateJavascript does nothing at all while scripting is
                 // off, so putting the text back has to switch it on for the
                 // one call, exactly as taking the text away did.
-                web.settings.javaScriptEnabled = true
-                web.evaluate(PageGlyphs.showText)
-                web.settings.javaScriptEnabled = allowJavaScript
+                web.withScripting(allowJavaScript) { evaluate(PageGlyphs.showText) }
                 textHidden = false
             }
             return@LaunchedEffect
@@ -97,10 +95,9 @@ fun HtmlBody(
 
         // Scripting was off while the document was parsed, so the message's own
         // scripts never ran and cannot run now; only this measurement does.
-        web.settings.javaScriptEnabled = true
-        val report = web.evaluate(
-            PageGlyphs.measure(glyphLimit, visible.top.toFloat(), visible.bottom.toFloat())
-        )
+        val report = web.withScripting(allowJavaScript) {
+            evaluate(PageGlyphs.measure(glyphLimit, visible.top.toFloat(), visible.bottom.toFloat()))
+        }
         val payload = runCatching { JSONObject(unquote(report)) }.getOrNull()
         val ratio = payload?.optDouble("dpr", 1.0)?.toFloat() ?: 1f
         val glyphs = payload?.optJSONArray("glyphs")?.let { array ->
@@ -116,10 +113,9 @@ fun HtmlBody(
         }.orEmpty()
 
         if (glyphs.isNotEmpty() || pictures.isNotEmpty()) {
-            web.evaluate(PageGlyphs.hideText)
+            web.withScripting(allowJavaScript) { evaluate(PageGlyphs.hideText) }
             textHidden = true
         }
-        web.settings.javaScriptEnabled = allowJavaScript
         currentOnGlyphs(glyphs + pictures)
     }
 
@@ -284,6 +280,31 @@ private fun isBlank(bitmap: Bitmap): Boolean {
 private fun colourSchemeOf(html: String, dark: Boolean): String {
     val scheme = if (dark) "dark light" else "light dark"
     return "<meta name=\"color-scheme\" content=\"$scheme\">" + html
+}
+
+/**
+ * Runs one measurement with scripting on, and shuts the door behind it.
+ *
+ * `evaluateJavascript` does nothing while scripting is off, so measuring the
+ * page means turning it on for the length of one call. The message's own
+ * scripts never ran — the document was parsed with scripting off and inline
+ * script does not re-execute — but a handler on a resource could still fire
+ * inside the window, so the network is closed for the duration and both are put
+ * back afterwards however the call ends.
+ */
+internal suspend fun <T> WebView.withScripting(
+    restoreTo: Boolean,
+    block: suspend WebView.() -> T
+): T {
+    val networkWasBlocked = settings.blockNetworkLoads
+    settings.blockNetworkLoads = true
+    settings.javaScriptEnabled = true
+    return try {
+        block()
+    } finally {
+        settings.javaScriptEnabled = restoreTo
+        settings.blockNetworkLoads = networkWasBlocked
+    }
 }
 
 private suspend fun WebView.evaluate(script: String): String =
