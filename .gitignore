@@ -18,3 +18,6 @@ captures/
 # release signing material
 /keystore/
 /keystore.properties
+
+# Traces pulled off a device while chasing a bug
+wizard-log.txt
