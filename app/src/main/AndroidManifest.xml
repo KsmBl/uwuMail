@@ -44,6 +44,16 @@
                 <data android:scheme="mailto" />
             </intent-filter>
 
+            <!-- A mailto: link on a web page is dispatched as VIEW, not SENDTO,
+                 so without this one uwuMail is not offered for the commonest
+                 way anybody ever opens a mail composer. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="mailto" />
+            </intent-filter>
+
             <!-- OAuth redirect. The scheme must equal the package name, which is
                  what Google's Android OAuth client type expects. -->
             <intent-filter>
