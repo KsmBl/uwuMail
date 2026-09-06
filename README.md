@@ -329,6 +329,10 @@ have.
 - Tapping a message in Drafts reopens it in the composer where it can be
   finished, not in the reader where it can only be looked at. Saving again
   replaces the earlier copy; sending deletes the draft it grew from.
+- **Whatever was attached comes back with it**, so a draft finished later is the
+  message you left rather than the message minus its files. Forwarding carries
+  the attachments on for the same reason; the inline pictures a body draws with
+  `cid:` stay where they belong, in the quoted body.
 - The old copy goes only once the new one has been accepted, so a failure
   halfway leaves the earlier draft rather than nothing at all.
 - Saving needs no SMTP password: the draft goes to the IMAP server.

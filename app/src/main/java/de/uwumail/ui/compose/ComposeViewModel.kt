@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import de.uwumail.R
 import de.uwumail.core.Json
 import de.uwumail.data.db.AccountEntity
+import de.uwumail.data.db.AttachmentEntity
 import de.uwumail.data.db.IdentityEntity
 import de.uwumail.data.db.OutboxEntity
 import de.uwumail.data.repo.IdentitySaveResult
@@ -146,6 +147,10 @@ class ComposeViewModel(
         val body = message.bodyPlain
             ?: message.bodyHtml?.let { MimeUtil.htmlToText(it) }
             ?: ""
+        // Everything the draft was carrying comes back with it. Without this a
+        // draft reopened and saved again was a draft with its attachments
+        // quietly removed.
+        val carried = carriedAttachments(messageId)
         _state.update {
             it.copy(
                 accountId = message.accountId,
@@ -157,10 +162,26 @@ class ComposeViewModel(
                 subject = message.subject,
                 body = body,
                 showCcBcc = message.ccList.isNotBlank() || message.bccList.isNotBlank(),
-                editingDraftId = messageId
+                editingDraftId = messageId,
+                attachments = carried
             )
         }
     }
+
+    /**
+     * The parts a reopened draft or a forwarded message takes with it, fetched
+     * and written to disk so they travel like any other picked file.
+     *
+     * The originals are left alone: these are copies in the app's own storage,
+     * and the outbox refers to them by path.
+     */
+    private suspend fun carriedAttachments(messageId: Long): List<PendingAttachment> =
+        carriedParts(container.db.attachmentDao().forMessage(messageId))
+            .mapNotNull { part ->
+                val file = runCatching { container.syncManager.downloadAttachment(part.id) }
+                    .getOrNull() ?: return@mapNotNull null
+                PendingAttachment(part.fileName, file.absolutePath, file.length())
+            }
 
     /**
      * Copies a picked file somewhere the sender can reach it.
@@ -273,9 +294,13 @@ class ComposeViewModel(
         val message = container.syncManager.ensureBody(messageId)
             ?: container.db.messageDao().get(messageId) ?: return
         val text = message.bodyPlain ?: message.bodyHtml?.let(MimeUtil::htmlToText).orEmpty()
+        // Forwarding a message without what was attached to it forwards half of
+        // it, and the half that is usually the point.
+        val carried = carriedAttachments(messageId)
         _state.update {
             it.copy(
                 accountId = message.accountId,
+                attachments = it.attachments + carried,
                 subject = if (message.subject.startsWith("Fwd:", true)) message.subject
                 else "Fwd: ${message.subject}",
                 body = it.body + "\n\n" + container.appContext.getString(R.string.forwarded_separator) + "\n" +
@@ -449,8 +474,19 @@ class ComposeViewModel(
         }
     }
 
-    private companion object {
-        val dateFormat = SimpleDateFormat("EEE, d MMM yyyy 'at' HH:mm", Locale.getDefault())
+    companion object {
+        private val dateFormat =
+            SimpleDateFormat("EEE, d MMM yyyy 'at' HH:mm", Locale.getDefault())
+
+        /**
+         * Which of a message's stored parts go out with it again.
+         *
+         * Inline parts are the pictures the body draws with `cid:` references —
+         * they belong to the markup being quoted, not beside it — and a part
+         * with no filename is not something anyone asked to send on.
+         */
+        fun carriedParts(parts: List<AttachmentEntity>): List<AttachmentEntity> =
+            parts.filter { !it.isInline && it.fileName.isNotBlank() }
     }
 }
 
