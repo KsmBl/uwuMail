@@ -312,6 +312,16 @@ have.
   `MAIL FROM` tracks the From header or stays on the account address, since some
   servers require one or the other.
 
+### The outbox
+
+- **A send that cannot get through is queued, not lost.** Press send on a train
+  and the message goes to the outbox with its attachments and the draft it was
+  written in; every sync tries again, and *Settings → Retry outbox* tries now
+  and says how many went.
+- The draft it grew from is kept until the message is actually accepted. Until
+  then the draft is the only copy, and deleting it first is how the only copy
+  disappears.
+
 ## Drafts
 
 - **Save an unfinished message** to the account's Drafts folder, and leaving the

@@ -78,7 +78,6 @@
     <string name="sync_now">Sync all accounts now</string>
     <string name="sync_queued">Sync queued</string>
     <string name="outbox_retry">Retry outbox</string>
-    <string name="outbox_flushed">Outbox flushed</string>
     <string name="outbox_empty">Nothing waiting to send</string>
     <string name="section_window">When to check for mail</string>
     <string name="section_spam">Spam lists</string>
@@ -590,4 +589,12 @@
     <string name="wizard_log_share">Share the log</string>
     <string name="wizard_log_path">Written to %1$s</string>
     <string name="error_action_failed">Could not complete that: %1$s</string>
+    <string name="outbox_queued">No connection — waiting in the outbox</string>
+    <string name="error_failed">Failed: %1$s</string>
+    <string name="outbox_still_waiting">Still waiting — will go when there is a connection</string>
+    <string name="outbox_sent">Sent %1$d</string>
+    <plurals name="outbox_waiting">
+        <item quantity="one">%1$d message waiting</item>
+        <item quantity="other">%1$d messages waiting</item>
+    </plurals>
 </resources>

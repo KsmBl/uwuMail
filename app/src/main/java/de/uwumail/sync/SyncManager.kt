@@ -1282,24 +1282,63 @@ class SyncManager(
 
     // ------------------------------------------------------------- outgoing
 
-    suspend fun sendOutbox() {
+    /**
+     * Works through everything waiting to go out. Returns how many left.
+     *
+     * A queued message is one the user has already pressed send on, so this
+     * keeps trying: it runs after every sync and whenever the outbox screen
+     * asks. What it must not do is send twice, so the row goes before anything
+     * else can look at it again.
+     */
+    suspend fun sendOutbox(): Int {
+        var sent = 0
         db.outboxDao().pending().forEach { item ->
             val account = db.accountDao().get(item.accountId) ?: return@forEach
-            val secret = runCatching { tokenStore.smtpSecret(account) }.getOrNull()
-                ?: return@forEach
+            val secret = runCatching { tokenStore.smtpSecret(account) }
+                .getOrElse { error ->
+                    db.outboxDao().update(
+                        item.copy(
+                            attempts = item.attempts + 1,
+                            lastError = error.message ?: error.toString()
+                        )
+                    )
+                    return@forEach
+                }
             runCatching { smtp.send(account, secret, item) }
                 .onSuccess { raw ->
-                    account.sentFolder?.let { sent ->
-                        runCatching { pool.use(account.id) { it.append(sent, raw, seen = true) } }
-                    }
                     db.outboxDao().delete(item.id)
+                    sent++
+                    account.sentFolder?.let { folder ->
+                        runCatching { pool.use(account.id) { it.append(folder, raw, seen = true) } }
+                    }
+                    // Only now is the draft finished with: until the message
+                    // was actually accepted it was the only copy.
+                    item.draftMessageId?.let { draft ->
+                        runCatching { deletePermanently(listOf(draft), allowUndo = false) }
+                    }
+                    // The copies were only ever there to be sent.
+                    item.attachmentPaths.split('\n')
+                        .mapNotNull { it.trim().takeIf(String::isNotEmpty) }
+                        .forEach { path ->
+                            runCatching {
+                                val file = File(path)
+                                file.delete()
+                                file.parentFile
+                                    ?.takeIf { it.parentFile?.name == "outgoing" }
+                                    ?.delete()
+                            }
+                        }
                 }
                 .onFailure { error ->
                     db.outboxDao().update(
-                        item.copy(attempts = item.attempts + 1, lastError = error.message)
+                        item.copy(
+                            attempts = item.attempts + 1,
+                            lastError = error.message ?: error.toString()
+                        )
                     )
                 }
         }
+        return sent
     }
 
     // ------------------------------------------------------- retroactive rules

@@ -76,7 +76,6 @@
     <string name="sync_now">Alle Konten jetzt abgleichen</string>
     <string name="sync_queued">Abgleich eingereiht</string>
     <string name="outbox_retry">Postausgang erneut senden</string>
-    <string name="outbox_flushed">Postausgang geleert</string>
     <string name="outbox_empty">Nichts zu senden</string>
     <string name="section_window">Wann nach Mail gesehen wird</string>
     <string name="section_spam">Spam-Listen</string>
@@ -588,4 +587,12 @@
     <string name="wizard_log_share">Protokoll teilen</string>
     <string name="wizard_log_path">Gespeichert unter %1$s</string>
     <string name="error_action_failed">Das ging nicht: %1$s</string>
+    <string name="outbox_queued">Keine Verbindung — wartet im Postausgang</string>
+    <string name="error_failed">Fehlgeschlagen: %1$s</string>
+    <string name="outbox_still_waiting">Wartet weiter — geht raus, sobald eine Verbindung besteht</string>
+    <string name="outbox_sent">%1$d gesendet</string>
+    <plurals name="outbox_waiting">
+        <item quantity="one">%1$d Nachricht wartet</item>
+        <item quantity="other">%1$d Nachrichten warten</item>
+    </plurals>
 </resources>

@@ -44,6 +44,8 @@ data class ComposeUiState(
     val showCcBcc: Boolean = false,
     val sending: Boolean = false,
     val sent: Boolean = false,
+    /** Handed to the outbox because it could not go out now. */
+    val queued: Boolean = false,
     /** The draft this was opened from, which a save replaces. */
     val attachments: List<PendingAttachment> = emptyList(),
     val editingDraftId: Long? = null,
@@ -61,7 +63,7 @@ data class ComposeUiState(
 
     val canSaveDraft: Boolean get() = hasContent && account?.draftsFolder != null
 
-    /** The one shape both sending and saving a draft need. */
+    /** The one shape sending, queueing and saving a draft all need. */
     fun toOutbox() = OutboxEntity(
         accountId = accountId,
         identityId = null,
@@ -77,7 +79,8 @@ data class ComposeUiState(
         attachmentPaths = attachments.joinToString("\n") { it.path },
         inReplyTo = inReplyTo,
         references = references,
-        createdAt = System.currentTimeMillis()
+        createdAt = System.currentTimeMillis(),
+        draftMessageId = editingDraftId
     )
     val accountIdentities: List<IdentityEntity> get() = identities.filter { it.accountId == accountId }
     val canSend: Boolean
@@ -397,16 +400,26 @@ class ComposeViewModel(
         }
     }
 
+    /**
+     * Sends now if it can, and hands the message to the outbox if it cannot.
+     *
+     * A send that fails on a train is not a send that failed, and a composer
+     * that hands the message back with an error is a message that only exists
+     * as long as the screen does. The queued copy carries its own attachments
+     * and the draft it grew from, so nothing here has to be held in memory
+     * until the network comes back.
+     */
     fun send() {
         val current = _state.value
         if (!current.canSend) return
         _state.update { it.copy(sending = true, error = null) }
         viewModelScope.launch {
+            val item = current.toOutbox()
             runCatching {
                 val account = container.db.accountDao().get(current.accountId)
                     ?: error(container.appContext.getString(R.string.error_no_account))
                 val secret = container.accountRepository.smtpSecret(account)
-                val raw = container.smtpSender.send(account, secret, current.toOutbox())
+                val raw = container.smtpSender.send(account, secret, item)
                 account.sentFolder?.let { sent ->
                     runCatching {
                         container.imapPool.use(account.id) { it.append(sent, raw, seen = true) }
@@ -420,9 +433,18 @@ class ComposeViewModel(
                 // The copies were only ever there to be sent.
                 current.attachments.forEach { runCatching { discard(it) } }
                 _state.update { it.copy(sending = false, sent = true) }
-            }.onFailure { e ->
-                // Keep the draft; queue it so the user can retry from the outbox.
-                _state.update { it.copy(sending = false, error = e.message ?: e.toString()) }
+            }.onFailure { failure ->
+                // The attachments are deliberately left on disk: the queued copy
+                // refers to them by path and needs them when its turn comes.
+                runCatching {
+                    container.db.outboxDao().insert(
+                        item.copy(lastError = failure.message ?: failure.toString(), attempts = 1)
+                    )
+                }.onSuccess {
+                    _state.update { it.copy(sending = false, queued = true) }
+                }.onFailure { e ->
+                    _state.update { it.copy(sending = false, error = e.message ?: e.toString()) }
+                }
             }
         }
     }

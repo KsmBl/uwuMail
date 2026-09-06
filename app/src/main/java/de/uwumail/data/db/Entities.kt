@@ -293,7 +293,14 @@ data class OutboxEntity(
     val references: String? = null,
     val createdAt: Long,
     val lastError: String? = null,
-    val attempts: Int = 0
+    val attempts: Int = 0,
+    /**
+     * The draft this was written in, if any. Kept so the draft can be cleared
+     * when the message actually goes out rather than when it was handed over:
+     * a queued message has not been sent yet, and deleting the draft first is
+     * how the only copy disappears.
+     */
+    val draftMessageId: Long? = null
 )
 
 /**

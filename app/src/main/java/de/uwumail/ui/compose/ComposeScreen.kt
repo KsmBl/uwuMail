@@ -50,8 +50,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
@@ -87,6 +89,10 @@ fun ComposeScreen(
     var identityMenu by remember { mutableStateOf(false) }
     var identityToDelete by remember { mutableStateOf<IdentityEntity?>(null) }
 
+    val context = LocalContext.current
+    val queuedMessage = stringResource(R.string.outbox_queued)
+    val failedPrefix = stringResource(R.string.error_failed)
+
     var confirmLeave by remember { mutableStateOf(false) }
     val pickFile = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -94,6 +100,14 @@ fun ComposeScreen(
 
     LaunchedEffect(state.sent) { if (state.sent) onDone() }
     LaunchedEffect(state.savedDraft) { if (state.savedDraft) onDone() }
+    // A message that could not go out now is waiting rather than lost, and the
+    // toast outlives this screen where a snackbar on it would not.
+    LaunchedEffect(state.queued) {
+        if (state.queued) {
+            Toast.makeText(context, queuedMessage, Toast.LENGTH_LONG).show()
+            onDone()
+        }
+    }
 
     // Leaving with something written should not throw it away silently.
     fun leave() {
@@ -101,7 +115,7 @@ fun ComposeScreen(
     }
     BackHandler(enabled = state.canSaveDraft) { confirmLeave = true }
     LaunchedEffect(state.error, state.status) {
-        val message = state.error?.let { "Failed: $it" } ?: state.status
+        val message = state.error?.let { failedPrefix.format(it) } ?: state.status
         if (message != null) {
             snackbarHost.showSnackbar(message)
             viewModel.clearStatus()

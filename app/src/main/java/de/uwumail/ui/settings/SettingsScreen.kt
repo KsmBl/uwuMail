@@ -43,6 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +68,8 @@ fun SettingsScreen(onBack: () -> Unit, onManageBlocked: () -> Unit) {
     val notificationsEnabled = stringResource(R.string.notif_enabled)
     val notificationsDenied = stringResource(R.string.notif_denied)
     val syncQueued = stringResource(R.string.sync_queued)
-    val outboxFlushed = stringResource(R.string.outbox_flushed)
+    val outboxStillWaiting = stringResource(R.string.outbox_still_waiting)
+    val outboxSentFormat = stringResource(R.string.outbox_sent)
     val ruleLogCleared = stringResource(R.string.rule_log_cleared)
 
     val notificationPermission = rememberLauncherForActivityResult(
@@ -155,8 +157,12 @@ fun SettingsScreen(onBack: () -> Unit, onManageBlocked: () -> Unit) {
                 ListItem(
                     modifier = Modifier.clickable {
                         scope.launch {
-                            container.syncManager.sendOutbox()
-                            snackbarHost.showSnackbar(outboxFlushed)
+                            val sent = runCatching { container.syncManager.sendOutbox() }
+                                .getOrDefault(0)
+                            snackbarHost.showSnackbar(
+                                if (sent == 0) outboxStillWaiting
+                                else outboxSentFormat.format(sent)
+                            )
                         }
                     },
                     leadingContent = { Icon(Icons.Default.Outbox, null) },
@@ -164,7 +170,9 @@ fun SettingsScreen(onBack: () -> Unit, onManageBlocked: () -> Unit) {
                     supportingContent = {
                         Text(
                             if (outboxCount == 0) stringResource(R.string.outbox_empty)
-                            else "$outboxCount message(s) waiting"
+                            else pluralStringResource(
+                                R.plurals.outbox_waiting, outboxCount, outboxCount
+                            )
                         )
                     }
                 )
