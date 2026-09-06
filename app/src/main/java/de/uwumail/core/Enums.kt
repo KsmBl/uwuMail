@@ -101,3 +101,16 @@ enum class SwipeAction(val label: String) {
             entries.firstOrNull { it.name == name } ?: NONE
     }
 }
+
+/** Which colours the app wears. */
+enum class AppTheme(val label: String) {
+    SYSTEM("Follow the system"),
+    LIGHT("Light"),
+    DARK("Dark"),
+    MOCHA("Catppuccin Mocha");
+
+    companion object {
+        /** Tolerates a name that is no longer known, rather than losing the setting. */
+        fun of(name: String?): AppTheme = entries.firstOrNull { it.name == name } ?: SYSTEM
+    }
+}

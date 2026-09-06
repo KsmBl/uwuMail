@@ -1,6 +1,7 @@
 package de.uwumail.data.settings
 
 import android.content.Context
+import de.uwumail.core.AppTheme
 import de.uwumail.core.SwipeAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,7 @@ class SettingsStore(context: Context) {
             putBoolean(FILTER_TINY, next.filterTinyImages)
             putInt(MIN_WIDTH, next.minImageWidth)
             putInt(MIN_HEIGHT, next.minImageHeight)
+            putString(THEME, next.theme.name)
             putString(SWIPE_RIGHT, next.swipeRight.name)
             putString(SWIPE_LEFT, next.swipeLeft.name)
             putBoolean(GRAVITY, next.gravityUnlocked)
@@ -57,6 +59,7 @@ class SettingsStore(context: Context) {
             filterTinyImages = prefs.getBoolean(FILTER_TINY, defaults.filterTinyImages),
             minImageWidth = prefs.getInt(MIN_WIDTH, defaults.minImageWidth),
             minImageHeight = prefs.getInt(MIN_HEIGHT, defaults.minImageHeight),
+            theme = prefs.getString(THEME, null)?.let(AppTheme::of) ?: defaults.theme,
             swipeRight = prefs.getString(SWIPE_RIGHT, null)
                 ?.let(SwipeAction::of) ?: defaults.swipeRight,
             swipeLeft = prefs.getString(SWIPE_LEFT, null)
@@ -81,6 +84,7 @@ class SettingsStore(context: Context) {
         const val FILTER_TINY = "filter_tiny_images"
         const val MIN_WIDTH = "min_image_width"
         const val MIN_HEIGHT = "min_image_height"
+        const val THEME = "app_theme"
         const val SWIPE_RIGHT = "swipe_right_action"
         const val SWIPE_LEFT = "swipe_left_action"
         const val GRAVITY = "gravity_unlocked"

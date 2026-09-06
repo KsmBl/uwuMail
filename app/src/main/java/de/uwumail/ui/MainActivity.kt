@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -39,7 +40,10 @@ class MainActivity : ComponentActivity() {
         val container = (application as UwuMailApp).container
 
         setContent {
-            UwuMailTheme {
+            // The theme is a setting, so it has to be read before it is applied
+            // — the container is provided inside so everything else can reach it.
+            val settings by container.settings.state.collectAsState()
+            UwuMailTheme(theme = settings.theme) {
                 CompositionLocalProvider(LocalAppContainer provides container) {
                     // Land on the account setup flow until there is something to show.
                     val accountCount by produceState(initialValue = -1) {

@@ -1,5 +1,6 @@
 package de.uwumail.data.settings
 
+import de.uwumail.core.AppTheme
 import de.uwumail.core.SwipeAction
 import java.util.Calendar
 
@@ -30,6 +31,9 @@ data class AppSettings(
     val filterTinyImages: Boolean = true,
     val minImageWidth: Int = 10,
     val minImageHeight: Int = 10,
+
+    /** Which colours the app wears. */
+    val theme: AppTheme = AppTheme.SYSTEM,
 
     /**
      * What a swipe across a message in the list does, per direction. The

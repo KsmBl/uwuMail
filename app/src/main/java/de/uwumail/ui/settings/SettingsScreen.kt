@@ -86,7 +86,10 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
     ) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {
-            item { SectionHeader("Notifications") }
+            item { SectionHeader("Appearance") }
+            item { AppearanceSection() }
+
+            item { HorizontalDivider(); SectionHeader("Notifications") }
             item {
                 ListItem(
                     modifier = Modifier.clickable {
