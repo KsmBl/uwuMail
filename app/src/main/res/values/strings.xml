@@ -476,4 +476,11 @@
     <string name="search_all_folders">Search every folder</string>
     <string name="search_on_server">Also search the server</string>
     <string name="search_results">Search results</string>
+
+    <!-- Blocked senders -->
+    <string name="blocked_count">%1$d blocked</string>
+    <string name="blocked_filter">Filter</string>
+    <string name="blocked_none">Nothing blocked</string>
+    <string name="blocked_unblock">Unblock</string>
+    <string name="blocked_manage">Manage blocked senders</string>
 </resources>

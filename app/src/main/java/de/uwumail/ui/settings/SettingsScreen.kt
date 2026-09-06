@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onManageBlocked: () -> Unit) {
     val container = LocalAppContainer.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -175,7 +175,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
             item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_spam)) }
             item {
-                SpamListsSection { message ->
+                SpamListsSection(onManageBlocked = onManageBlocked) { message ->
                     scope.launch { snackbarHost.showSnackbar(message) }
                 }
             }

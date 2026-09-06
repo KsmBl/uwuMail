@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ListItem
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
@@ -47,7 +50,7 @@ import kotlinx.coroutines.launch
  * mail is still there, just flagged.
  */
 @Composable
-fun SpamListsSection(onMessage: (String) -> Unit) {
+fun SpamListsSection(onManageBlocked: () -> Unit, onMessage: (String) -> Unit) {
     val container = LocalAppContainer.current
     val repository = container.blocklistRepository
     val scope = rememberCoroutineScope()
@@ -156,42 +159,23 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = { addingSender = true }) {
-                Icon(Icons.Default.Add, null)
-                Text(" Add")
-            }
         }
-        if (manualEntries.isEmpty()) {
-            Text(
-                stringResource(R.string.spam_blocked_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-        } else {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                manualEntries.take(12).forEach { pattern ->
-                    AssistChip(
-                        onClick = { scope.launch { repository.unblockSender(pattern) } },
-                        label = { Text(pattern) },
-                        trailingIcon = { Icon(Icons.Default.Close, "Unblock $pattern") }
-                    )
-                }
-            }
-            if (manualEntries.size > 12) {
+        ListItem(
+            modifier = Modifier.clickable(onClick = onManageBlocked),
+            headlineContent = { Text(stringResource(R.string.blocked_manage)) },
+            supportingContent = {
                 Text(
-                    "and ${manualEntries.size - 12} more",
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    if (manualEntries.isEmpty()) stringResource(R.string.spam_blocked_hint)
+                    else stringResource(R.string.blocked_count, manualEntries.size)
                 )
+            },
+            trailingContent = {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
             }
-        }
+        )
     }
 
-    // Read outside the coroutines below, which are not composable.
+    // Read outside the coroutine below, which is not composable.
     val listAdded = stringResource(R.string.spam_list_added)
     if (addingList) {
         TextPromptDialog(

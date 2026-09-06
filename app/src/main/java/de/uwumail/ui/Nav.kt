@@ -24,6 +24,7 @@ import de.uwumail.ui.mail.MessageScreen
 import de.uwumail.ui.rules.RuleEditScreen
 import de.uwumail.ui.rules.RuleWizardScreen
 import de.uwumail.ui.rules.RulesScreen
+import de.uwumail.ui.settings.BlockedSendersScreen
 import de.uwumail.ui.settings.SettingsScreen
 
 object Routes {
@@ -37,6 +38,7 @@ object Routes {
     const val RULE_EDIT = "ruleEdit"
     const val WIZARD = "wizard"
     const val SETTINGS = "settings"
+    const val BLOCKED = "blocked"
 }
 
 @Composable
@@ -234,7 +236,14 @@ fun UwuMailNavHost(
         }
 
         composable(Routes.SETTINGS) { entry ->
-            SettingsScreen(onBack = { navController.leave(entry) })
+            SettingsScreen(
+                onBack = { navController.leave(entry) },
+                onManageBlocked = { navController.go(entry, Routes.BLOCKED) }
+            )
+        }
+
+        composable(Routes.BLOCKED) { entry ->
+            BlockedSendersScreen(onBack = { navController.leave(entry) })
         }
     }
 }

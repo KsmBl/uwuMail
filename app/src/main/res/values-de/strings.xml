@@ -474,4 +474,11 @@
     <string name="search_all_folders">In allen Ordnern suchen</string>
     <string name="search_on_server">Auch auf dem Server suchen</string>
     <string name="search_results">Suchergebnisse</string>
+
+    <!-- Blocked senders -->
+    <string name="blocked_count">%1$d blockiert</string>
+    <string name="blocked_filter">Filtern</string>
+    <string name="blocked_none">Nichts blockiert</string>
+    <string name="blocked_unblock">Freigeben</string>
+    <string name="blocked_manage">Blockierte Absender verwalten</string>
 </resources>
