@@ -19,6 +19,9 @@ securityCrypto = "1.1.0-alpha06"
 browser = "1.8.0"
 appcompat = "1.7.0"
 webkit = "1.12.1"
+robolectric = "4.13"
+composeUiTest = "1.7.5"
+navigationTesting = "2.8.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +51,10 @@ javamail-android-mail = { group = "com.sun.mail", name = "android-mail", version
 javamail-android-activation = { group = "com.sun.mail", name = "android-activation", version.ref = "javamail" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "composeUiTest" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "composeUiTest" }
+androidx-navigation-testing = { group = "androidx.navigation", name = "navigation-testing", version.ref = "navigationTesting" }
 json = { group = "org.json", name = "json", version.ref = "json" }
 
 [plugins]

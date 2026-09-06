@@ -116,6 +116,7 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -155,6 +156,12 @@ dependencies {
     implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
+    // Runs the Compose and navigation tests on the JVM. A navigation bug that
+    // empties the back stack cannot be caught by testing pure functions.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.navigation.testing)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     // Android ships org.json as stubs; the real implementation lets the rule
     // engine's header parsing run under plain JVM tests.
     testImplementation(libs.json)
