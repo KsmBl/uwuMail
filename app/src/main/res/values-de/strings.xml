@@ -481,4 +481,8 @@
     <string name="blocked_none">Nichts blockiert</string>
     <string name="blocked_unblock">Freigeben</string>
     <string name="blocked_manage">Blockierte Absender verwalten</string>
+
+    <!-- Undo stack -->
+    <string name="dismiss">Schließen</string>
+    <string name="swipe_select">Auswählen</string>
 </resources>

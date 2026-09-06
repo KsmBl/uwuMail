@@ -41,7 +41,7 @@ data class AppSettings(
      * [SwipeAction.NONE] to turn that direction off.
      */
     val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
-    val swipeLeft: SwipeAction = SwipeAction.TRASH,
+    val swipeLeft: SwipeAction = SwipeAction.SELECT,
 
     /** Set by the easter egg; until then the gravity menu entry does not exist. */
     val gravityUnlocked: Boolean = false,

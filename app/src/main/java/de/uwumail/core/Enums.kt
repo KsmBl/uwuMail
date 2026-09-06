@@ -80,6 +80,7 @@ enum class ActionType(@StringRes val label: Int, val needsTargetFolder: Boolean 
  */
 enum class SwipeAction(@StringRes val label: Int) {
     NONE(R.string.swipe_none),
+    SELECT(R.string.swipe_select),
     TOGGLE_READ(R.string.swipe_toggle_read),
     TOGGLE_STAR(R.string.swipe_toggle_star),
     ARCHIVE(R.string.swipe_archive),
@@ -97,6 +98,13 @@ enum class SwipeAction(@StringRes val label: Int) {
 
     /** A swipe is easy to do by accident, and this one cannot be undone. */
     val needsConfirmation: Boolean get() = this == DELETE
+
+    /**
+     * Whether this still makes sense once messages are being picked out.
+     * Selecting more of them does; archiving one of them, while others are
+     * selected and untouched, does not.
+     */
+    val worksWhileSelecting: Boolean get() = this == SELECT || this == NONE
 
     companion object {
         /** Tolerates a name that is no longer known, rather than losing the setting. */

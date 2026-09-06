@@ -50,4 +50,22 @@ class SwipeActionTest {
         SwipeAction.entries.forEach { assertTrue(it.name, it.label != 0) }
         assertEquals(SwipeAction.entries.size, SwipeAction.entries.map { it.label }.toSet().size)
     }
+
+    @Test
+    fun `selecting is the only thing worth swiping while selecting`() {
+        assertTrue(SwipeAction.SELECT.worksWhileSelecting)
+        // Nothing is still nothing.
+        assertTrue(SwipeAction.NONE.worksWhileSelecting)
+        // Acting on one row while others sit selected and untouched does not.
+        listOf(
+            SwipeAction.ARCHIVE, SwipeAction.TRASH, SwipeAction.DELETE,
+            SwipeAction.MOVE, SwipeAction.TOGGLE_READ, SwipeAction.TOGGLE_STAR
+        ).forEach { assertFalse(it.name, it.worksWhileSelecting) }
+    }
+
+    @Test
+    fun `selecting leaves the row where it is`() {
+        assertFalse(SwipeAction.SELECT.carriesRowAway)
+        assertFalse(SwipeAction.SELECT.needsConfirmation)
+    }
 }

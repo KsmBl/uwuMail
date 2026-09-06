@@ -71,11 +71,15 @@ data class MailUiState(
     val busy: Boolean = false,
     val error: String? = null,
     val status: String? = null,
-    /** Set while a removal can still be taken back; the snackbar offers it. */
-    val undo: Undoable? = null,
+    /**
+     * Removals that can still be taken back, oldest first. Several can be in
+     * flight at once — swiping through a few messages is exactly how — so they
+     * stack rather than replacing one another.
+     */
+    val undos: List<Undoable> = emptyList(),
     /** What a swipe across a row does, per direction. */
     val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
-    val swipeLeft: SwipeAction = SwipeAction.TRASH
+    val swipeLeft: SwipeAction = SwipeAction.SELECT
 ) {
     val inSelectionMode: Boolean get() = selection.isNotEmpty()
 
@@ -111,7 +115,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         val pending: Int = 0,
         val error: String? = null,
         val status: String? = null,
-        val undo: Undoable? = null
+        val undos: List<Undoable> = emptyList()
     ) {
         val busy: Boolean get() = pending > 0
     }
@@ -162,7 +166,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             busy = rest.extra.busy,
             error = rest.extra.error,
             status = rest.extra.status,
-            undo = rest.extra.undo,
+            undos = rest.extra.undos,
             swipeRight = rest.settings.swipeRight,
             swipeLeft = rest.settings.swipeLeft
         )
@@ -189,7 +193,13 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         // to spend them differently.
         viewModelScope.launch {
             container.syncManager.undoable.collect { offer ->
-                transient.update { it.copy(undo = offer, status = null, error = null) }
+                transient.update { it.copy(undos = it.undos + offer) }
+                // Each one goes when its own window closes, not when the next
+                // arrives: they were started at different moments.
+                launch {
+                    delay(SyncManager.UNDO_WINDOW_MILLIS)
+                    dismissUndo(offer.token)
+                }
             }
         }
 
@@ -414,6 +424,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
      */
     fun applySwipe(message: MessageSummary, action: SwipeAction) {
         when (action) {
+            SwipeAction.SELECT -> toggleSelection(message.id)
             SwipeAction.TOGGLE_READ -> toggleSeen(message.id, !message.seen)
             SwipeAction.TOGGLE_STAR -> toggleStar(message.id, !message.flagged)
             SwipeAction.ARCHIVE -> removeOne(message.id) { container.syncManager.archive(it) }
@@ -434,13 +445,15 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
     private fun removeOne(messageId: Long, block: suspend (List<Long>) -> Unit) =
         launchGuarded { block(listOf(messageId)) }
 
-    fun clearStatus() = transient.update { it.copy(status = null, error = null, undo = null) }
+    fun clearStatus() = transient.update { it.copy(status = null, error = null) }
 
     fun undo(token: Long) {
-        transient.update { it.copy(undo = null) }
-        launchGuarded {
-            if (!container.syncManager.undo(token)) report("Too late to undo that")
-        }
+        dismissUndo(token)
+        launchGuarded { container.syncManager.undo(token) }
+    }
+
+    fun dismissUndo(token: Long) = transient.update { current ->
+        current.copy(undos = current.undos.filterNot { it.token == token })
     }
 
     /** Returns true only the first time, so the screen knows when to say so. */

@@ -69,7 +69,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -168,24 +170,11 @@ fun MailScreen(
     var showSearch by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.status, state.error, state.undo) {
-        val offer = state.undo
+    LaunchedEffect(state.status, state.error) {
         val message = state.error?.let { "Error: $it" } ?: state.status
-        when {
-            offer != null -> {
-                val result = snackbarHost.showSnackbar(
-                    message = undoMessage(offer),
-                    actionLabel = undoLabel,
-                    withDismissAction = false,
-                    duration = SnackbarDuration.Short
-                )
-                if (result == SnackbarResult.ActionPerformed) viewModel.undo(offer.token)
-                else viewModel.clearStatus()
-            }
-            message != null -> {
-                snackbarHost.showSnackbar(message)
-                viewModel.clearStatus()
-            }
+        if (message != null) {
+            snackbarHost.showSnackbar(message)
+            viewModel.clearStatus()
         }
     }
 
@@ -265,7 +254,29 @@ fun MailScreen(
         }
     ) {
         Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHost) },
+            snackbarHost = {
+                // The undo offers stack above the ordinary snackbar: several
+                // removals can be waiting at once, and each is a separate
+                // question with its own few seconds to answer it.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.undos.forEach { offer ->
+                        Snackbar(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            action = {
+                                TextButton(onClick = { viewModel.undo(offer.token) }) {
+                                    Text(undoLabel, color = MaterialTheme.colorScheme.inversePrimary)
+                                }
+                            },
+                            dismissAction = {
+                                IconButton(onClick = { viewModel.dismissUndo(offer.token) }) {
+                                    Icon(Icons.Default.Close, stringResource(R.string.dismiss))
+                                }
+                            }
+                        ) { Text(undoMessage(offer)) }
+                    }
+                    SnackbarHost(snackbarHost)
+                }
+            },
             topBar = {
                 Column {
                 if (state.inSelectionMode) {
@@ -462,13 +473,21 @@ fun MailScreen(
                             stickyHeader(key = section.dayStart) { DayHeader(section.label) }
                             items(section.messages, key = { it.id }) { message ->
                                 SwipeableMessageRow(
-                                    rightAction = state.swipeRight,
-                                    leftAction = state.swipeLeft,
+                                    // While messages are being picked out, only
+                                    // swipes that pick out more of them still
+                                    // make sense: archiving one row while others
+                                    // sit selected and untouched does not.
+                                    rightAction = state.swipeRight
+                                        .takeIf {
+                                            !state.inSelectionMode || it.worksWhileSelecting
+                                        } ?: SwipeAction.NONE,
+                                    leftAction = state.swipeLeft
+                                        .takeIf {
+                                            !state.inSelectionMode || it.worksWhileSelecting
+                                        } ?: SwipeAction.NONE,
                                     seen = message.seen,
                                     flagged = message.flagged,
-                                    // Swiping and picking rows out of a list are
-                                    // the same gesture's worth of attention.
-                                    enabled = !state.inSelectionMode,
+                                    enabled = true,
                                     onAction = { action ->
                                         when (action) {
                                             SwipeAction.MOVE -> swipeMoveFor = message.id

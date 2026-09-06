@@ -483,4 +483,8 @@
     <string name="blocked_none">Nothing blocked</string>
     <string name="blocked_unblock">Unblock</string>
     <string name="blocked_manage">Manage blocked senders</string>
+
+    <!-- Undo stack -->
+    <string name="dismiss">Dismiss</string>
+    <string name="swipe_select">Select</string>
 </resources>

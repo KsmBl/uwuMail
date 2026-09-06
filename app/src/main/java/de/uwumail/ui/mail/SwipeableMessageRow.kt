@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DriveFileMove
@@ -18,17 +19,24 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import de.uwumail.core.SwipeAction
 
 /**
@@ -57,7 +65,16 @@ fun SwipeableMessageRow(
     }
 
     val currentOnAction by rememberUpdatedState(onAction)
+    // The row's own width, which is the screen's. Read from the layout rather
+    // than from the window so it is right whatever the row is sitting in.
+    var rowWidth by remember { mutableIntStateOf(0) }
+    // The state cannot be read from inside its own constructor, and the check
+    // below needs how far the finger went, so it is handed back here once made.
+    val settled = remember { arrayOfNulls<SwipeToDismissBoxState>(1) }
+
     val state = rememberSwipeToDismissBoxState(
+        // Half the row, and nothing less.
+        positionalThreshold = { distance -> distance * COMMIT_FRACTION },
         confirmValueChange = { value ->
             val action = when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> rightAction
@@ -65,6 +82,18 @@ fun SwipeableMessageRow(
                 SwipeToDismissBoxValue.Settled -> SwipeAction.NONE
             }
             if (action == SwipeAction.NONE) return@rememberSwipeToDismissBoxState false
+
+            // The positional threshold alone is not enough: a quick flick
+            // commits on velocity however short it was, and something that
+            // deletes mail should not be reachable by a flick. So how far the
+            // finger actually went is checked as well, and it must be half.
+            val travelled = settled[0]
+                ?.let { box -> runCatching { abs(box.requireOffset()) }.getOrNull() }
+                ?: 0f
+            if (rowWidth <= 0 || travelled < rowWidth * COMMIT_FRACTION) {
+                return@rememberSwipeToDismissBoxState false
+            }
+
             currentOnAction(action)
             // Anything that needs an answer first has to spring back: the
             // question can still be answered with no.
@@ -72,7 +101,10 @@ fun SwipeableMessageRow(
         }
     )
 
+    SideEffect { settled[0] = state }
+
     SwipeToDismissBox(
+        modifier = Modifier.onSizeChanged { rowWidth = it.width },
         state = state,
         enableDismissFromStartToEnd = rightAction != SwipeAction.NONE,
         enableDismissFromEndToStart = leftAction != SwipeAction.NONE,
@@ -121,6 +153,7 @@ private fun SwipeBackground(
 /** The icon shows what is about to happen, so the toggles show their outcome. */
 private fun swipeIcon(action: SwipeAction, seen: Boolean, flagged: Boolean): ImageVector =
     when (action) {
+        SwipeAction.SELECT -> Icons.Default.CheckCircle
         SwipeAction.TOGGLE_READ ->
             if (seen) Icons.Default.MarkEmailUnread else Icons.Default.MarkEmailRead
         SwipeAction.TOGGLE_STAR -> if (flagged) Icons.Default.StarBorder else Icons.Default.Star
@@ -133,6 +166,7 @@ private fun swipeIcon(action: SwipeAction, seen: Boolean, flagged: Boolean): Ima
 
 @Composable
 private fun swipeColour(action: SwipeAction): Color = when (action) {
+    SwipeAction.SELECT -> MaterialTheme.colorScheme.primaryContainer
     SwipeAction.ARCHIVE -> MaterialTheme.colorScheme.primaryContainer
     SwipeAction.TRASH -> MaterialTheme.colorScheme.errorContainer
     SwipeAction.DELETE -> MaterialTheme.colorScheme.error
@@ -144,6 +178,7 @@ private fun swipeColour(action: SwipeAction): Color = when (action) {
 
 @Composable
 private fun swipeInk(action: SwipeAction): Color = when (action) {
+    SwipeAction.SELECT -> MaterialTheme.colorScheme.onPrimaryContainer
     SwipeAction.ARCHIVE -> MaterialTheme.colorScheme.onPrimaryContainer
     SwipeAction.TRASH -> MaterialTheme.colorScheme.onErrorContainer
     SwipeAction.DELETE -> MaterialTheme.colorScheme.onError
@@ -152,3 +187,11 @@ private fun swipeInk(action: SwipeAction): Color = when (action) {
     SwipeAction.MOVE -> MaterialTheme.colorScheme.onSurfaceVariant
     SwipeAction.NONE -> Color.Transparent
 }
+
+/**
+ * How far across the row a swipe must go before it counts.
+ *
+ * Half is deliberately a long way. These actions move or delete mail, and the
+ * cost of one done by accident is far higher than the cost of having to mean it.
+ */
+private const val COMMIT_FRACTION = 0.5f
