@@ -158,6 +158,23 @@ class MessageViewModel(
                 }
             }.onFailure { e -> local.update { s -> s.copy(error = e.message) } }
             local.update { it.copy(loading = false, everLoaded = true) }
+            fetchNeighbours()
+        }
+    }
+
+    /**
+     * Fetches the bodies either side of this one while it is being read.
+     *
+     * Swiping across is meant to feel like turning a page, and it cannot while
+     * every turn waits on the server. Nothing else changes: a body fetched here
+     * is not marked read and not shown, it is simply already there when the
+     * finger arrives. Messages whose body is already cached cost nothing, so
+     * swiping back over ground already covered asks for nothing at all.
+     */
+    private suspend fun fetchNeighbours() {
+        val order = container.messageOrder
+        listOfNotNull(order.nextOf(messageId), order.previousOf(messageId)).forEach { id ->
+            runCatching { container.syncManager.ensureBody(id) }
         }
     }
 
