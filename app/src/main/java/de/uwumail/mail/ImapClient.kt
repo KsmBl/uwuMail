@@ -10,6 +10,7 @@ import java.io.Closeable
 import java.util.Properties
 import javax.mail.FetchProfile
 import javax.mail.Flags
+import javax.mail.search.FlagTerm
 import javax.mail.search.FromStringTerm
 import javax.mail.search.MessageIDTerm
 import javax.mail.search.OrTerm
@@ -383,6 +384,16 @@ class ImapClient(
     }
 
     companion object {
+        /**
+         * Whether a blanket `EXPUNGE` would remove only what was asked for.
+         *
+         * True when every `\Deleted` message in the mailbox is one of ours.
+         * Anything else flagged belongs to another client, and expunging is
+         * how it stops existing.
+         */
+        fun blanketExpungeIsSafe(ours: Set<Long>, flagged: Set<Long>): Boolean =
+            flagged.all { it in ours }
+
         const val DEFAULT_READ_TIMEOUT_MILLIS = 40_000
 
         /**
@@ -424,10 +435,41 @@ class ImapClient(
         null
     }
 
+    /**
+     * Removes exactly the messages asked for.
+     *
+     * UID EXPUNGE (RFC 4315) does that on its own. Where the server does not
+     * offer it the only other command is a blanket `EXPUNGE`, which takes every
+     * `\Deleted` message in the mailbox with it — including mail another client
+     * has flagged and not finished with. So the blanket form is used only once
+     * it has been established that ours are the only ones flagged, and when
+     * somebody else's are in there too the removal is refused rather than
+     * quietly destroying their mail.
+     */
     private fun expunge(folder: IMAPFolder, messages: Array<Message>) {
-        // UID EXPUNGE where available, so we never remove someone else's \Deleted mail.
-        runCatching { folder.expunge(messages) }
-            .recoverCatching { folder.expunge() }
+        if (runCatching { folder.expunge(messages) }.isSuccess) return
+
+        val ours = messages.mapNotNullTo(HashSet()) {
+            runCatching { folder.getUID(it) }.getOrNull()
+        }
+        val flagged = runCatching {
+            folder.search(FlagTerm(Flags(Flags.Flag.DELETED), true))
+                .mapNotNullTo(HashSet()) { runCatching { folder.getUID(it) }.getOrNull() }
+        }.getOrElse {
+            // A server that cannot be asked is not one to guess about.
+            throw MailException(
+                "${folder.fullName} does not support UID EXPUNGE and could not be checked; " +
+                    "the message has been left on the server"
+            )
+        }
+
+        if (!blanketExpungeIsSafe(ours, flagged)) {
+            throw MailException(
+                "${folder.fullName} does not support UID EXPUNGE and holds mail another " +
+                    "client has marked deleted; removing this would have taken that with it"
+            )
+        }
+        folder.expunge()
     }
 
     private fun fetchEnvelopes(folder: IMAPFolder, messages: Array<Message>) {

@@ -550,8 +550,11 @@ app/src/main/java/de/uwumail/
   all disabled — mail is untrusted input. Remote images load only when the
   banner in that message is tapped, and uwuMail fetches them itself so it can
   refuse the ones that are only there to report the open.
-- Message moves use `COPY` + `\Deleted` + `UID EXPUNGE`, which every IMAP server
-  supports, rather than depending on RFC 6851 `MOVE`.
+- Message moves use `COPY` + `\Deleted` + `UID EXPUNGE`, rather than depending on
+  RFC 6851 `MOVE`. A server too old for `UID EXPUNGE` (RFC 4315) leaves only the
+  blanket `EXPUNGE`, which removes every `\Deleted` message in the mailbox — so
+  it is used only when ours are demonstrably the only ones flagged, and the
+  removal is refused rather than taking another client's mail with it.
 - Android 15 caps `dataSync` foreground services at 6 hours per day, so push may
   pause on very long uptimes; periodic sync continues regardless and the worker
   restarts the service on its next run.
