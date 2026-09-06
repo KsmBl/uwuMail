@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-182%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-308%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -42,6 +42,7 @@ pixels that are never requested · folders that live only on your phone.
 - [Folders and mailboxes](#folders-and-mailboxes) — device folders, moving mail across accounts
 - [The message list](#the-message-list) — grouped by day, and where new mail lands
 - [Accounts and sending](#accounts-and-sending) — OAuth2, and a From address you choose
+- [Replying](#replying) — and what a reply flags on the message it answers
 - [Drafts](#drafts) — save an unfinished message and come back to it
 - [Appearance and language](#appearance-and-language) — themes, German and English
 - [Background mail](#background-mail) — push, and the hours you allow it
@@ -506,7 +507,7 @@ to read and to run rules against.
 
 ## Tests
 
-182 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+308 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -547,6 +548,29 @@ to read and to run rules against.
   carries it, across angle brackets, case and percent-encoding.
 - `data/repo/BackupFormatTest` — refusing a file that is not a backup, or is
   from a later format, before anything is written.
+- `data/db/MessageSearchTest` — the search queries against a real database:
+  a query narrowing a unified view, staying inside its folder role, skipping
+  hidden folders and rows on their way out, the three searches agreeing on what
+  a word matches, and the limit being what caps the list.
+- `sync/` — a row put back when its removal did nothing, mail kept when the
+  server would not delete it, the outbox holding a message that could not be
+  sent and counting its attempts, and the `\Answered` flag.
+- `notify/NotificationSummaryTest` — when an account's notifications are worth
+  gathering under one line, counted from what is standing in the shade rather
+  than from one sync's worth of arrivals.
+- `ui/compose/` — what a reopened draft and a forward carry with them, and
+  reading a share from another app in each of the shapes it arrives in.
+- `ui/MailtoIntentTest` — that a `mailto:` link and a share both resolve to the
+  app, run against the merged manifest.
+- `mail/ExpungeSafetyTest` — when a blanket `EXPUNGE` may stand in for
+  `UID EXPUNGE` without taking another client's mail with it.
+- `mail/OutgoingAttachmentTest` — the name a sent attachment arrives under.
+- `mail/AttachmentHintTest` — which content types earn a paperclip in the list.
+- `rules/AttachmentRuleTest` — conditions on an attachment's filename.
+- `core/TranslationTest` — every string present in both languages, walked out of
+  the two resource files.
+- `ui/mail/ScriptingWindowTest` — scripting and the network both restored after
+  the one call that measures a page.
 
 ## Layout
 
@@ -586,8 +610,6 @@ app/src/main/java/de/uwumail/
 - The IDLE connection uses a 28 minute socket read timeout, just under the point
   RFC 2177 tells clients to re-issue IDLE and where servers drop it, so a
   half-open socket is noticed without churning the connection.
-- Attachments can be sent from files already on disk; the composer does not yet
-  have a file picker.
 - OAuth2 is implemented for Google. The provider definition in
   `mail/oauth/OAuthModels.kt` is generic, so Microsoft/Outlook would be a matter
   of adding endpoints and scopes, but it is untested.
