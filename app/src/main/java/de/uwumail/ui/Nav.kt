@@ -2,9 +2,16 @@ package de.uwumail.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -32,6 +39,33 @@ object Routes {
     const val SETTINGS = "settings"
 }
 
+/**
+ * Whether this screen is still the one in front.
+ *
+ * A screen stays composed, and keeps receiving taps, while it animates away.
+ * Without this a quick second tap in the same spot is delivered to the screen
+ * the user has already left, and acts a second time — the back arrow of a
+ * departing screen pops the screen underneath it as well. Popping the last one
+ * leaves the host with nothing to draw: a blank window that answers nothing.
+ */
+private fun NavBackStackEntry.isInFront() =
+    lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+
+/** Goes back, but only on behalf of the screen actually in front. */
+private fun NavHostController.leave(from: NavBackStackEntry) {
+    if (!from.isInFront()) return
+    // Nothing underneath means this is the first screen, and it must not be
+    // left with the host empty.
+    if (previousBackStackEntry == null || !popBackStack()) {
+        navigate(Routes.MAIL) { launchSingleTop = true }
+    }
+}
+
+/** Opens [route], but only on behalf of the screen actually in front. */
+private fun NavHostController.go(from: NavBackStackEntry, route: String) {
+    if (from.isInFront()) navigate(route)
+}
+
 @Composable
 fun UwuMailNavHost(
     navController: NavHostController = rememberNavController(),
@@ -53,44 +87,57 @@ fun UwuMailNavHost(
         }
     }
 
+    // Last resort. Nothing should be able to empty the back stack now, but an
+    // app that cannot be recovered without force-stopping it is a bad way to
+    // find out otherwise: an empty host draws nothing and answers nothing.
+    val current by navController.currentBackStackEntryAsState()
+    var everArrived by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(current) {
+        if (current != null) {
+            everArrived = true
+        } else if (everArrived) {
+            navController.navigate(Routes.MAIL) { launchSingleTop = true }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = if (startOnAccounts) Routes.ACCOUNTS else Routes.MAIL
     ) {
-        composable(Routes.MAIL) {
+        composable(Routes.MAIL) { entry ->
             MailScreen(
                 // A draft is unfinished writing, so it opens in the composer.
-                onOpenMessage = { navController.navigate("${Routes.MESSAGE}/$it") },
+                onOpenMessage = { navController.go(entry, "${Routes.MESSAGE}/$it") },
                 onOpenDraft = { id ->
-                    navController.navigate(
+                    navController.go(
+                        entry,
                         "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false" +
                             "&forward=0&draft=$id"
                     )
                 },
                 onCompose = { accountId ->
-                    navController.navigate(
+                    navController.go(
+                        entry,
                         "${Routes.COMPOSE}?accountId=${accountId ?: 0}&reply=0&replyAll=false&forward=0&draft=0"
                     )
                 },
-                onManageRules = { navController.navigate(Routes.RULES) },
-                onManageFolders = { navController.navigate("${Routes.FOLDERS}/$it") },
-                onManageAccounts = { navController.navigate(Routes.ACCOUNTS) },
-                onSettings = { navController.navigate(Routes.SETTINGS) },
+                onManageRules = { navController.go(entry, Routes.RULES) },
+                onManageFolders = { navController.go(entry, "${Routes.FOLDERS}/$it") },
+                onManageAccounts = { navController.go(entry, Routes.ACCOUNTS) },
+                onSettings = { navController.go(entry, Routes.SETTINGS) },
                 onCreateRuleFrom = { ids ->
                     if (ids.isNotEmpty()) {
-                        navController.navigate("${Routes.WIZARD}/${ids.joinToString(",")}")
+                        navController.go(entry, "${Routes.WIZARD}/${ids.joinToString(",")}")
                     }
                 }
             )
         }
 
-        composable(Routes.ACCOUNTS) {
+        composable(Routes.ACCOUNTS) { entry ->
             AccountsScreen(
-                onBack = {
-                    if (!navController.popBackStack()) navController.navigate(Routes.MAIL)
-                },
-                onAdd = { navController.navigate("${Routes.SETUP}?accountId=0") },
-                onEdit = { navController.navigate("${Routes.SETUP}?accountId=$it") }
+                onBack = { navController.leave(entry) },
+                onAdd = { navController.go(entry, "${Routes.SETUP}?accountId=0") },
+                onEdit = { navController.go(entry, "${Routes.SETUP}?accountId=$it") }
             )
         }
 
@@ -102,9 +149,7 @@ fun UwuMailNavHost(
         ) { entry ->
             AccountSetupScreen(
                 accountId = entry.arguments?.getLong("accountId") ?: 0L,
-                onDone = {
-                    if (!navController.popBackStack()) navController.navigate(Routes.MAIL)
-                }
+                onDone = { navController.leave(entry) }
             )
         }
 
@@ -115,14 +160,16 @@ fun UwuMailNavHost(
             val messageId = entry.arguments?.getLong("messageId") ?: 0L
             MessageScreen(
                 messageId = messageId,
-                onBack = { navController.popBackStack() },
+                onBack = { navController.leave(entry) },
                 onReply = { id, all ->
-                    navController.navigate(
+                    navController.go(
+                        entry,
                         "${Routes.COMPOSE}?accountId=0&reply=$id&replyAll=$all&forward=0&draft=0"
                     )
                 },
                 onForward = { id ->
-                    navController.navigate(
+                    navController.go(
+                        entry,
                         "${Routes.COMPOSE}?accountId=0&reply=0&replyAll=false&forward=$id&draft=0"
                     )
                 },
@@ -130,8 +177,10 @@ fun UwuMailNavHost(
                 // stacking, so back always returns to the list rather than
                 // walking every message that was swiped through.
                 onOpenMessage = { id ->
-                    navController.navigate("${Routes.MESSAGE}/$id") {
-                        popUpTo("${Routes.MESSAGE}/{messageId}") { inclusive = true }
+                    if (entry.isInFront()) {
+                        navController.navigate("${Routes.MESSAGE}/$id") {
+                            popUpTo("${Routes.MESSAGE}/{messageId}") { inclusive = true }
+                        }
                     }
                 }
             )
@@ -161,7 +210,7 @@ fun UwuMailNavHost(
                 mailto = args?.getString("mailto")?.let {
                     runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it)
                 },
-                onDone = { navController.popBackStack() }
+                onDone = { navController.leave(entry) }
             )
         }
 
@@ -171,15 +220,15 @@ fun UwuMailNavHost(
         ) { entry ->
             FoldersScreen(
                 accountId = entry.arguments?.getLong("accountId") ?: 0L,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.leave(entry) }
             )
         }
 
-        composable(Routes.RULES) {
+        composable(Routes.RULES) { entry ->
             RulesScreen(
-                onBack = { navController.popBackStack() },
-                onEdit = { navController.navigate("${Routes.RULE_EDIT}?ruleId=$it") },
-                onCreate = { navController.navigate("${Routes.RULE_EDIT}?ruleId=0") }
+                onBack = { navController.leave(entry) },
+                onEdit = { navController.go(entry, "${Routes.RULE_EDIT}?ruleId=$it") },
+                onCreate = { navController.go(entry, "${Routes.RULE_EDIT}?ruleId=0") }
             )
         }
 
@@ -189,7 +238,7 @@ fun UwuMailNavHost(
         ) { entry ->
             RuleEditScreen(
                 ruleId = entry.arguments?.getLong("ruleId") ?: 0L,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.leave(entry) }
             )
         }
 
@@ -201,16 +250,18 @@ fun UwuMailNavHost(
                 .split(',').mapNotNull { it.toLongOrNull() }
             RuleWizardScreen(
                 messageIds = ids,
-                onBack = { navController.popBackStack() },
+                onBack = { navController.leave(entry) },
                 onSaved = { ruleId ->
-                    navController.popBackStack()
-                    navController.navigate("${Routes.RULE_EDIT}?ruleId=$ruleId")
+                    if (entry.isInFront()) {
+                        navController.popBackStack()
+                        navController.navigate("${Routes.RULE_EDIT}?ruleId=$ruleId")
+                    }
                 }
             )
         }
 
-        composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+        composable(Routes.SETTINGS) { entry ->
+            SettingsScreen(onBack = { navController.leave(entry) })
         }
     }
 }
