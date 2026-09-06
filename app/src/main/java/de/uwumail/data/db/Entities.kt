@@ -300,7 +300,12 @@ data class OutboxEntity(
      * a queued message has not been sent yet, and deleting the draft first is
      * how the only copy disappears.
      */
-    val draftMessageId: Long? = null
+    val draftMessageId: Long? = null,
+    /**
+     * The message this is a reply to, so it can be flagged `\Answered` when the
+     * reply actually goes out rather than when it was written.
+     */
+    val answeringMessageId: Long? = null
 )
 
 /**

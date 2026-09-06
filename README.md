@@ -322,6 +322,14 @@ have.
   then the draft is the only copy, and deleting it first is how the only copy
   disappears.
 
+## Replying
+
+- Replying flags the original `\Answered` on the server, so the reply arrow
+  appears here and in every other client reading the same mailbox. A reply that
+  had to wait in the outbox flags it when it actually goes.
+- **Reply, reply all and forward** sit on the message's bottom bar rather than
+  in a menu.
+
 ## Drafts
 
 - **Save an unfinished message** to the account's Drafts folder, and leaving the

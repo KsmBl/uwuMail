@@ -323,6 +323,9 @@ interface MessageDao {
     @Query("UPDATE messages SET flagged = :flagged WHERE id IN (:ids)")
     suspend fun setFlagged(ids: List<Long>, flagged: Boolean)
 
+    @Query("UPDATE messages SET answered = :answered WHERE id IN (:ids)")
+    suspend fun setAnswered(ids: List<Long>, answered: Boolean)
+
     @Query("UPDATE messages SET notified = 1 WHERE id IN (:ids)")
     suspend fun markNotified(ids: List<Long>)
 

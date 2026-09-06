@@ -597,4 +597,5 @@
         <item quantity="one">%1$d message waiting</item>
         <item quantity="other">%1$d messages waiting</item>
     </plurals>
+    <string name="replied_to">Replied to</string>
 </resources>

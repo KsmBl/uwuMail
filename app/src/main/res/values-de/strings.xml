@@ -595,4 +595,5 @@
         <item quantity="one">%1$d Nachricht wartet</item>
         <item quantity="other">%1$d Nachrichten warten</item>
     </plurals>
+    <string name="replied_to">Beantwortet</string>
 </resources>

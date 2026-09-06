@@ -69,7 +69,10 @@ class OutboxTest {
     @After
     fun close() = db.close()
 
-    private fun queued(draftMessageId: Long? = null) = OutboxEntity(
+    private fun queued(
+        draftMessageId: Long? = null,
+        answeringMessageId: Long? = null
+    ) = OutboxEntity(
         accountId = accountId,
         identityId = null,
         fromAddress = "me@example.com",
@@ -82,7 +85,8 @@ class OutboxTest {
         bodyPlain = "Body",
         bodyHtml = null,
         createdAt = 0,
-        draftMessageId = draftMessageId
+        draftMessageId = draftMessageId,
+        answeringMessageId = answeringMessageId
     )
 
     @Test
@@ -158,6 +162,25 @@ class OutboxTest {
         val waiting = db.outboxDao().pending()
         assertEquals(2, waiting.size)
         assertTrue(waiting.any { it.attempts == 1 })
+    }
+
+    @Test
+    fun `a queued reply remembers what it is answering`() = runBlocking {
+        db.outboxDao().insert(queued(answeringMessageId = 42L))
+
+        assertEquals(42L, db.outboxDao().pending().first().answeringMessageId)
+    }
+
+    @Test
+    fun `a reply that has not gone out yet does not flag the original`() = runBlocking {
+        val original = db.messageDao().insert(
+            MessageEntity(accountId = accountId, folderId = drafts, uid = 5, subject = "Question")
+        )
+        db.outboxDao().insert(queued(answeringMessageId = original))
+
+        sync.sendOutbox()
+
+        assertEquals(false, db.messageDao().get(original)!!.answered)
     }
 
     @Test

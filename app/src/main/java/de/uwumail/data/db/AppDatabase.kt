@@ -124,10 +124,11 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        /** Lets a queued message remember the draft it was written in. */
+        /** Lets a queued message remember the draft and the mail it answers. */
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE outbox ADD COLUMN draftMessageId INTEGER")
+                db.execSQL("ALTER TABLE outbox ADD COLUMN answeringMessageId INTEGER")
             }
         }
 

@@ -50,6 +50,8 @@ data class ComposeUiState(
     /** The draft this was opened from, which a save replaces. */
     val attachments: List<PendingAttachment> = emptyList(),
     val editingDraftId: Long? = null,
+    /** The message being replied to, flagged `\Answered` once the reply is away. */
+    val answering: Long? = null,
     val savingDraft: Boolean = false,
     val savedDraft: Boolean = false,
     val status: String? = null,
@@ -81,7 +83,8 @@ data class ComposeUiState(
         inReplyTo = inReplyTo,
         references = references,
         createdAt = System.currentTimeMillis(),
-        draftMessageId = editingDraftId
+        draftMessageId = editingDraftId,
+        answeringMessageId = answering
     )
     val accountIdentities: List<IdentityEntity> get() = identities.filter { it.accountId == accountId }
     val canSend: Boolean
@@ -279,6 +282,7 @@ class ComposeViewModel(
                 showCcBcc = ccList.isNotEmpty(),
                 subject = if (message.subject.startsWith("Re:", true)) message.subject
                 else "Re: ${message.subject}",
+                answering = messageId,
                 inReplyTo = message.messageIdHeader,
                 references = listOfNotNull(
                     headers["references"]?.firstOrNull(),
@@ -453,6 +457,11 @@ class ComposeViewModel(
                 // The draft it grew from is finished with now.
                 current.editingDraftId?.let { draft ->
                     runCatching { container.syncManager.deletePermanently(listOf(draft), false) }
+                }
+                // The thread has been answered, which is what every other
+                // client reads to draw its reply arrow.
+                current.answering?.let { original ->
+                    runCatching { container.syncManager.setAnswered(listOf(original)) }
                 }
             }.onSuccess {
                 // The copies were only ever there to be sent.

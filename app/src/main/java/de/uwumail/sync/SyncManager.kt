@@ -600,6 +600,20 @@ class SyncManager(
         refreshCountsFor(messageIds)
     }
 
+    /**
+     * Flags mail as replied to, here and on the server.
+     *
+     * `\Answered` is what every other client draws its reply arrow from, so a
+     * reply sent from this app that did not set it left the thread looking
+     * unanswered everywhere else as well.
+     */
+    suspend fun setAnswered(messageIds: List<Long>, answered: Boolean = true) {
+        forEachRemoteGroup(messageIds) { account, folder, uids ->
+            pool.use(account.id) { it.setFlags(folder.path, uids, Flags.Flag.ANSWERED, answered) }
+        }
+        db.messageDao().setAnswered(messageIds, answered)
+    }
+
     suspend fun setFlagged(messageIds: List<Long>, flagged: Boolean) {
         forEachRemoteGroup(messageIds) { account, folder, uids ->
             pool.use(account.id) { it.setFlags(folder.path, uids, Flags.Flag.FLAGGED, flagged) }
@@ -1349,6 +1363,9 @@ class SyncManager(
                     // was actually accepted it was the only copy.
                     item.draftMessageId?.let { draft ->
                         runCatching { deletePermanently(listOf(draft), allowUndo = false) }
+                    }
+                    item.answeringMessageId?.let { original ->
+                        runCatching { setAnswered(listOf(original)) }
                     }
                     // The copies were only ever there to be sent.
                     item.attachmentPaths.split('\n')
