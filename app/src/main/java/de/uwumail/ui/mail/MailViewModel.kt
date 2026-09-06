@@ -137,16 +137,27 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
      */
     private val typedQuery = query.settled(SEARCH_SETTLE_MILLIS) { it.isBlank() }
 
-    private val messages = combine(target, typedQuery) { selected, q -> selected to q }
-        .flatMapLatest { (selected, q) ->
+    /**
+     * How much of the list is on screen at once.
+     *
+     * A fixed limit made the bottom of a long folder unreachable: paging older
+     * mail in put it in the cache, and a query that never asked for more than
+     * the first [PAGE] rows meant none of it was ever drawn.
+     */
+    private val visibleLimit = MutableStateFlow(PAGE)
+
+    private val messages = combine(target, typedQuery, visibleLimit) { selected, q, limit ->
+        Triple(selected, q, limit)
+    }
+        .flatMapLatest { (selected, q, limit) ->
             when (selected) {
                 is MailTarget.Unified ->
-                    if (q.isBlank()) container.db.messageDao().observeUnified(selected.type.name, PAGE)
-                    else container.db.messageDao().searchUnified(selected.type.name, q, PAGE)
+                    if (q.isBlank()) container.db.messageDao().observeUnified(selected.type.name, limit)
+                    else container.db.messageDao().searchUnified(selected.type.name, q, limit)
                 is MailTarget.Folder ->
-                    if (q.isBlank()) container.db.messageDao().observeFolder(selected.id, PAGE)
-                    else container.db.messageDao().searchInFolder(selected.id, q, PAGE)
-                is MailTarget.Search -> container.db.messageDao().searchEverywhere(q, PAGE)
+                    if (q.isBlank()) container.db.messageDao().observeFolder(selected.id, limit)
+                    else container.db.messageDao().searchInFolder(selected.id, q, limit)
+                is MailTarget.Search -> container.db.messageDao().searchEverywhere(q, limit)
             }
         }
 
@@ -259,6 +270,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         target.value = destination
         selection.value = emptySet()
         query.value = ""
+        visibleLimit.value = PAGE
         if (destination is MailTarget.Folder) refresh()
     }
 
@@ -292,11 +304,14 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setQuery(value: String) {
         query.value = value
+        // A different set of results starts at the top again.
+        visibleLimit.value = PAGE
     }
 
     /** Switches the list to searching everything cached, everywhere. */
     fun searchEverywhere() {
         selection.value = emptySet()
+        visibleLimit.value = PAGE
         target.value = MailTarget.Search
     }
 
@@ -368,7 +383,15 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * Reaches the end of the list: widens the window first, and only asks the
+     * server once there is nothing cached left to show.
+     */
     fun loadMore() {
+        if (canWiden(state.value.messages.size, visibleLimit.value)) {
+            visibleLimit.update { it + PAGE }
+            return
+        }
         val folder = currentFolder.value ?: return
         if (transient.value.loadingMore) return
         transient.update { it.copy(loadingMore = true) }
@@ -534,6 +557,14 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         }
 
     companion object {
+        /**
+         * Whether the list is only showing as much as it was asked for, which
+         * means the cache has more and widening the window will draw it. A list
+         * shorter than its own window has run out of cached mail, and the rest
+         * has to come from the server.
+         */
+        fun canWiden(shown: Int, window: Int): Boolean = shown >= window
+
         private const val PAGE = 300
 
         /** How long the typing has to stop before the database is asked. */

@@ -129,6 +129,14 @@ class MessageSearchTest {
     }
 
     @Test
+    fun `the limit is what caps the list, so widening it draws more`() = runBlocking {
+        repeat(350) { put(inboxA, it + 1L, subject = "Message ${it + 1}") }
+
+        assertEquals(300, messages.observeFolder(inboxA, 300).first().size)
+        assertEquals(350, messages.observeFolder(inboxA, 600).first().size)
+    }
+
+    @Test
     fun `a folder search covers recipients`() = runBlocking {
         put(inboxA, 1, subject = "Nothing", to = "treasurer@club.org")
 
