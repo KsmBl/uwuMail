@@ -577,4 +577,5 @@
     <string name="attachment_save">Save</string>
     <string name="attachment_save_sub">Choose where to put it</string>
     <string name="attachment_saved">Attachment saved</string>
+    <string name="wizard_failed">Could not analyse those messages</string>
 </resources>

@@ -575,4 +575,5 @@
     <string name="attachment_save">Speichern</string>
     <string name="attachment_save_sub">Speicherort auswählen</string>
     <string name="attachment_saved">Anhang gespeichert</string>
+    <string name="wizard_failed">Diese Nachrichten konnten nicht ausgewertet werden</string>
 </resources>

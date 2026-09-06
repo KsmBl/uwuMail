@@ -23,6 +23,7 @@ import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +72,10 @@ fun SwipeableMessageRow(
     // The state cannot be read from inside its own constructor, and the check
     // below needs how far the finger went, so it is handed back here once made.
     val settled = remember { arrayOfNulls<SwipeToDismissBoxState>(1) }
+    // confirmValueChange is a question, and the box is entitled to ask it more
+    // than once while a swipe settles. Acting on every ask is how one swipe
+    // produced two removals, and two offers to undo them.
+    val acted = remember { booleanArrayOf(false) }
 
     val state = rememberSwipeToDismissBoxState(
         // Half the row, and nothing less.
@@ -82,6 +87,8 @@ fun SwipeableMessageRow(
                 SwipeToDismissBoxValue.Settled -> SwipeAction.NONE
             }
             if (action == SwipeAction.NONE) return@rememberSwipeToDismissBoxState false
+            if (acted[0]) return@rememberSwipeToDismissBoxState action.carriesRowAway &&
+                !action.needsConfirmation
 
             // The positional threshold alone is not enough: a quick flick
             // commits on velocity however short it was, and something that
@@ -94,6 +101,7 @@ fun SwipeableMessageRow(
                 return@rememberSwipeToDismissBoxState false
             }
 
+            acted[0] = true
             currentOnAction(action)
             // Anything that needs an answer first has to spring back: the
             // question can still be answered with no.
@@ -102,6 +110,25 @@ fun SwipeableMessageRow(
     )
 
     SideEffect { settled[0] = state }
+
+    // Ready for the next swipe once this one has come to rest.
+    LaunchedEffect(state.targetValue, state.currentValue) {
+        if (state.targetValue == SwipeToDismissBoxValue.Settled &&
+            state.currentValue == SwipeToDismissBoxValue.Settled
+        ) {
+            acted[0] = false
+        }
+    }
+
+    // A row on screen has not been swiped away, whatever it was doing last
+    // time. LazyColumn keeps an item's state against its key and hands it back
+    // when the row returns, so an undone removal used to come back still
+    // wearing the colour of the action it escaped.
+    LaunchedEffect(Unit) {
+        if (state.currentValue != SwipeToDismissBoxValue.Settled) {
+            runCatching { state.snapTo(SwipeToDismissBoxValue.Settled) }
+        }
+    }
 
     SwipeToDismissBox(
         modifier = Modifier.onSizeChanged { rowWidth = it.width },

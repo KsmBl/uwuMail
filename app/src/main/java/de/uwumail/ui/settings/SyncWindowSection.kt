@@ -2,6 +2,7 @@ package de.uwumail.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import de.uwumail.data.settings.AppSettings
 import de.uwumail.ui.LocalAppContainer
 
 /** Which days and hours uwuMail is allowed to check for mail on its own. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SyncWindowSection() {
     val container = LocalAppContainer.current
@@ -64,8 +66,11 @@ fun SyncWindowSection() {
         }
     }
 
-    Row(
+    // Seven chips do not fit across a narrow phone, and the seventh falling
+    // off the edge is a day that cannot be chosen at all.
+    FlowRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         AppSettings.DAY_ORDER.forEach { day ->

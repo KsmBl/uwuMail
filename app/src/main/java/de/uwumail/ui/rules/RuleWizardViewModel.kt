@@ -64,32 +64,44 @@ class RuleWizardViewModel(
 
     init {
         viewModelScope.launch {
-            val samples = container.db.messageDao().getAll(messageIds)
-            val folders = container.db.folderDao().let { dao ->
-                container.db.accountDao().getAll().flatMap { dao.forAccount(it.id) }
-            }
-            val pathById = folders.associate { it.id to it.path }
-            val corpus = container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
+            // Anything thrown in here used to leave the screen saying it was
+            // still working, for ever. A mailbox large enough to run the
+            // analysis out of memory is exactly the case that reaches it.
+            runCatching { analyse() }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(analysing = false, error = error.message ?: error.toString())
+                    }
+                }
+        }
+    }
 
-            val report = withContext(Dispatchers.Default) {
-                val selectedIds = samples.mapTo(HashSet()) { it.id }
-                otherContexts = corpus
-                    .filter { it.id !in selectedIds }
-                    .map { MatchContext.of(it, pathById[it.folderId].orEmpty()) }
-                container.ruleSuggester.analyse(samples, corpus) { pathById[it.folderId].orEmpty() }
-            }
+    private suspend fun analyse() {
+        val samples = container.db.messageDao().getAll(messageIds)
+        val folders = container.db.folderDao().let { dao ->
+            container.db.accountDao().getAll().flatMap { dao.forAccount(it.id) }
+        }
+        val pathById = folders.associate { it.id to it.path }
+        val corpus = container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
 
-            _state.update {
-                it.copy(
-                    analysing = false,
-                    samples = samples,
-                    report = report,
-                    folders = folders,
-                    selected = report.recommended.toSet(),
-                    name = report.suggestedRuleName,
-                    matchedOthers = report.recommendedOthersMatched
-                )
-            }
+        val report = withContext(Dispatchers.Default) {
+            val selectedIds = samples.mapTo(HashSet()) { it.id }
+            otherContexts = corpus
+                .filter { it.id !in selectedIds }
+                .map { MatchContext.of(it, pathById[it.folderId].orEmpty()) }
+            container.ruleSuggester.analyse(samples, corpus) { pathById[it.folderId].orEmpty() }
+        }
+
+        _state.update {
+            it.copy(
+                analysing = false,
+                samples = samples,
+                report = report,
+                folders = folders,
+                selected = report.recommended.toSet(),
+                name = report.suggestedRuleName,
+                matchedOthers = report.recommendedOthersMatched
+            )
         }
     }
 

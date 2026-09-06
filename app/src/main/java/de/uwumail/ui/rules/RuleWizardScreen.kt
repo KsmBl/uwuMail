@@ -79,6 +79,13 @@ fun RuleWizardScreen(
             )
         }
     ) { padding ->
+        state.error?.let { failure ->
+            EmptyState(
+                title = stringResource(R.string.wizard_failed),
+                subtitle = failure
+            )
+            return@Scaffold
+        }
         if (state.analysing) {
             Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

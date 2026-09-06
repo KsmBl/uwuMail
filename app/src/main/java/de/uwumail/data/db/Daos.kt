@@ -253,8 +253,26 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE accountId = :accountId AND notified = 0 AND seen = 0")
     suspend fun pendingNotifications(accountId: Long): List<MessageEntity>
 
-    /** Corpus used to score candidate rules in the rule wizard. */
-    @Query("SELECT * FROM messages ORDER BY receivedAt DESC LIMIT :limit")
+    /**
+     * Corpus used to score candidate rules in the rule wizard.
+     *
+     * The bodies are left behind on purpose. The suggester looks at senders,
+     * headers, subjects and recipients and never at body text, while reading
+     * the bodies of a few thousand messages means holding all of them in
+     * memory at once — and building a match context from an HTML body runs it
+     * through an HTML parser, once per message. The preview is kept, being a
+     * short line that is already there.
+     */
+    @Query(
+        """
+        SELECT id, accountId, folderId, uid, messageIdHeader, subject, fromName, fromAddress,
+               senderDomain, toList, ccList, bccList, replyTo, sentAt, receivedAt, seen,
+               flagged, answered, draft, hasAttachments, sizeBytes, preview,
+               NULL AS bodyPlain, NULL AS bodyHtml, bodyDownloaded, headersJson,
+               rawFilePath, isLocal, notified, rulesApplied, pendingRemoval
+        FROM messages ORDER BY receivedAt DESC LIMIT :limit
+        """
+    )
     suspend fun recentForAnalysis(limit: Int): List<MessageEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
