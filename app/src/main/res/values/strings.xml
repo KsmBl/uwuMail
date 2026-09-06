@@ -589,4 +589,5 @@
     <string name="wizard_log_title">Wizard log</string>
     <string name="wizard_log_share">Share the log</string>
     <string name="wizard_log_path">Written to %1$s</string>
+    <string name="error_action_failed">Could not complete that: %1$s</string>
 </resources>

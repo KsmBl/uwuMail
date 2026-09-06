@@ -1,6 +1,7 @@
 package de.uwumail.sync
 
 import android.content.Context
+import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.core.FolderType
 import de.uwumail.core.DeviceDownloads
@@ -522,9 +523,15 @@ class SyncManager(
     private suspend fun attempt(messageIds: List<Long>, block: suspend () -> Unit) {
         try {
             block()
+            // Whatever actually went somewhere took its row with it. Anything
+            // still here did not move — archiving a mail already in the archive,
+            // or trashing one already in the trash — and a row left hidden is
+            // mail that has silently vanished from every list and count without
+            // anything having been done to it.
+            restore(messageIds)
         } catch (e: Throwable) {
             restore(messageIds)
-            _alerts.tryEmit("Could not complete that: ${e.message ?: e.toString()}")
+            _alerts.tryEmit(context.getString(R.string.error_action_failed, e.message ?: e.toString()))
             throw e
         }
     }

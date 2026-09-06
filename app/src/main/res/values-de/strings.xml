@@ -587,4 +587,5 @@
     <string name="wizard_log_title">Assistenten-Protokoll</string>
     <string name="wizard_log_share">Protokoll teilen</string>
     <string name="wizard_log_path">Gespeichert unter %1$s</string>
+    <string name="error_action_failed">Das ging nicht: %1$s</string>
 </resources>
