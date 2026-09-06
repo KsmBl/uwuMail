@@ -142,6 +142,10 @@ private fun undoMessage(offer: Undoable): String = pluralStringResource(
     offer.count
 )
 
+/** What the list is looking at in each slot, so it reuses like for like. */
+private const val DAY_HEADER = "day-header"
+private const val MESSAGE_ROW = "message-row"
+
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MailScreen(
@@ -473,51 +477,66 @@ fun MailScreen(
                     }
                     else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         sections.forEach { section ->
-                            stickyHeader(key = section.dayStart) { DayHeader(section.label) }
-                            items(section.messages, key = { it.id }) { message ->
-                                SwipeableMessageRow(
-                                    // While messages are being picked out, only
-                                    // swipes that pick out more of them still
-                                    // make sense: archiving one row while others
-                                    // sit selected and untouched does not.
-                                    rightAction = state.swipeRight
-                                        .takeIf {
-                                            !state.inSelectionMode || it.worksWhileSelecting
-                                        } ?: SwipeAction.NONE,
-                                    leftAction = state.swipeLeft
-                                        .takeIf {
-                                            !state.inSelectionMode || it.worksWhileSelecting
-                                        } ?: SwipeAction.NONE,
-                                    seen = message.seen,
-                                    flagged = message.flagged,
-                                    enabled = true,
-                                    onAction = { action ->
-                                        when (action) {
-                                            SwipeAction.MOVE -> swipeMoveFor = message.id
-                                            SwipeAction.DELETE -> swipeDeleteFor = message.id
-                                            else -> viewModel.applySwipe(message, action)
-                                        }
-                                    }
-                                ) {
-                                    MessageRow(
-                                        message = message,
-                                        selected = message.id in state.selection,
-                                        selectionMode = state.inSelectionMode,
-                                        accountColor = state.accounts
-                                            .firstOrNull { it.id == message.accountId }?.color,
-                                        onClick = {
-                                            when {
-                                                state.inSelectionMode ->
-                                                    viewModel.toggleSelection(message.id)
-                                                state.showsDrafts -> onOpenDraft(message.id)
-                                                else -> onOpenMessage(message.id)
+                            stickyHeader(
+                                key = section.dayStart,
+                                contentType = DAY_HEADER
+                            ) { DayHeader(section.label) }
+                            // The content types tell the list that a heading and
+                            // a row are different things, so it reuses each kind
+                            // for its own kind instead of rebuilding whatever it
+                            // last had at that slot.
+                            items(
+                                section.messages,
+                                key = { it.id },
+                                contentType = { MESSAGE_ROW }
+                            ) { message ->
+                                // Removals collapse and arrivals slide in rather
+                                // than the list jumping to its new shape.
+                                Column(Modifier.animateItem()) {
+                                    SwipeableMessageRow(
+                                        // While messages are being picked out, only
+                                        // swipes that pick out more of them still
+                                        // make sense: archiving one row while others
+                                        // sit selected and untouched does not.
+                                        rightAction = state.swipeRight
+                                            .takeIf {
+                                                !state.inSelectionMode || it.worksWhileSelecting
+                                            } ?: SwipeAction.NONE,
+                                        leftAction = state.swipeLeft
+                                            .takeIf {
+                                                !state.inSelectionMode || it.worksWhileSelecting
+                                            } ?: SwipeAction.NONE,
+                                        seen = message.seen,
+                                        flagged = message.flagged,
+                                        enabled = true,
+                                        onAction = { action ->
+                                            when (action) {
+                                                SwipeAction.MOVE -> swipeMoveFor = message.id
+                                                SwipeAction.DELETE -> swipeDeleteFor = message.id
+                                                else -> viewModel.applySwipe(message, action)
                                             }
-                                        },
-                                        onLongClick = { viewModel.toggleSelection(message.id) },
-                                        onStar = { viewModel.toggleStar(message.id, !message.flagged) }
-                                    )
+                                        }
+                                    ) {
+                                        MessageRow(
+                                            message = message,
+                                            selected = message.id in state.selection,
+                                            selectionMode = state.inSelectionMode,
+                                            accountColor = state.accounts
+                                                .firstOrNull { it.id == message.accountId }?.color,
+                                            onClick = {
+                                                when {
+                                                    state.inSelectionMode ->
+                                                        viewModel.toggleSelection(message.id)
+                                                    state.showsDrafts -> onOpenDraft(message.id)
+                                                    else -> onOpenMessage(message.id)
+                                                }
+                                            },
+                                            onLongClick = { viewModel.toggleSelection(message.id) },
+                                            onStar = { viewModel.toggleStar(message.id, !message.flagged) }
+                                        )
+                                    }
+                                    HorizontalDivider(thickness = 0.5.dp)
                                 }
-                                HorizontalDivider(thickness = 0.5.dp)
                             }
                         }
                         if (state.loadingMore) {
