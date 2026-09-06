@@ -36,6 +36,8 @@ pixels that are never requested · folders that live only on your phone.
 
 - [Reading mail](#reading-mail) — what a message body is and is not allowed to do
 - [Rules](#rules) — conditions, actions, and building one without knowing regex
+- [Searching](#searching) — every folder, and the server too
+- [Backup](#backup) — the rules are the part that exists nowhere else
 - [Folders and mailboxes](#folders-and-mailboxes) — device folders, moving mail across accounts
 - [The message list](#the-message-list) — grouped by day, and where new mail lands
 - [Accounts and sending](#accounts-and-sending) — OAuth2, and a From address you choose
@@ -80,6 +82,12 @@ each one starts where it is described.
   filter is set to. There is no reason to ask a server for something that is
   not going to be shown.
 - **JavaScript** (off). Nothing a mail needs to be read requires scripts.
+- **Inline pictures** — the ones a message carries with it, referenced as
+  `cid:` — always show. They arrived with the mail, cost no request, and tell
+  the sender nothing, so the remote-image setting does not hold them back.
+- **Mail is darkened** to match a dark theme: bodies with no dark styling of
+  their own are darkened by the WebView, and senders who wrote
+  `prefers-color-scheme` styling get to use it instead.
 
 <a id="how-tracking-pixels-are-found"></a>
 <details>
@@ -167,6 +175,8 @@ have.
 - Settings holds a set of public sender blocklists (disposable-mail providers,
   StopForumSpam's toxic domains, FakeFilter) plus any list URL you add and your
   own blocked senders. Lists are plain text, one domain per line.
+- **Blocked senders** get a screen of their own: every entry, a filter, and each
+  one removable. A blocklist you cannot read back is one you cannot trust.
 - Mail from a listed sender is drawn in red in the message list. Nothing is
   deleted, moved or hidden on the strength of a list — the mail is still there
   and the match is visible. Use a rule if you want an action.
@@ -204,6 +214,10 @@ have.
   stays where it is. The destination folder is synced straight afterwards, so
   the mail shows up where it landed.
 - Archive, trash, delete permanently, and save any message as `.eml`.
+- **Attach files** to a message from the system document picker. The bytes are
+  copied into app storage rather than the content URI being kept, since a URI
+  is a loan from the app that produced it and may not outlive a spell in the
+  outbox.
 - **Save the attachments** of one message or twenty at once, from the selection
   menu. They go to `Downloads/uwuMail` through MediaStore rather than into the
   app's private storage, because a download you cannot open from a file manager
@@ -216,6 +230,16 @@ have.
 - Removals are otherwise optimistic: the message goes from the list at once and
   the server catches up behind it. If the server refuses, the message comes back
   and the failure is reported rather than the mail going quietly missing.
+
+## Searching
+
+- Searches **every folder of every account**, over subject, sender, recipients,
+  preview and body text — not just the folder you happen to be looking at.
+- **Also search the server** reaches mail that was never synced, which for
+  anything older than the last few hundred messages is all of it. Hits are
+  cached like any other message, so the list picks them up and asking twice is
+  instant. Subject, sender and recipients only: a full-text search over every
+  message is expensive on the server and slow on a phone.
 
 ## The message list
 
@@ -278,6 +302,17 @@ have.
   following the order the list was showing. Opened from a notification, with no
   list behind it, there is nowhere to swipe and nothing happens.
 
+## Backup
+
+- **Save rules and settings** to a file in `Downloads/uwuMail`, and restore from
+  one. Rules are hand-built regex that exist nowhere else — not on the mail
+  server, not in any account — so a lost phone loses them for good.
+- Accounts and passwords are deliberately **not** included: the credentials are
+  sealed to the device's keystore and could not be restored elsewhere anyway,
+  and a file of mail passwords is not a thing to leave in a Downloads folder.
+- Restoring adds to what is there rather than replacing it, and a file that is
+  not a uwuMail backup is refused rather than half read.
+
 ## Appearance and language
 
 - **Themes**: follow the system (with Material You dynamic colour where the
@@ -316,6 +351,9 @@ have.
   means the night, and the part after midnight belongs to the day it opened on.
   Anything you ask for yourself — opening the app, pulling to refresh, sending —
   is never held back.
+- **Mark read, Archive and Trash straight from the notification.** The point of
+  the rules engine is to handle mail before it asks for attention; finishing
+  the job without opening the app is the end of the same idea.
 - One notification channel group per account, with default / silent / high
   channels so rules can downgrade or mute specific mail.
 
@@ -409,7 +447,7 @@ to read and to run rules against.
 
 ## Tests
 
-158 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+176 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -441,6 +479,14 @@ to read and to run rules against.
   save, which must not report a failure as a smaller success.
 - `ui/` — day grouping of the message list, `[mailbox] folder` labelling, and
   the order swiping between messages follows.
+- `ui/NavigationGuardTest` — runs a real NavHost under Robolectric and asserts
+  the back stack can never be emptied by a second tap on a screen already left.
+  A blank, unresponsive window is not something a test over pure functions can
+  see coming; removing the guard fails two of these four.
+- `mail/ContentIdTest` — matching a body's `cid:` reference to the part that
+  carries it, across angle brackets, case and percent-encoding.
+- `data/repo/BackupFormatTest` — refusing a file that is not a backup, or is
+  from a later format, before anything is written.
 
 ## Layout
 
