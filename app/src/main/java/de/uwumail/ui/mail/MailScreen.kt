@@ -132,6 +132,16 @@ private fun unifiedTitle(target: MailTarget): Int = when (target) {
     else -> MailTarget.UNIFIED.firstOrNull { it.first == target }?.second ?: R.string.all_inboxes
 }
 
+/**
+ * Where closing the search box lands, or null to stay where the list already is.
+ *
+ * Widening a search to every folder moves the list off the folder it was on, so
+ * closing it has to put that back; a search that never left the folder has
+ * nothing to undo.
+ */
+fun targetAfterSearch(current: MailTarget, origin: MailTarget?): MailTarget? =
+    if (current == MailTarget.Search) origin ?: MailTarget.INBOXES else null
+
 /** How a removal that is still cancellable describes itself. */
 @Composable
 private fun undoMessage(offer: Undoable): String = pluralStringResource(
@@ -181,6 +191,7 @@ fun MailScreen(
     var swipeMoveFor by remember { mutableStateOf<Long?>(null) }
     var swipeDeleteFor by remember { mutableStateOf<Long?>(null) }
     var showSearch by remember { mutableStateOf(false) }
+    var searchOrigin by remember { mutableStateOf<MailTarget?>(null) }
     var overflowOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.status, state.error) {
@@ -371,13 +382,20 @@ fun MailScreen(
                         },
                         actions = {
                             IconButton(onClick = {
-                                showSearch = !showSearch
                                 if (!showSearch) {
+                                    // Where the search was started from, so
+                                    // closing it comes back here rather than
+                                    // dropping into the inbox from a folder the
+                                    // user was half way down.
+                                    searchOrigin = state.target
+                                    showSearch = true
+                                } else {
+                                    showSearch = false
                                     viewModel.setQuery("")
                                     // Leaving the search leaves the results too.
-                                    if (state.target == MailTarget.Search) {
-                                        viewModel.open(MailTarget.INBOXES)
-                                    }
+                                    targetAfterSearch(state.target, searchOrigin)
+                                        ?.let(viewModel::open)
+                                    searchOrigin = null
                                 }
                             }) {
                                 Icon(
