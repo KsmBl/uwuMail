@@ -1,5 +1,10 @@
 package de.uwumail.ui
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,6 +32,20 @@ import de.uwumail.ui.rules.RuleWizardScreen
 import de.uwumail.ui.rules.RulesScreen
 import de.uwumail.ui.settings.BlockedSendersScreen
 import de.uwumail.ui.settings.SettingsScreen
+
+/**
+ * How long one screen takes to replace another. The library's own default is a
+ * 700ms crossfade, which is long enough that opening a mail reads as the app
+ * thinking it over rather than answering the tap.
+ */
+private const val TRANSITION_MILLIS = 260
+
+/**
+ * How far the screen being left behind moves, as a fraction of the width. It
+ * travels a little so that the two screens are clearly stacked, and not so far
+ * that both are racing across at once.
+ */
+private const val PARALLAX = 6
 
 object Routes {
     const val MAIL = "mail"
@@ -79,7 +98,25 @@ fun UwuMailNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = if (startOnAccounts) Routes.ACCOUNTS else Routes.MAIL
+        startDestination = if (startOnAccounts) Routes.ACCOUNTS else Routes.MAIL,
+        // Forward moves in from the right and back sends it out that way again,
+        // so the gesture and the picture agree about which way the stack runs.
+        enterTransition = {
+            slideInHorizontally(tween(TRANSITION_MILLIS)) { width -> width } +
+                fadeIn(tween(TRANSITION_MILLIS))
+        },
+        exitTransition = {
+            slideOutHorizontally(tween(TRANSITION_MILLIS)) { width -> -width / PARALLAX } +
+                fadeOut(tween(TRANSITION_MILLIS))
+        },
+        popEnterTransition = {
+            slideInHorizontally(tween(TRANSITION_MILLIS)) { width -> -width / PARALLAX } +
+                fadeIn(tween(TRANSITION_MILLIS))
+        },
+        popExitTransition = {
+            slideOutHorizontally(tween(TRANSITION_MILLIS)) { width -> width } +
+                fadeOut(tween(TRANSITION_MILLIS))
+        }
     ) {
         composable(Routes.MAIL) { entry ->
             MailScreen(
