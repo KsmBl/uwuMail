@@ -20,8 +20,10 @@ class AppThemeTest {
     }
 
     @Test
-    fun `every theme is named for the picker`() {
-        AppTheme.entries.forEach { assertTrue(it.name, it.label.isNotBlank()) }
+    fun `every theme has its own name in the picker`() {
+        // The labels are string resources now, so this checks they are set and
+        // distinct rather than reading them.
+        AppTheme.entries.forEach { assertTrue(it.name, it.label != 0) }
         assertEquals(AppTheme.entries.size, AppTheme.entries.map { it.label }.toSet().size)
     }
 }

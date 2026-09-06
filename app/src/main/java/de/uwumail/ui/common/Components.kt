@@ -34,7 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
 import java.text.SimpleDateFormat
@@ -80,7 +82,7 @@ fun LabeledField(
 fun ConfirmDialog(
     title: String,
     message: String,
-    confirmLabel: String = "Confirm",
+    confirmLabel: String = stringResource(R.string.confirm),
     destructive: Boolean = false,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
@@ -98,7 +100,7 @@ fun ConfirmDialog(
                 )
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -107,7 +109,7 @@ fun TextPromptDialog(
     title: String,
     label: String,
     initial: String = "",
-    confirmLabel: String = "Create",
+    confirmLabel: String = stringResource(R.string.create),
     supportingText: String? = null,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
@@ -133,7 +135,7 @@ fun TextPromptDialog(
                 enabled = text.isNotBlank()
             ) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -180,8 +182,8 @@ fun folderLabel(folder: FolderEntity, accounts: List<AccountEntity>): String {
 fun FolderPickerSheet(
     folders: List<FolderEntity>,
     accounts: List<AccountEntity>,
-    title: String = "Move to",
-    confirmLabel: String = "Move here",
+    title: String = stringResource(R.string.move_to),
+    confirmLabel: String = stringResource(R.string.move_here),
     preferredAccountId: Long? = null,
     onPick: (FolderEntity) -> Unit,
     onDismiss: () -> Unit
@@ -237,7 +239,7 @@ fun FolderPickerSheet(
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Text(
-                            if (folder.isLocal) "on this device" else folder.path,
+                            if (folder.isLocal) stringResource(R.string.on_this_device) else folder.path,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

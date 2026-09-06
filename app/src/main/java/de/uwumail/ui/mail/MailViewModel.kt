@@ -2,6 +2,7 @@ package de.uwumail.ui.mail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.R
 import de.uwumail.core.DeviceDownloads
 import de.uwumail.core.FolderType
 import de.uwumail.core.SwipeAction
@@ -44,9 +45,9 @@ sealed interface MailTarget {
 
         /** The unified rows shown at the top of the drawer, in order. */
         val UNIFIED = listOf(
-            INBOXES to "All inboxes",
-            OUTBOXES to "All outboxes",
-            DELETED to "All deleted mails"
+            INBOXES to R.string.all_inboxes,
+            OUTBOXES to R.string.all_outboxes,
+            DELETED to R.string.all_deleted
         )
     }
 }
@@ -74,11 +75,6 @@ data class MailUiState(
     val swipeLeft: SwipeAction = SwipeAction.TRASH
 ) {
     val inSelectionMode: Boolean get() = selection.isNotEmpty()
-
-    val title: String
-        get() = currentFolder?.displayName
-            ?: MailTarget.UNIFIED.firstOrNull { it.first == target }?.second
-            ?: "Mail"
 
     /** Whether this list is the Drafts folder, where a tap means "carry on writing". */
     val showsDrafts: Boolean

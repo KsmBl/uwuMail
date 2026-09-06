@@ -25,7 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.core.AppTheme
 import de.uwumail.ui.LocalAppContainer
 
@@ -40,14 +42,14 @@ fun AppearanceSection() {
         ListItem(
             modifier = Modifier.clickable { open = true },
             leadingContent = { Icon(Icons.Default.Palette, null) },
-            headlineContent = { Text("Theme") },
-            supportingContent = { Text(settings.theme.label) },
+            headlineContent = { Text(stringResource(R.string.set_theme)) },
+            supportingContent = { Text(stringResource(settings.theme.label)) },
             trailingContent = { ThemeDots(settings.theme) }
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             AppTheme.entries.forEach { theme ->
                 DropdownMenuItem(
-                    text = { Text(theme.label) },
+                    text = { Text(stringResource(theme.label)) },
                     leadingIcon = { ThemeDots(theme) },
                     onClick = { open = false; container.settings.update { it.copy(theme = theme) } }
                 )

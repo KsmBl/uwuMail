@@ -33,8 +33,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
+import de.uwumail.R
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.ui.LocalAppContainer
 import de.uwumail.ui.common.ConfirmDialog
@@ -54,27 +56,28 @@ fun AccountsScreen(
     val accounts by container.db.accountDao().observeAll()
         .collectAsState(initial = emptyList())
     var pendingDelete by remember { mutableStateOf<AccountEntity?>(null) }
+    val muted = stringResource(R.string.account_muted)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Accounts") },
+                title = { Text(stringResource(R.string.accounts_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, "Add account")
+                Icon(Icons.Default.Add, stringResource(R.string.add_account))
             }
         }
     ) { padding ->
         if (accounts.isEmpty()) {
             Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                EmptyState("No accounts", "Tap + to add your first mail account.")
+                EmptyState(stringResource(R.string.no_accounts_title), stringResource(R.string.no_accounts_hint))
             }
             return@Scaffold
         }
@@ -100,7 +103,7 @@ fun AccountsScreen(
                                 append(account.email)
                                 append(" · ")
                                 append(if (account.pushEnabled) "push" else "${account.syncIntervalMinutes} min")
-                                if (!account.notificationsEnabled) append(" · muted")
+                                if (!account.notificationsEnabled) append(muted)
                             }
                         )
                     },
@@ -108,7 +111,7 @@ fun AccountsScreen(
                         IconButton(onClick = { pendingDelete = account }) {
                             Icon(
                                 Icons.Default.Delete,
-                                "Remove account",
+                                stringResource(R.string.remove_account),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -122,9 +125,8 @@ fun AccountsScreen(
     pendingDelete?.let { account ->
         ConfirmDialog(
             title = "Remove ${account.displayName}?",
-            message = "Cached mail, folders and stored passwords for this account are deleted " +
-                "from the device. Nothing on the server changes.",
-            confirmLabel = "Remove",
+            message = stringResource(R.string.account_remove_body),
+            confirmLabel = stringResource(R.string.remove),
             destructive = true,
             onConfirm = {
                 scope.launch { container.accountRepository.delete(account.id) }

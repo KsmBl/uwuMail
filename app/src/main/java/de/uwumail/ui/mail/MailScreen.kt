@@ -95,7 +95,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.annotation.StringRes
 import de.uwumail.R
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
@@ -114,6 +116,11 @@ import kotlinx.coroutines.launch
 
 private const val TAPS_TO_UNLOCK = 5
 private const val TAP_GAP_MILLIS = 1_500L
+
+/** The name of a unified view, which has no folder of its own to be named after. */
+@StringRes
+private fun unifiedTitle(target: MailTarget): Int =
+    MailTarget.UNIFIED.firstOrNull { it.first == target }?.second ?: R.string.all_inboxes
 
 /** How a removal that is still cancellable describes itself. */
 private fun undoMessage(offer: Undoable): String {
@@ -145,6 +152,9 @@ fun MailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHost = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
+    // Read here rather than inside the callbacks below, which are not composable.
+    val undoLabel = stringResource(R.string.undo)
+    val gravityUnlockedMessage = stringResource(R.string.gravity_unlocked)
 
     var showMovePicker by remember { mutableStateOf(false) }
     var showCopyPicker by remember { mutableStateOf(false) }
@@ -161,7 +171,7 @@ fun MailScreen(
             offer != null -> {
                 val result = snackbarHost.showSnackbar(
                     message = undoMessage(offer),
-                    actionLabel = "Undo",
+                    actionLabel = undoLabel,
                     withDismissAction = false,
                     duration = SnackbarDuration.Short
                 )
@@ -235,7 +245,7 @@ fun MailScreen(
                 drawerOpen = drawerState.isOpen,
                 onUnlocked = {
                     if (viewModel.unlockGravity()) {
-                        Toast.makeText(context, "Gravity unlocked", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, gravityUnlockedMessage, Toast.LENGTH_SHORT).show()
                     }
                 },
                 onOpen = {
@@ -282,13 +292,18 @@ fun MailScreen(
                                 OutlinedTextField(
                                     value = state.query,
                                     onValueChange = viewModel::setQuery,
-                                    placeholder = { Text("Search this folder") },
+                                    placeholder = { Text(stringResource(R.string.search_folder)) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             } else {
                                 Column {
-                                    Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(
+                            state.currentFolder?.displayName
+                                ?: stringResource(unifiedTitle(state.target)),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                                     state.currentFolder?.let { folder ->
                                         val account = state.accounts.firstOrNull { it.id == folder.accountId }
                                         if (account != null) {
@@ -304,7 +319,7 @@ fun MailScreen(
                         },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = "Folders")
+                                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.folders))
                             }
                         },
                         actions = {
@@ -314,25 +329,25 @@ fun MailScreen(
                             }) {
                                 Icon(
                                     if (showSearch) Icons.Default.Close else Icons.Default.Search,
-                                    contentDescription = "Search"
+                                    contentDescription = stringResource(R.string.search)
                                 )
                             }
                             IconButton(onClick = viewModel::refresh) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                             }
                             IconButton(onClick = { overflowOpen = true }) {
-                                Icon(Icons.Default.Rule, contentDescription = "More")
+                                Icon(Icons.Default.Rule, contentDescription = stringResource(R.string.more))
                             }
                             DropdownMenu(
                                 expanded = overflowOpen,
                                 onDismissRequest = { overflowOpen = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Rules") },
+                                    text = { Text(stringResource(R.string.rules)) },
                                     onClick = { overflowOpen = false; onManageRules() }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Manage folders") },
+                                    text = { Text(stringResource(R.string.manage_folders)) },
                                     onClick = {
                                         overflowOpen = false
                                         state.currentFolder?.accountId
@@ -341,7 +356,7 @@ fun MailScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Accounts") },
+                                    text = { Text(stringResource(R.string.accounts)) },
                                     onClick = { overflowOpen = false; onManageAccounts() }
                                 )
                             }
@@ -360,7 +375,7 @@ fun MailScreen(
                     ExtendedFloatingActionButton(
                         onClick = { onCompose(state.currentFolder?.accountId) },
                         icon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                        text = { Text("Compose") }
+                        text = { Text(stringResource(R.string.compose)) }
                     )
                 }
             }
@@ -382,8 +397,8 @@ fun MailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 EmptyState(
-                                    title = "No accounts yet",
-                                    subtitle = "Add a mail account to get started."
+                                    title = stringResource(R.string.no_accounts),
+                                    subtitle = stringResource(R.string.no_accounts_sub)
                                 )
                             }
                         }
@@ -395,9 +410,9 @@ fun MailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 EmptyState(
-                                    title = if (state.query.isBlank()) "Nothing here"
-                                    else "No matches",
-                                    subtitle = if (state.query.isBlank()) "Pull down to sync."
+                                    title = if (state.query.isBlank()) stringResource(R.string.nothing_here)
+                                    else stringResource(R.string.no_matches),
+                                    subtitle = if (state.query.isBlank()) stringResource(R.string.pull_to_sync)
                                     else null
                                 )
                             }
@@ -462,6 +477,8 @@ fun MailScreen(
         FolderPickerSheet(
             folders = state.moveTargets(),
             accounts = state.accounts,
+            title = stringResource(R.string.move_to),
+            confirmLabel = stringResource(R.string.move_here),
             preferredAccountId = state.currentFolder?.accountId,
             onPick = { swipeMoveFor = null; viewModel.moveMessage(messageId, it.id) },
             onDismiss = { swipeMoveFor = null }
@@ -470,9 +487,9 @@ fun MailScreen(
 
     swipeDeleteFor?.let { messageId ->
         ConfirmDialog(
-            title = "Delete permanently?",
-            message = "This removes the message from the server. It cannot be undone.",
-            confirmLabel = "Delete",
+            title = stringResource(R.string.delete_forever_q),
+            message = stringResource(R.string.delete_forever_body),
+            confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = { viewModel.deleteMessage(messageId) },
             onDismiss = { swipeDeleteFor = null }
@@ -483,8 +500,8 @@ fun MailScreen(
         FolderPickerSheet(
             folders = state.moveTargets(),
             accounts = state.accounts,
-            title = "Copy to",
-            confirmLabel = "Copy here",
+            title = stringResource(R.string.copy_to),
+            confirmLabel = stringResource(R.string.copy_here),
             preferredAccountId = state.currentFolder?.accountId,
             onPick = {
                 showCopyPicker = false
@@ -498,6 +515,8 @@ fun MailScreen(
         FolderPickerSheet(
             folders = state.moveTargets(),
             accounts = state.accounts,
+            title = stringResource(R.string.move_to),
+            confirmLabel = stringResource(R.string.move_here),
             preferredAccountId = state.currentFolder?.accountId,
             onPick = {
                 showMovePicker = false
@@ -530,29 +549,29 @@ private fun SelectionAppBar(
     TopAppBar(
         title = { Text("$count selected") },
         navigationIcon = {
-            IconButton(onClick = onClear) { Icon(Icons.Default.Close, "Clear selection") }
+            IconButton(onClick = onClear) { Icon(Icons.Default.Close, stringResource(R.string.clear_selection)) }
         },
         actions = {
-            IconButton(onClick = onArchive) { Icon(Icons.Default.Archive, "Archive") }
-            IconButton(onClick = onTrash) { Icon(Icons.Default.Delete, "Trash") }
-            IconButton(onClick = onMove) { Icon(Icons.Default.DriveFileMove, "Move") }
+            IconButton(onClick = onArchive) { Icon(Icons.Default.Archive, stringResource(R.string.archive)) }
+            IconButton(onClick = onTrash) { Icon(Icons.Default.Delete, stringResource(R.string.trash)) }
+            IconButton(onClick = onMove) { Icon(Icons.Default.DriveFileMove, stringResource(R.string.move)) }
             IconButton(onClick = onCreateRule) {
-                Icon(Icons.AutoMirrored.Filled.Label, "Create rule from selection")
+                Icon(Icons.AutoMirrored.Filled.Label, stringResource(R.string.create_rule_from))
             }
-            IconButton(onClick = { overflow = true }) { Icon(Icons.Default.Rule, "More") }
+            IconButton(onClick = { overflow = true }) { Icon(Icons.Default.Rule, stringResource(R.string.more)) }
             DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
                 DropdownMenuItem(
-                    text = { Text("Mark as read") },
+                    text = { Text(stringResource(R.string.mark_read)) },
                     leadingIcon = { Icon(Icons.Default.MarkEmailRead, null) },
                     onClick = { overflow = false; onMarkRead() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Mark as unread") },
+                    text = { Text(stringResource(R.string.mark_unread)) },
                     leadingIcon = { Icon(Icons.Default.MarkEmailUnread, null) },
                     onClick = { overflow = false; onMarkUnread() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Star") },
+                    text = { Text(stringResource(R.string.star)) },
                     leadingIcon = { Icon(Icons.Default.Star, null) },
                     onClick = { overflow = false; onStar() }
                 )
@@ -562,24 +581,24 @@ private fun SelectionAppBar(
                     onClick = { overflow = false; onCopy() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Save attachments") },
+                    text = { Text(stringResource(R.string.save_attachments)) },
                     leadingIcon = { Icon(Icons.Default.AttachFile, null) },
                     onClick = { overflow = false; onSaveAttachments() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Download to device") },
+                    text = { Text(stringResource(R.string.download_to_device)) },
                     leadingIcon = { Icon(Icons.Default.Download, null) },
                     onClick = { overflow = false; onDownload() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Select all") },
+                    text = { Text(stringResource(R.string.select_all)) },
                     leadingIcon = { Icon(Icons.Default.Check, null) },
                     onClick = { overflow = false; onSelectAll() }
                 )
                 HorizontalDivider()
                 DropdownMenuItem(
                     text = {
-                        Text("Delete permanently", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.delete_permanently), color = MaterialTheme.colorScheme.error)
                     },
                     leadingIcon = {
                         Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
@@ -678,7 +697,7 @@ private fun MessageRow(
                 if (message.spam) {
                     Icon(
                         Icons.Default.Block,
-                        contentDescription = "Sender is on a spam list",
+                        contentDescription = stringResource(R.string.sender_on_spam_list),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.error
                     )
@@ -686,7 +705,7 @@ private fun MessageRow(
                 }
                 Text(
                     message.fromName?.takeIf { it.isNotBlank() }
-                        ?: message.fromAddress.orEmpty().ifBlank { "(unknown sender)" },
+                        ?: message.fromAddress.orEmpty().ifBlank { stringResource(R.string.unknown_sender) },
                     style = MaterialTheme.typography.titleSmall,
                     color = senderColor,
                     fontWeight = if (message.seen) FontWeight.Normal else FontWeight.Bold,
@@ -697,7 +716,7 @@ private fun MessageRow(
                 if (message.isLocal) {
                     Icon(
                         Icons.Default.PhoneAndroid,
-                        contentDescription = "Stored on device",
+                        contentDescription = stringResource(R.string.stored_on_device),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -706,7 +725,7 @@ private fun MessageRow(
                 if (message.hasAttachments) {
                     Icon(
                         Icons.Default.AttachFile,
-                        contentDescription = "Has attachments",
+                        contentDescription = stringResource(R.string.has_attachments),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -719,7 +738,7 @@ private fun MessageRow(
                 )
             }
             Text(
-                message.subject.ifBlank { "(no subject)" },
+                message.subject.ifBlank { stringResource(R.string.no_subject) },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (message.seen) FontWeight.Normal else FontWeight.SemiBold,
                 maxLines = 1,
@@ -738,7 +757,7 @@ private fun MessageRow(
         IconButton(onClick = onStar, modifier = Modifier.size(32.dp)) {
             Icon(
                 if (message.flagged) Icons.Default.Star else Icons.Default.StarBorder,
-                contentDescription = "Star",
+                contentDescription = stringResource(R.string.star),
                 tint = if (message.flagged) MaterialTheme.colorScheme.tertiary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
@@ -793,7 +812,7 @@ private fun MailDrawer(
             // Cross-account views, before any individual account's folders.
             items(MailTarget.UNIFIED, key = { it.second }) { (destination, label) ->
                 NavigationDrawerItem(
-                    label = { Text(label) },
+                    label = { Text(stringResource(label)) },
                     icon = {
                         Icon(
                             when (destination) {
@@ -821,7 +840,7 @@ private fun MailDrawer(
                         IconButton(onClick = { onManageFolders(account.id) }) {
                             Icon(
                                 painterResource(R.drawable.ic_folder_edit),
-                                contentDescription = "Edit folders",
+                                contentDescription = stringResource(R.string.edit_folders),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -842,21 +861,21 @@ private fun MailDrawer(
             item {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 NavigationDrawerItem(
-                    label = { Text("Rules") },
+                    label = { Text(stringResource(R.string.rules)) },
                     icon = { Icon(Icons.Default.Rule, null) },
                     selected = false,
                     onClick = onManageRules,
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
                 NavigationDrawerItem(
-                    label = { Text("Accounts") },
+                    label = { Text(stringResource(R.string.accounts)) },
                     icon = { Icon(Icons.Default.Folder, null) },
                     selected = false,
                     onClick = onManageAccounts,
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
                 NavigationDrawerItem(
-                    label = { Text("Settings") },
+                    label = { Text(stringResource(R.string.settings)) },
                     icon = { Icon(Icons.Default.Settings, null) },
                     selected = false,
                     onClick = onSettings,
@@ -916,7 +935,7 @@ private fun FolderRow(
             if (folder.syncEnabled && !folder.isLocal) {
                 Icon(
                     Icons.Default.Sync,
-                    contentDescription = "Synced in the background",
+                    contentDescription = stringResource(R.string.synced_in_background),
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -940,36 +959,36 @@ private fun FolderRow(
             )
             HorizontalDivider()
             DropdownMenuItem(
-                text = { Text("Move up") },
+                text = { Text(stringResource(R.string.move_up)) },
                 enabled = canMoveUp,
                 leadingIcon = { Icon(Icons.Default.ArrowUpward, null) },
                 onClick = { menuOpen = false; onAction(FolderAction.MOVE_UP) }
             )
             DropdownMenuItem(
-                text = { Text("Move down") },
+                text = { Text(stringResource(R.string.move_down)) },
                 enabled = canMoveDown,
                 leadingIcon = { Icon(Icons.Default.ArrowDownward, null) },
                 onClick = { menuOpen = false; onAction(FolderAction.MOVE_DOWN) }
             )
             DropdownMenuItem(
-                text = { Text("Reset order") },
+                text = { Text(stringResource(R.string.reset_order)) },
                 onClick = { menuOpen = false; onAction(FolderAction.RESET_ORDER) }
             )
             HorizontalDivider()
             DropdownMenuItem(
-                text = { Text("Mark all as read") },
+                text = { Text(stringResource(R.string.mark_all_read)) },
                 leadingIcon = { Icon(Icons.Default.MarkEmailRead, null) },
                 onClick = { menuOpen = false; onAction(FolderAction.MARK_READ) }
             )
             if (!folder.isLocal) {
                 DropdownMenuItem(
-                    text = { Text(if (folder.syncEnabled) "Stop syncing" else "Sync automatically") },
+                    text = { Text(if (folder.syncEnabled) stringResource(R.string.stop_syncing) else stringResource(R.string.sync_automatically)) },
                     leadingIcon = { Icon(Icons.Default.Sync, null) },
                     onClick = { menuOpen = false; onAction(FolderAction.TOGGLE_SYNC) }
                 )
             }
             DropdownMenuItem(
-                text = { Text("Hide on this device") },
+                text = { Text(stringResource(R.string.hide_on_device)) },
                 leadingIcon = { Icon(Icons.Default.VisibilityOff, null) },
                 onClick = { menuOpen = false; onAction(FolderAction.HIDE) }
             )

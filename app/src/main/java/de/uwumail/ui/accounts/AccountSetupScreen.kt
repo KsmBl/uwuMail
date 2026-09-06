@@ -53,10 +53,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import androidx.browser.customtabs.CustomTabsIntent
+import de.uwumail.R
 import de.uwumail.core.Security
 import de.uwumail.mail.oauth.OAuthProvider
 import de.uwumail.data.db.IdentityEntity
@@ -106,10 +108,10 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
         topBar = {
             Column {
             TopAppBar(
-                title = { Text(if (state.isNew) "Add account" else "Edit account") },
+                title = { Text(if (state.isNew) stringResource(R.string.setup_add) else stringResource(R.string.setup_edit)) },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -117,7 +119,7 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                         CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp))
                     } else {
                         IconButton(onClick = viewModel::save, enabled = state.canSave) {
-                            Icon(Icons.Default.Save, "Save")
+                            Icon(Icons.Default.Save, stringResource(R.string.save))
                         }
                     }
                 }
@@ -137,12 +139,12 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                 onUsePassword = viewModel::usePasswordInstead
             )
 
-            SectionHeader("Identity")
-            LabeledField("Your name", state.displayName, { v -> viewModel.update { it.copy(displayName = v) } })
+            SectionHeader(stringResource(R.string.identity))
+            LabeledField(stringResource(R.string.your_name), state.displayName, { v -> viewModel.update { it.copy(displayName = v) } })
             LabeledField(
-                "Email address", state.email,
+                stringResource(R.string.email_address), state.email,
                 { v -> viewModel.update { it.copy(email = v) } },
-                supportingText = "Used as the default From address"
+                supportingText = stringResource(R.string.used_as_default_from)
             )
             if (!state.isOAuth) {
                 Row(
@@ -156,17 +158,17 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                     ) {
                         if (state.discovering) CircularProgressIndicator(Modifier.size(16.dp))
                         else Icon(Icons.Default.Search, null)
-                        Text("  Find settings")
+                        Text("  " + stringResource(R.string.find_settings))
                     }
                 }
             }
 
             if (state.needsPassword) {
-            SectionHeader("Password")
+            SectionHeader(stringResource(R.string.password))
             OutlinedTextField(
                 value = state.imapPassword,
                 onValueChange = { v -> viewModel.update { it.copy(imapPassword = v) } },
-                label = { Text(if (state.isNew) "Password" else "New password (leave empty to keep)") },
+                label = { Text(if (state.isNew) stringResource(R.string.password) else stringResource(R.string.new_password)) },
                 singleLine = true,
                 visualTransformation = if (showPassword) VisualTransformation.None
                 else PasswordVisualTransformation(),
@@ -174,21 +176,21 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
                             if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            "Toggle password"
+                            stringResource(R.string.toggle_password)
                         )
                     }
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
             )
             SwitchRow(
-                "Same password for SMTP",
+                stringResource(R.string.same_password_smtp),
                 state.samePassword
             ) { v -> viewModel.update { it.copy(samePassword = v) } }
             if (!state.samePassword) {
                 OutlinedTextField(
                     value = state.smtpPassword,
                     onValueChange = { v -> viewModel.update { it.copy(smtpPassword = v) } },
-                    label = { Text("SMTP password") },
+                    label = { Text(stringResource(R.string.smtp_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
@@ -197,13 +199,13 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
 
             }
 
-            SectionHeader("Incoming (IMAP)")
-            LabeledField("Host", state.imapHost, { v -> viewModel.update { it.copy(imapHost = v) } })
+            SectionHeader(stringResource(R.string.incoming_imap))
+            LabeledField(stringResource(R.string.host), state.imapHost, { v -> viewModel.update { it.copy(imapHost = v) } })
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = state.imapPort,
                     onValueChange = { v -> viewModel.update { it.copy(imapPort = v.filter(Char::isDigit)) } },
-                    label = { Text("Port") },
+                    label = { Text(stringResource(R.string.port)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f).padding(start = 16.dp, end = 8.dp)
@@ -214,18 +216,18 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                 ) { v -> viewModel.update { it.copy(imapSecurity = v) } }
             }
             LabeledField(
-                "Username", state.imapUsername,
+                stringResource(R.string.username), state.imapUsername,
                 { v -> viewModel.update { it.copy(imapUsername = v) } },
-                supportingText = "Defaults to the email address"
+                supportingText = stringResource(R.string.defaults_to_email)
             )
 
-            SectionHeader("Outgoing (SMTP)")
-            LabeledField("Host", state.smtpHost, { v -> viewModel.update { it.copy(smtpHost = v) } })
+            SectionHeader(stringResource(R.string.outgoing_smtp))
+            LabeledField(stringResource(R.string.host), state.smtpHost, { v -> viewModel.update { it.copy(smtpHost = v) } })
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = state.smtpPort,
                     onValueChange = { v -> viewModel.update { it.copy(smtpPort = v.filter(Char::isDigit)) } },
-                    label = { Text("Port") },
+                    label = { Text(stringResource(R.string.port)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f).padding(start = 16.dp, end = 8.dp)
@@ -235,42 +237,41 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                     Modifier.weight(1.2f).padding(end = 16.dp)
                 ) { v -> viewModel.update { it.copy(smtpSecurity = v) } }
             }
-            LabeledField("Username", state.smtpUsername, { v -> viewModel.update { it.copy(smtpUsername = v) } })
+            LabeledField(stringResource(R.string.username), state.smtpUsername, { v -> viewModel.update { it.copy(smtpUsername = v) } })
 
-            SectionHeader("Sync & notifications")
-            SwitchRow("Background sync", state.syncEnabled) { v ->
+            SectionHeader(stringResource(R.string.sync_and_notifications))
+            SwitchRow(stringResource(R.string.background_sync), state.syncEnabled) { v ->
                 viewModel.update { it.copy(syncEnabled = v) }
             }
             LabeledField(
-                "Sync interval (minutes)", state.syncIntervalMinutes,
+                stringResource(R.string.sync_interval), state.syncIntervalMinutes,
                 { v -> viewModel.update { it.copy(syncIntervalMinutes = v.filter(Char::isDigit)) } },
-                supportingText = "Android enforces a 15 minute minimum"
+                supportingText = stringResource(R.string.sync_interval_hint)
             )
             SwitchRow(
-                "Push (keep IMAP IDLE open)",
+                stringResource(R.string.push_idle),
                 state.pushEnabled
             ) { v -> viewModel.update { it.copy(pushEnabled = v) } }
-            SwitchRow("Notifications", state.notificationsEnabled) { v ->
+            SwitchRow(stringResource(R.string.notifications), state.notificationsEnabled) { v ->
                 viewModel.update { it.copy(notificationsEnabled = v) }
             }
 
-            SectionHeader("Sending as")
+            SectionHeader(stringResource(R.string.sending_as))
             SwitchRow(
-                "Envelope sender follows the From address",
+                stringResource(R.string.envelope_follows),
                 state.useIdentityAsEnvelopeSender
             ) { v -> viewModel.update { it.copy(useIdentityAsEnvelopeSender = v) } }
             Text(
-                "Off means MAIL FROM always uses the account address, which some servers require.",
+                stringResource(R.string.envelope_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
             if (!state.isNew) {
-                SectionHeader("Identities")
+                SectionHeader(stringResource(R.string.identities))
                 Text(
-                    "Addresses you can send as from this account. The default is used " +
-                        "for new messages.",
+                    stringResource(R.string.identities_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -287,8 +288,8 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                                 Icon(
                                     if (identity.isDefault) Icons.Default.Star
                                     else Icons.Default.StarBorder,
-                                    contentDescription = if (identity.isDefault) "Default address"
-                                    else "Use as default",
+                                    contentDescription = if (identity.isDefault) stringResource(R.string.default_address)
+                                    else stringResource(R.string.use_as_default),
                                     tint = if (identity.isDefault) MaterialTheme.colorScheme.tertiary
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -298,7 +299,7 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                             IconButton(onClick = { identityToDelete = identity }) {
                                 Icon(
                                     Icons.Default.Delete,
-                                    "Remove identity",
+                                    stringResource(R.string.remove_identity),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -307,7 +308,7 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                 }
                 if (state.identities.isEmpty()) {
                     Text(
-                        "None saved — the account address is used.",
+                        stringResource(R.string.no_identities),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -316,18 +317,18 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                 TextButton(
                     onClick = { addIdentity = true },
                     modifier = Modifier.padding(horizontal = 16.dp)
-                ) { Text("Add identity") }
+                ) { Text(stringResource(R.string.add_identity)) }
             }
 
-            SectionHeader("Advanced")
+            SectionHeader(stringResource(R.string.advanced))
             SwitchRow(
-                "Accept any TLS certificate",
+                stringResource(R.string.accept_any_cert),
                 state.trustAllCerts
             ) { v -> viewModel.update { it.copy(trustAllCerts = v) } }
             OutlinedTextField(
                 value = state.signature,
                 onValueChange = { v -> viewModel.update { it.copy(signature = v) } },
-                label = { Text("Signature") },
+                label = { Text(stringResource(R.string.signature)) },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
@@ -341,7 +342,7 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (state.testing) CircularProgressIndicator(Modifier.size(16.dp))
-                    Text(if (state.testing) "  Testing…" else "Test connection")
+                    Text(if (state.testing) "  " + stringResource(R.string.testing) else stringResource(R.string.test_connection))
                 }
                 state.testResult?.let {
                     Text(it, color = MaterialTheme.colorScheme.primary)
@@ -361,10 +362,10 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
 
     identityToDelete?.let { identity ->
         ConfirmDialog(
-            title = "Delete identity?",
+            title = stringResource(R.string.delete_identity_q),
             message = "\"${identity.email}\" is removed from this account's saved " +
                 "addresses. Nothing on the server changes.",
-            confirmLabel = "Delete",
+            confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = { viewModel.deleteIdentity(identity) },
             onDismiss = { identityToDelete = null }
@@ -373,10 +374,10 @@ fun AccountSetupScreen(accountId: Long, onDone: () -> Unit) {
 
     if (addIdentity) {
         TextPromptDialog(
-            title = "Add identity",
-            label = "Email address",
-            confirmLabel = "Add",
-            supportingText = "Any address your server allows in the From header",
+            title = stringResource(R.string.add_identity),
+            label = stringResource(R.string.email_address),
+            confirmLabel = stringResource(R.string.add),
+            supportingText = stringResource(R.string.any_from_address),
             onConfirm = { viewModel.addIdentity(it.substringBefore('@'), it) },
             onDismiss = { addIdentity = false }
         )
@@ -396,18 +397,16 @@ private fun SignInCard(
 ) {
     Card(Modifier.fillMaxWidth().padding(16.dp)) {
         Column(Modifier.padding(16.dp)) {
-            Text("Sign in with Google", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.sign_in_google), style = MaterialTheme.typography.titleMedium)
             Text(
                 when {
                     state.signedIn && state.isOAuth ->
                         "Signed in as ${state.email}. Server settings are filled in and the " +
                             "password fields are not used."
                     !state.googleConfigured ->
-                        "Needs a Google OAuth client id. Add one under Settings > Google " +
-                            "sign-in, then come back."
+                        stringResource(R.string.google_needs_id)
                     else ->
-                        "For Gmail this is the only option that works — Google no longer " +
-                            "accepts your account password over IMAP."
+                        stringResource(R.string.google_only_option)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -420,14 +419,14 @@ private fun SignInCard(
                 ) {
                     if (state.signingIn) {
                         CircularProgressIndicator(Modifier.size(16.dp))
-                        Text("  Waiting…")
+                        Text("  " + stringResource(R.string.waiting))
                     } else {
                         Icon(Icons.Default.AccountCircle, null)
-                        Text(if (state.signedIn) "  Sign in again" else "  Sign in with Google")
+                        Text(if (state.signedIn) "  " + stringResource(R.string.sign_in_again) else "  " + stringResource(R.string.sign_in_google))
                     }
                 }
                 if (state.isOAuth) {
-                    TextButton(onClick = onUsePassword) { Text("Use a password") }
+                    TextButton(onClick = onUsePassword) { Text(stringResource(R.string.use_a_password)) }
                 }
             }
         }
@@ -458,7 +457,7 @@ private fun SecurityPicker(
                 when (value) {
                     Security.SSL_TLS -> "SSL/TLS"
                     Security.STARTTLS -> "STARTTLS"
-                    Security.NONE -> "None"
+                    Security.NONE -> stringResource(R.string.sec_none)
                 }
             )
         }
@@ -470,7 +469,7 @@ private fun SecurityPicker(
                             when (option) {
                                 Security.SSL_TLS -> "SSL/TLS"
                                 Security.STARTTLS -> "STARTTLS"
-                                Security.NONE -> "None (insecure)"
+                                Security.NONE -> stringResource(R.string.sec_none_insecure)
                             }
                         )
                     },

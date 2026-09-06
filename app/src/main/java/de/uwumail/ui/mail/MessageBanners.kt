@@ -19,7 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.mail.UnsubscribeTarget
 
 /**
@@ -72,12 +74,12 @@ fun UnsubscribeBanner(target: UnsubscribeTarget, onUnsubscribe: () -> Unit) {
     MessageBanner(
         icon = Icons.Default.Unsubscribe,
         text = when {
-            target.oneClick -> "This sender supports one-click unsubscribe."
-            target.isMailto -> "Unsubscribing from this sender sends a mail."
-            target.fromBody -> "This message contains an unsubscribe link."
-            else -> "This sender offers an unsubscribe link."
+            target.oneClick -> stringResource(R.string.unsub_one_click)
+            target.isMailto -> stringResource(R.string.unsub_mailto)
+            target.fromBody -> stringResource(R.string.unsub_body)
+            else -> stringResource(R.string.unsub_header)
         },
-        actionLabel = "Unsubscribe",
+        actionLabel = stringResource(R.string.unsubscribe),
         container = MaterialTheme.colorScheme.tertiaryContainer,
         content = MaterialTheme.colorScheme.onTertiaryContainer,
         onAction = onUnsubscribe
@@ -94,7 +96,7 @@ fun BlockedImagesBanner(blockedCount: Int, onShow: () -> Unit) {
         } else {
             "Remote images are blocked. Loading them tells the sender you opened this."
         },
-        actionLabel = "Show images",
+        actionLabel = stringResource(R.string.show_images),
         onAction = onShow
     )
 }

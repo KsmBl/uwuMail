@@ -20,7 +20,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.core.SwipeAction
 import de.uwumail.ui.LocalAppContainer
 
@@ -31,21 +33,20 @@ fun SwipeSection() {
     val settings by container.settings.state.collectAsState()
 
     SwipeActionRow(
-        title = "Swipe right",
+        title = stringResource(R.string.swipe_right),
         icon = Icons.AutoMirrored.Filled.ArrowForward,
         selected = settings.swipeRight,
         onPick = { action -> container.settings.update { it.copy(swipeRight = action) } }
     )
     SwipeActionRow(
-        title = "Swipe left",
+        title = stringResource(R.string.swipe_left),
         icon = Icons.AutoMirrored.Filled.ArrowBack,
         selected = settings.swipeLeft,
         onPick = { action -> container.settings.update { it.copy(swipeLeft = action) } }
     )
 
     Text(
-        "Set a direction to \"Nothing\" and it stops swiping altogether. Swiping is " +
-            "off while messages are selected.",
+        stringResource(R.string.swipe_hint),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -65,14 +66,14 @@ private fun SwipeActionRow(
             modifier = Modifier.clickable { open = true },
             leadingContent = { Icon(icon, null) },
             headlineContent = { Text(title) },
-            supportingContent = { Text(selected.label) }
+            supportingContent = { Text(stringResource(selected.label)) }
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             SwipeAction.entries.forEach { action ->
                 DropdownMenuItem(
                     text = {
                         Text(
-                            action.label,
+                            stringResource(action.label),
                             color = if (action == SwipeAction.DELETE) {
                                 MaterialTheme.colorScheme.error
                             } else MaterialTheme.colorScheme.onSurface

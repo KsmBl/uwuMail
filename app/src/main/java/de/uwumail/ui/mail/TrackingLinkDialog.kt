@@ -13,7 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.mail.TrackingParams
 
 /**
@@ -34,7 +36,7 @@ fun TrackingLinkDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Link, contentDescription = null) },
-        title = { Text("Remove tracking?") },
+        title = { Text(stringResource(R.string.tracking_title)) },
         text = {
             Column {
                 Text(
@@ -56,10 +58,10 @@ fun TrackingLinkDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onDismiss(); onOpen(stripped) }) { Text("Open cleaned") }
+            TextButton(onClick = { onDismiss(); onOpen(stripped) }) { Text(stringResource(R.string.tracking_open_clean)) }
         },
         dismissButton = {
-            TextButton(onClick = { onDismiss(); onOpen(url) }) { Text("Open original") }
+            TextButton(onClick = { onDismiss(); onOpen(url) }) { Text(stringResource(R.string.tracking_open_original)) }
         }
     )
 }

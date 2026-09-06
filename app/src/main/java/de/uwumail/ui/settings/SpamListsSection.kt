@@ -29,7 +29,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.data.db.BlocklistEntity
 import de.uwumail.ui.LocalAppContainer
 import de.uwumail.ui.common.ConfirmDialog
@@ -89,8 +91,8 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
                                 list.entryCount > 0 ->
                                     "${list.entryCount} domains · updated " +
                                         formatListDate(list.updatedAt)
-                                list.enabled -> "Not downloaded yet"
-                                else -> "Off"
+                                list.enabled -> stringResource(R.string.spam_not_downloaded)
+                                else -> stringResource(R.string.spam_off)
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = if (list.lastError != null) MaterialTheme.colorScheme.error
@@ -128,7 +130,7 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
                     )
                     if (!list.builtIn) {
                         IconButton(onClick = { deleting = list }) {
-                            Icon(Icons.Default.Close, "Remove list")
+                            Icon(Icons.Default.Close, stringResource(R.string.spam_remove_list))
                         }
                     }
                 }
@@ -150,7 +152,7 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Blocked senders",
+                stringResource(R.string.spam_blocked_senders),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f)
             )
@@ -161,7 +163,7 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
         }
         if (manualEntries.isEmpty()) {
             Text(
-                "Add a domain like example.com, or a single address.",
+                stringResource(R.string.spam_blocked_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -189,16 +191,18 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
         }
     }
 
+    // Read outside the coroutines below, which are not composable.
+    val listAdded = stringResource(R.string.spam_list_added)
     if (addingList) {
         TextPromptDialog(
-            title = "Add spam list",
-            label = "URL",
+            title = stringResource(R.string.spam_add_list),
+            label = stringResource(R.string.spam_url),
             confirmLabel = "Add",
-            supportingText = "A plain text list with one domain per line",
+            supportingText = stringResource(R.string.spam_url_hint),
             onConfirm = { url ->
                 scope.launch {
                     runCatching { repository.addCustomList(url.substringAfterLast('/'), url) }
-                        .onSuccess { onMessage("List added") }
+                        .onSuccess { onMessage(listAdded) }
                         .onFailure { onMessage("Could not add that list: ${it.message}") }
                 }
             },
@@ -207,10 +211,10 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
     }
     if (addingSender) {
         TextPromptDialog(
-            title = "Block sender",
-            label = "Domain or address",
-            confirmLabel = "Block",
-            supportingText = "example.com blocks the whole domain",
+            title = stringResource(R.string.spam_block_sender),
+            label = stringResource(R.string.spam_domain_or_address),
+            confirmLabel = stringResource(R.string.spam_block),
+            supportingText = stringResource(R.string.spam_block_hint),
             onConfirm = { value ->
                 scope.launch {
                     repository.blockSender(value)
@@ -223,8 +227,8 @@ fun SpamListsSection(onMessage: (String) -> Unit) {
     deleting?.let { list ->
         ConfirmDialog(
             title = "Remove \"${list.name}\"?",
-            message = "The downloaded domains are deleted from this device.",
-            confirmLabel = "Remove",
+            message = stringResource(R.string.spam_remove_confirm),
+            confirmLabel = stringResource(R.string.remove),
             destructive = true,
             onConfirm = { scope.launch { repository.deleteList(list.id) } },
             onDismiss = { deleting = null }

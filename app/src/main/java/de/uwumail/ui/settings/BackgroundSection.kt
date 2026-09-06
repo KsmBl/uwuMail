@@ -23,7 +23,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.sync.PushService
 import de.uwumail.ui.LocalAppContainer
 
@@ -44,6 +46,7 @@ fun BackgroundSection(onMessage: (String) -> Unit) {
     var probe by remember { mutableIntStateOf(0) }
     val exempt = remember(probe) { isIgnoringBatteryOptimisations(context) }
 
+    val cannotOpenBattery = stringResource(R.string.bg_battery_cannot_open)
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { probe++ }
@@ -56,17 +59,16 @@ fun BackgroundSection(onMessage: (String) -> Unit) {
             Column(Modifier.padding(16.dp)) {
                 Text(
                     when {
-                        pushAccounts == 0 -> "Push is off for every account"
+                        pushAccounts == 0 -> stringResource(R.string.bg_push_off)
                         serviceRunning -> "Watching $pushAccounts account" +
                             (if (pushAccounts == 1) "" else "s") + " for new mail"
-                        else -> "Push is enabled but not running"
+                        else -> stringResource(R.string.bg_push_stopped)
                     },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    "uwuMail holds an IMAP connection open so mail arrives without " +
-                        "opening the app. Turn push on or off per account under Accounts.",
+                    stringResource(R.string.bg_explains),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -77,8 +79,8 @@ fun BackgroundSection(onMessage: (String) -> Unit) {
         Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
             Column(Modifier.padding(16.dp)) {
                 Text(
-                    if (exempt) "Battery optimisation is off for uwuMail"
-                    else "Battery optimisation is limiting uwuMail",
+                    if (exempt) stringResource(R.string.bg_battery_off)
+                    else stringResource(R.string.bg_battery_on),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = if (exempt) MaterialTheme.colorScheme.primary
@@ -86,11 +88,9 @@ fun BackgroundSection(onMessage: (String) -> Unit) {
                 )
                 Text(
                     if (exempt) {
-                        "Android will leave the connection alone while the screen is off."
+                        stringResource(R.string.bg_exempt)
                     } else {
-                        "Doze will suspend the connection while the screen is off, so mail " +
-                            "may not arrive until you open the app. Granting the exemption " +
-                            "is what makes background mail reliable."
+                        stringResource(R.string.bg_not_exempt)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -101,19 +101,16 @@ fun BackgroundSection(onMessage: (String) -> Unit) {
                         onClick = {
                             val intent = batteryExemptionIntent(context)
                             runCatching { launcher.launch(intent) }
-                                .onFailure { onMessage("Could not open battery settings") }
+                                .onFailure { onMessage(cannotOpenBattery) }
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Allow background activity") }
+                    ) { Text(stringResource(R.string.bg_allow)) }
                 }
             }
         }
 
         Text(
-            "Samsung, Xiaomi, OnePlus and others add their own battery managers on " +
-                "top of Android's. If mail still stops arriving overnight, look for " +
-                "uwuMail in your phone's app battery settings and set it to " +
-                "unrestricted there too.",
+            stringResource(R.string.bg_vendors),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

@@ -44,8 +44,10 @@ class SwipeActionTest {
     }
 
     @Test
-    fun `every action is labelled for the settings menu`() {
-        SwipeAction.entries.forEach { assertTrue(it.name, it.label.isNotBlank()) }
+    fun `every action has its own label in the settings menu`() {
+        // The labels are string resources now, so this checks they are set and
+        // distinct rather than reading them.
+        SwipeAction.entries.forEach { assertTrue(it.name, it.label != 0) }
         assertEquals(SwipeAction.entries.size, SwipeAction.entries.map { it.label }.toSet().size)
     }
 }

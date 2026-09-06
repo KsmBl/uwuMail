@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.uwumail.core.SwipeAction
 
@@ -110,7 +111,7 @@ private fun SwipeBackground(
     ) {
         Icon(
             imageVector = swipeIcon(action, seen, flagged),
-            contentDescription = action.label,
+            contentDescription = stringResource(action.label),
             tint = swipeInk(action),
             modifier = Modifier.size(24.dp)
         )

@@ -20,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.ui.LocalAppContainer
 
 /** Remote content in a message body: images, their minimum size, and scripts. */
@@ -30,18 +32,16 @@ fun ImagesSection() {
     val settings by container.settings.state.collectAsState()
 
     SettingSwitch(
-        title = "Block remote images",
-        subtitle = "A banner in each message loads them on request. Loading them " +
-            "tells the sender the mail was opened.",
+        title = stringResource(R.string.set_block_images),
+        subtitle = stringResource(R.string.set_block_images_sub),
         icon = Icons.Default.HideImage,
         checked = settings.blockRemoteImages,
         onChange = { value -> container.settings.update { it.copy(blockRemoteImages = value) } }
     )
 
     SettingSwitch(
-        title = "Skip tiny images",
-        subtitle = "Never load images below the size set here — that is what a " +
-            "tracking pixel is",
+        title = stringResource(R.string.set_tiny),
+        subtitle = stringResource(R.string.set_tiny_sub),
         icon = Icons.Default.PhotoSizeSelectSmall,
         checked = settings.filterTinyImages,
         onChange = { value -> container.settings.update { it.copy(filterTinyImages = value) } }
@@ -52,16 +52,16 @@ fun ImagesSection() {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
         ) {
-            Text("Minimum size", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.set_min_size), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             PixelField(
                 value = settings.minImageWidth,
-                label = "width",
+                label = stringResource(R.string.set_width),
                 onChange = { value -> container.settings.update { it.copy(minImageWidth = value) } }
             )
             Text(" × ", modifier = Modifier.padding(horizontal = 4.dp))
             PixelField(
                 value = settings.minImageHeight,
-                label = "height",
+                label = stringResource(R.string.set_height),
                 onChange = { value -> container.settings.update { it.copy(minImageHeight = value) } }
             )
             Text(" px", modifier = Modifier.padding(start = 4.dp))
@@ -69,8 +69,8 @@ fun ImagesSection() {
     }
 
     SettingSwitch(
-        title = "Allow JavaScript in mail",
-        subtitle = "Off is the safe setting: nothing a mail needs to be read requires scripts",
+        title = stringResource(R.string.set_js),
+        subtitle = stringResource(R.string.set_js_sub),
         icon = Icons.Default.Code,
         checked = settings.allowJavaScript,
         onChange = { value -> container.settings.update { it.copy(allowJavaScript = value) } }

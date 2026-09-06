@@ -43,10 +43,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import android.content.ClipData
 import android.content.ClipboardManager
+import de.uwumail.R
 import de.uwumail.mail.oauth.OAuthProvider
 import androidx.compose.ui.platform.LocalContext
 import de.uwumail.ui.LocalAppContainer
@@ -61,13 +63,19 @@ fun SettingsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val snackbarHost = remember { SnackbarHostState() }
     val outboxCount by container.db.outboxDao().observeCount().collectAsState(initial = 0)
+    // Read here rather than inside the coroutines below, which are not composable.
+    val notificationsEnabled = stringResource(R.string.notif_enabled)
+    val notificationsDenied = stringResource(R.string.notif_denied)
+    val syncQueued = stringResource(R.string.sync_queued)
+    val outboxFlushed = stringResource(R.string.outbox_flushed)
+    val ruleLogCleared = stringResource(R.string.rule_log_cleared)
 
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         scope.launch {
             snackbarHost.showSnackbar(
-                if (granted) "Notifications enabled" else "Notification permission denied"
+                if (granted) notificationsEnabled else notificationsDenied
             )
         }
     }
@@ -76,20 +84,20 @@ fun SettingsScreen(onBack: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
         }
     ) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {
-            item { SectionHeader("Appearance") }
+            item { SectionHeader(stringResource(R.string.section_appearance)) }
             item { AppearanceSection() }
 
-            item { HorizontalDivider(); SectionHeader("Notifications") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_notifications)) }
             item {
                 ListItem(
                     modifier = Modifier.clickable {
@@ -98,8 +106,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     },
                     leadingContent = { Icon(Icons.Default.Notifications, null) },
-                    headlineContent = { Text("Allow notifications") },
-                    supportingContent = { Text("Required for new-mail alerts") }
+                    headlineContent = { Text(stringResource(R.string.notif_allow)) },
+                    supportingContent = { Text(stringResource(R.string.notif_allow_sub)) }
                 )
                 ListItem(
                     modifier = Modifier.clickable {
@@ -111,93 +119,90 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     },
                     leadingContent = { Icon(Icons.Default.Notifications, null) },
-                    headlineContent = { Text("Per-account notification channels") },
+                    headlineContent = { Text(stringResource(R.string.notif_channels)) },
                     supportingContent = {
-                        Text("Sounds and importance for each account, in Android settings")
+                        Text(stringResource(R.string.notif_channels_sub))
                     }
                 )
             }
 
-            item { HorizontalDivider(); SectionHeader("Background mail") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_background)) }
             item {
                 BackgroundSection { message ->
                     scope.launch { snackbarHost.showSnackbar(message) }
                 }
             }
 
-            item { HorizontalDivider(); SectionHeader("Reading mail") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_reading)) }
             item { PrivacySection() }
 
-            item { HorizontalDivider(); SectionHeader("Swipe actions") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_swipe)) }
             item { SwipeSection() }
 
-            item { HorizontalDivider(); SectionHeader("Images and scripts") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_images)) }
             item { ImagesSection() }
 
-            item { HorizontalDivider(); SectionHeader("Sync") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_sync)) }
             item {
                 ListItem(
                     modifier = Modifier.clickable {
                         de.uwumail.sync.SyncScheduler.syncNow(context)
-                        scope.launch { snackbarHost.showSnackbar("Sync queued") }
+                        scope.launch { snackbarHost.showSnackbar(syncQueued) }
                     },
                     leadingContent = { Icon(Icons.Default.Sync, null) },
-                    headlineContent = { Text("Sync all accounts now") }
+                    headlineContent = { Text(stringResource(R.string.sync_now)) }
                 )
                 ListItem(
                     modifier = Modifier.clickable {
                         scope.launch {
                             container.syncManager.sendOutbox()
-                            snackbarHost.showSnackbar("Outbox flushed")
+                            snackbarHost.showSnackbar(outboxFlushed)
                         }
                     },
                     leadingContent = { Icon(Icons.Default.Outbox, null) },
-                    headlineContent = { Text("Retry outbox") },
+                    headlineContent = { Text(stringResource(R.string.outbox_retry)) },
                     supportingContent = {
                         Text(
-                            if (outboxCount == 0) "Nothing waiting to send"
+                            if (outboxCount == 0) stringResource(R.string.outbox_empty)
                             else "$outboxCount message(s) waiting"
                         )
                     }
                 )
             }
 
-            item { HorizontalDivider(); SectionHeader("When to check for mail") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_window)) }
             item { SyncWindowSection() }
 
-            item { HorizontalDivider(); SectionHeader("Spam lists") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_spam)) }
             item {
                 SpamListsSection { message ->
                     scope.launch { snackbarHost.showSnackbar(message) }
                 }
             }
 
-            item { HorizontalDivider(); SectionHeader("Google sign-in") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_google)) }
             item { GoogleSignInSettings() }
 
-            item { HorizontalDivider(); SectionHeader("Maintenance") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_maintenance)) }
             item {
                 ListItem(
                     modifier = Modifier.clickable {
                         scope.launch {
                             container.db.ruleDao().pruneLog(System.currentTimeMillis())
-                            snackbarHost.showSnackbar("Rule activity log cleared")
+                            snackbarHost.showSnackbar(ruleLogCleared)
                         }
                     },
                     leadingContent = { Icon(Icons.Default.CleaningServices, null) },
-                    headlineContent = { Text("Clear rule activity log") }
+                    headlineContent = { Text(stringResource(R.string.clear_rule_log)) }
                 )
             }
 
-            item { HorizontalDivider(); SectionHeader("About") }
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_about)) }
             item {
                 ListItem(
                     headlineContent = { Text("uwuMail") },
                     supportingContent = {
-                        Text(
-                            "Multi-account IMAP client with regex rules, custom From " +
-                                "addresses and device-local folders."
-                        )
+                        Text(stringResource(R.string.about_body))
                     }
                 )
             }
@@ -230,18 +235,16 @@ private fun GoogleSignInSettings() {
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                "Create an OAuth client of type Android at " +
-                    "console.cloud.google.com/apis/credentials, enable the Gmail API, " +
-                    "then paste the client id here.",
+                stringResource(R.string.google_help),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            CopyableRow("Package name", config.packageName) { copy("package", it) }
-            CopyableRow("SHA-1 fingerprint", fingerprint ?: "unavailable") {
+            CopyableRow(stringResource(R.string.google_package), config.packageName) { copy("package", it) }
+            CopyableRow(stringResource(R.string.google_sha1), fingerprint ?: stringResource(R.string.unavailable)) {
                 copy("sha1", it)
             }
-            CopyableRow("Redirect URI", config.redirectUri) { copy("redirect", it) }
+            CopyableRow(stringResource(R.string.google_redirect), config.redirectUri) { copy("redirect", it) }
 
             OutlinedTextField(
                 value = clientId,
@@ -249,14 +252,14 @@ private fun GoogleSignInSettings() {
                     clientId = it
                     config.setClientId(OAuthProvider.GOOGLE, it)
                 },
-                label = { Text("Google OAuth client id") },
+                label = { Text(stringResource(R.string.google_client_id)) },
                 placeholder = { Text("....apps.googleusercontent.com") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
             )
             if (clientId.isBlank()) {
                 Text(
-                    "Until this is set, \"Sign in with Google\" stays disabled.",
+                    stringResource(R.string.google_unset),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 4.dp)

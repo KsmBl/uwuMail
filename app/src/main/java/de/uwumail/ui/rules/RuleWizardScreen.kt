@@ -38,7 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.rules.Suggestion
 import de.uwumail.sync.SyncManager
@@ -62,7 +64,7 @@ fun RuleWizardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create rule") },
+                title = { Text(stringResource(R.string.wizard_create)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -72,7 +74,7 @@ fun RuleWizardScreen(
                     IconButton(
                         onClick = { viewModel.save(onSaved) },
                         enabled = state.canSave
-                    ) { Icon(Icons.Default.Save, "Save rule") }
+                    ) { Icon(Icons.Default.Save, stringResource(R.string.wizard_save)) }
                 }
             )
         }
@@ -82,7 +84,7 @@ fun RuleWizardScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Text(
-                        "Looking for what these mails have in common…",
+                        stringResource(R.string.wizard_looking),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(16.dp)
                     )
@@ -116,12 +118,12 @@ fun RuleWizardScreen(
                 }
             }
 
-            item { SectionHeader("What they have in common") }
+            item { SectionHeader(stringResource(R.string.wizard_common)) }
 
             if (state.suggestions.isEmpty()) {
                 item {
                     EmptyState(
-                        "Nothing shared found",
+                        stringResource(R.string.wizard_nothing),
                         "These messages have no sender, header or subject pattern in common. " +
                             "Try picking mails that are more alike, or build the rule by hand."
                     )
@@ -155,7 +157,7 @@ fun RuleWizardScreen(
                 }
             }
 
-            item { SectionHeader("Then do") }
+            item { SectionHeader(stringResource(R.string.wizard_then)) }
             item {
                 Column(Modifier.padding(horizontal = 16.dp)) {
                     state.actions.forEachIndexed { index, action ->
@@ -258,9 +260,10 @@ private fun WizardActionMenu(
             ActionType.DOWNLOAD,
             ActionType.DELETE_PERMANENTLY
         ).forEach { type ->
+            val name = stringResource(type.label)
             DropdownMenuItem(
-                text = { Text(type.label) },
-                onClick = { onPick(PendingAction(type, null, type.label)) }
+                text = { Text(name) },
+                onClick = { onPick(PendingAction(type, null, name)) }
             )
         }
         listOf(
@@ -279,7 +282,7 @@ private fun WizardActionMenu(
         else folders.filter { !it.isLocal }
         if (candidates.isEmpty()) {
             DropdownMenuItem(
-                text = { Text("No folder available — create one first") },
+                text = { Text(stringResource(R.string.wizard_no_folder)) },
                 onClick = { folderFor = null }
             )
         }

@@ -57,8 +57,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import de.uwumail.R
 import de.uwumail.core.Json
 import de.uwumail.mail.MimeUtil
 import de.uwumail.ui.mail.gravity.FallingPiece
@@ -145,60 +147,60 @@ fun MessageScreen(
         topBar = {
             Column {
             TopAppBar(
-                title = { Text("Message", maxLines = 1) },
+                title = { Text(stringResource(R.string.message), maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.setFlagged(!(message?.flagged ?: false)) }) {
                         Icon(
                             if (message?.flagged == true) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = "Star"
+                            contentDescription = stringResource(R.string.star)
                         )
                     }
                     IconButton(onClick = viewModel::archive) {
-                        Icon(Icons.Default.Archive, "Archive")
+                        Icon(Icons.Default.Archive, stringResource(R.string.archive))
                     }
                     IconButton(onClick = viewModel::trash) {
-                        Icon(Icons.Default.Delete, "Trash")
+                        Icon(Icons.Default.Delete, stringResource(R.string.trash))
                     }
                     IconButton(onClick = { overflow = true }) {
-                        Icon(Icons.Default.MoreVert, "More")
+                        Icon(Icons.Default.MoreVert, stringResource(R.string.more))
                     }
                     DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
                         DropdownMenuItem(
-                            text = { Text("Reply") },
+                            text = { Text(stringResource(R.string.reply)) },
                             leadingIcon = { Icon(Icons.AutoMirrored.Filled.Reply, null) },
                             onClick = { overflow = false; onReply(messageId, false) }
                         )
                         DropdownMenuItem(
-                            text = { Text("Reply all") },
+                            text = { Text(stringResource(R.string.reply_all)) },
                             onClick = { overflow = false; onReply(messageId, true) }
                         )
                         DropdownMenuItem(
-                            text = { Text("Forward") },
+                            text = { Text(stringResource(R.string.forward)) },
                             onClick = { overflow = false; onForward(messageId) }
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
-                            text = { Text("Move to folder") },
+                            text = { Text(stringResource(R.string.move_to_folder)) },
                             leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
                             onClick = { overflow = false; showMove = true }
                         )
                         DropdownMenuItem(
-                            text = { Text("Copy to folder") },
+                            text = { Text(stringResource(R.string.copy_to_folder)) },
                             leadingIcon = { Icon(Icons.Default.FileCopy, null) },
                             onClick = { overflow = false; showCopy = true }
                         )
                         DropdownMenuItem(
-                            text = { Text("Mark as unread") },
+                            text = { Text(stringResource(R.string.mark_unread)) },
                             leadingIcon = { Icon(Icons.Default.MarkEmailUnread, null) },
                             onClick = { overflow = false; viewModel.setSeen(false); onBack() }
                         )
                         DropdownMenuItem(
-                            text = { Text("Save .eml to device") },
+                            text = { Text(stringResource(R.string.save_eml)) },
                             leadingIcon = { Icon(Icons.Default.Download, null) },
                             onClick = {
                                 overflow = false
@@ -206,18 +208,18 @@ fun MessageScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(if (state.showHtml) "Show plain text" else "Show HTML") },
+                            text = { Text(if (state.showHtml) stringResource(R.string.show_plain) else stringResource(R.string.show_html)) },
                             leadingIcon = { Icon(Icons.Default.Code, null) },
                             onClick = { overflow = false; viewModel.toggleHtml() }
                         )
                         DropdownMenuItem(
-                            text = { Text(if (state.showHeaders) "Hide headers" else "Show headers") },
+                            text = { Text(if (state.showHeaders) stringResource(R.string.hide_headers) else stringResource(R.string.show_headers)) },
                             onClick = { overflow = false; viewModel.toggleHeaders() }
                         )
                         if (state.settings.gravityUnlocked) {
                             DropdownMenuItem(
                                 text = {
-                                    Text(if (state.gravity) "Disable gravity" else "Enable gravity")
+                                    Text(if (state.gravity) stringResource(R.string.disable_gravity) else stringResource(R.string.enable_gravity))
                                 },
                                 leadingIcon = { Icon(Icons.Default.ArrowDownward, null) },
                                 onClick = { overflow = false; viewModel.toggleGravity() }
@@ -226,7 +228,7 @@ fun MessageScreen(
                         HorizontalDivider()
                         DropdownMenuItem(
                             text = {
-                                Text("Delete permanently", color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.delete_permanently), color = MaterialTheme.colorScheme.error)
                             },
                             onClick = { overflow = false; confirmDelete = true }
                         )
@@ -277,7 +279,7 @@ fun MessageScreen(
 
             Column(Modifier.padding(16.dp)) {
                 FallingText(
-                    text = message.subject.ifBlank { "(no subject)" },
+                    text = message.subject.ifBlank { stringResource(R.string.no_subject) },
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     handOverGlyphs = state.gravity,
@@ -389,7 +391,7 @@ fun MessageScreen(
                 )
             } else {
                 FallingText(
-                    text = plain.ifBlank { if (state.loading) "Loading…" else "(empty message)" },
+                    text = plain.ifBlank { if (state.loading) stringResource(R.string.loading) else stringResource(R.string.empty_message) },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     handOverGlyphs = state.gravity,
@@ -411,6 +413,8 @@ fun MessageScreen(
         FolderPickerSheet(
             folders = state.moveTargets(),
             accounts = state.accounts,
+            title = stringResource(R.string.move_to),
+            confirmLabel = stringResource(R.string.move_here),
             preferredAccountId = state.message?.accountId,
             onPick = { showMove = false; viewModel.moveTo(it.id) },
             onDismiss = { showMove = false }
@@ -421,8 +425,8 @@ fun MessageScreen(
         FolderPickerSheet(
             folders = state.moveTargets(),
             accounts = state.accounts,
-            title = "Copy to",
-            confirmLabel = "Copy here",
+            title = stringResource(R.string.copy_to),
+            confirmLabel = stringResource(R.string.copy_here),
             preferredAccountId = state.message?.accountId,
             onPick = { showCopy = false; viewModel.copyTo(it.id) },
             onDismiss = { showCopy = false }
@@ -439,9 +443,9 @@ fun MessageScreen(
 
     if (confirmDelete) {
         ConfirmDialog(
-            title = "Delete permanently?",
-            message = "This removes the message from the server. It cannot be undone.",
-            confirmLabel = "Delete",
+            title = stringResource(R.string.delete_forever_q),
+            message = stringResource(R.string.delete_forever_body),
+            confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = viewModel::deleteForever,
             onDismiss = { confirmDelete = false }
@@ -471,6 +475,6 @@ private fun shareFile(context: android.content.Context, file: File, mimeType: St
             setDataAndType(uri, mimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Open with"))
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.open_with)))
     }
 }

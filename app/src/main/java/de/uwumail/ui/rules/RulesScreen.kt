@@ -31,7 +31,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.data.db.RuleWithDetails
 import de.uwumail.ui.LocalAppContainer
@@ -57,7 +59,7 @@ fun RulesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rules") },
+                title = { Text(stringResource(R.string.rules_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -66,7 +68,7 @@ fun RulesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreate) { Icon(Icons.Default.Add, "New rule") }
+            FloatingActionButton(onClick = onCreate) { Icon(Icons.Default.Add, stringResource(R.string.new_rule)) }
         }
     ) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {
@@ -74,7 +76,7 @@ fun RulesScreen(
                 item {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         EmptyState(
-                            "No rules yet",
+                            stringResource(R.string.rules_none),
                             "Select a few similar mails in the message list and tap the label " +
                                 "icon — uwuMail works out what they have in common for you."
                         )
@@ -123,7 +125,7 @@ fun RulesScreen(
                         IconButton(onClick = { pendingDelete = entry }) {
                             Icon(
                                 Icons.Default.Delete,
-                                "Delete rule",
+                                stringResource(R.string.rules_delete),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -133,7 +135,7 @@ fun RulesScreen(
             }
 
             if (log.isNotEmpty()) {
-                item { SectionHeader("Recent activity") }
+                item { SectionHeader(stringResource(R.string.rules_activity)) }
                 items(log, key = { it.id }) { entry ->
                     ListItem(
                         headlineContent = {
@@ -160,7 +162,7 @@ fun RulesScreen(
     pendingDelete?.let { entry ->
         ConfirmDialog(
             title = "Delete \"${entry.rule.name}\"?",
-            message = "Mail this rule already acted on is not restored.",
+            message = stringResource(R.string.rules_delete_body),
             confirmLabel = "Delete",
             destructive = true,
             onConfirm = { scope.launch { container.db.ruleDao().deleteRule(entry.rule.id) } },
@@ -169,21 +171,34 @@ fun RulesScreen(
     }
 }
 
+@Composable
 private fun describeConditions(entry: RuleWithDetails): String {
-    val joiner = if (entry.rule.matchMode == "ALL") " and " else " or "
-    return entry.conditions.joinToString(joiner) { condition ->
-        val field = condition.headerName?.let { "header $it" } ?: condition.field.lowercase()
+    val joiner = if (entry.rule.matchMode == "ALL") {
+        stringResource(R.string.rule_join_and)
+    } else {
+        stringResource(R.string.rule_join_or)
+    }
+    val negation = stringResource(R.string.rule_not)
+    val headerLabel = stringResource(R.string.rule_header_prefix)
+    val none = stringResource(R.string.rule_no_conditions)
+    val parts = entry.conditions.map { condition ->
+        val field = condition.headerName?.let { "$headerLabel $it" } ?: condition.field.lowercase()
         val operator = runCatching {
-            de.uwumail.core.RuleOperator.valueOf(condition.operator).label
+            stringResource(de.uwumail.core.RuleOperator.valueOf(condition.operator).label)
         }.getOrDefault(condition.operator.lowercase())
-        val negation = if (condition.negate) "not " else ""
-        "$field $negation$operator \"${condition.value.take(40)}\""
-    }.ifBlank { "no conditions" }
+        val not = if (condition.negate) "$negation " else ""
+        "$field $not$operator \"${condition.value.take(40)}\""
+    }
+    return parts.joinToString(joiner).ifBlank { none }
 }
 
-private fun describeActions(entry: RuleWithDetails): String =
-    entry.actions.joinToString(", ") { action ->
-        val label = runCatching { ActionType.valueOf(action.type).label }
-            .getOrDefault(action.type)
+@Composable
+private fun describeActions(entry: RuleWithDetails): String {
+    val none = stringResource(R.string.rule_no_actions)
+    val labels = entry.actions.map { action ->
+        val type = runCatching { ActionType.valueOf(action.type) }.getOrNull()
+        val label = type?.let { stringResource(it.label) } ?: action.type
         action.stringArg?.let { "$label → $it" } ?: label
-    }.ifBlank { "no actions" }
+    }
+    return labels.joinToString(", ").ifBlank { none }
+}

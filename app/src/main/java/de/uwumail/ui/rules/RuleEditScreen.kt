@@ -47,7 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.core.MatchMode
 import de.uwumail.core.RuleField
@@ -80,7 +82,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
         topBar = {
             Column {
             TopAppBar(
-                title = { Text(if (ruleId > 0) "Edit rule" else "New rule") },
+                title = { Text(if (ruleId > 0) stringResource(R.string.rule_edit) else stringResource(R.string.rule_new)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -106,7 +108,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
             OutlinedTextField(
                 value = state.name,
                 onValueChange = { v -> viewModel.update { it.copy(name = v) } },
-                label = { Text("Rule name") },
+                label = { Text(stringResource(R.string.rule_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
@@ -115,7 +117,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Enabled", Modifier.weight(1f))
+                Text(stringResource(R.string.rule_enabled), Modifier.weight(1f))
                 Switch(
                     checked = state.enabled,
                     onCheckedChange = { v -> viewModel.update { it.copy(enabled = v) } }
@@ -126,7 +128,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Stop after this rule",
+                    stringResource(R.string.rule_stop_after),
                     Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -136,29 +138,29 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 )
             }
 
-            SectionHeader("Applies to")
+            SectionHeader(stringResource(R.string.rule_applies_to))
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ScopeDropdown(
                     label = state.accounts.firstOrNull { it.id == state.accountId }?.displayName
-                        ?: "All accounts",
-                    options = listOf<Pair<String, Long?>>("All accounts" to null) +
+                        ?: stringResource(R.string.rule_all_accounts),
+                    options = listOf<Pair<String, Long?>>(stringResource(R.string.rule_all_accounts) to null) +
                         state.accounts.map { it.displayName to it.id },
                     onPick = { value -> viewModel.update { it.copy(accountId = value, folderPath = null) } },
                     modifier = Modifier.weight(1f)
                 )
                 ScopeDropdown(
-                    label = state.folderPath ?: "All folders",
-                    options = listOf<Pair<String, String?>>("All folders" to null) +
+                    label = state.folderPath ?: stringResource(R.string.rule_all_folders),
+                    options = listOf<Pair<String, String?>>(stringResource(R.string.rule_all_folders) to null) +
                         state.foldersForScope().map { it.displayName to it.path },
                     onPick = { value -> viewModel.update { it.copy(folderPath = value) } },
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            SectionHeader("Conditions")
+            SectionHeader(stringResource(R.string.rule_conditions))
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -167,7 +169,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                     FilterChip(
                         selected = state.matchMode == mode,
                         onClick = { viewModel.update { it.copy(matchMode = mode) } },
-                        label = { Text(if (mode == MatchMode.ALL) "Match all" else "Match any") }
+                        label = { Text(if (mode == MatchMode.ALL) stringResource(R.string.rule_match_all_short) else stringResource(R.string.rule_match_any_short)) }
                     )
                 }
             }
@@ -187,16 +189,14 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 Text(" Add condition")
             }
 
-            SectionHeader("Then do")
+            SectionHeader(stringResource(R.string.rule_then))
             state.actions.forEachIndexed { index, action ->
                 val type = runCatching { ActionType.valueOf(action.type) }.getOrNull()
                 AssistChip(
                     onClick = { viewModel.removeAction(index) },
                     label = {
-                        Text(
-                            action.stringArg?.let { "${type?.label ?: action.type} → $it" }
-                                ?: (type?.label ?: action.type)
-                        )
+                        val name = type?.let { stringResource(it.label) } ?: action.type
+                        Text(action.stringArg?.let { "$name → $it" } ?: name)
                     },
                     trailingIcon = { Icon(Icons.Default.Close, "Remove") },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
@@ -221,7 +221,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 }
             }
 
-            SectionHeader("Before you save")
+            SectionHeader(stringResource(R.string.rule_before_save))
             Column(
                 Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -244,7 +244,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                             )
                             Text(
                                 if (count == 0) {
-                                    "Nothing matched. Loosen a condition, or sync more mail first."
+                                    stringResource(R.string.rule_nothing_matched)
                                 } else {
                                     "Check that this is the set you meant before enabling " +
                                         "destructive actions."
@@ -265,7 +265,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                             CircularProgressIndicator(Modifier.size(16.dp))
                             Text("  Applying…")
                         } else {
-                            Text("Apply rules to mail already synced")
+                            Text(stringResource(R.string.rule_apply_existing))
                         }
                     }
                 }
@@ -309,7 +309,7 @@ private fun ActionMenu(
     if (folderPickerFor == null) {
         ActionType.entries.forEach { type ->
             DropdownMenuItem(
-                text = { Text(type.label) },
+                text = { Text(stringResource(type.label)) },
                 onClick = {
                     if (type.needsTargetFolder) folderPickerFor = type
                     else onPick(type, null)
@@ -325,7 +325,7 @@ private fun ActionMenu(
         }
         if (candidates.isEmpty()) {
             DropdownMenuItem(
-                text = { Text("No matching folder — create one first") },
+                text = { Text(stringResource(R.string.rule_no_folder)) },
                 onClick = { folderPickerFor = null }
             )
         }
@@ -361,36 +361,38 @@ private fun ConditionCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ScopeDropdown(
-                    label = field.label,
-                    options = RuleField.entries.map { it.label to it },
+                    label = stringResource(field.label),
+                    options = RuleField.entries.map { stringResource(it.label) to it },
                     onPick = { onChange(condition.copy(field = it.name)) },
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = onRemove) { Icon(Icons.Default.Close, "Remove condition") }
+                IconButton(onClick = onRemove) { Icon(Icons.Default.Close, stringResource(R.string.rule_remove_condition)) }
             }
             if (field == RuleField.HEADER) {
                 OutlinedTextField(
                     value = condition.headerName.orEmpty(),
                     onValueChange = { onChange(condition.copy(headerName = it)) },
-                    label = { Text("Header name") },
+                    label = { Text(stringResource(R.string.rule_header_name)) },
                     placeholder = { Text("x-github-event") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 )
             }
             ScopeDropdown(
-                label = (if (condition.negate) "does not " else "") + operator.label,
-                options = RuleOperator.entries.map { it.label to it },
+                label = stringResource(operator.label).let {
+                    if (condition.negate) stringResource(R.string.condition_negated, it) else it
+                },
+                options = RuleOperator.entries.map { stringResource(it.label) to it },
                 onPick = { onChange(condition.copy(operator = it.name)) },
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = condition.value,
                 onValueChange = { onChange(condition.copy(value = it)) },
-                label = { Text("Value") },
+                label = { Text(stringResource(R.string.rule_value)) },
                 isError = !regexValid,
                 supportingText = if (!regexValid) {
-                    { Text("Not a valid regular expression") }
+                    { Text(stringResource(R.string.rule_bad_regex)) }
                 } else null,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )
@@ -398,13 +400,13 @@ private fun ConditionCard(
                 FilterChip(
                     selected = condition.negate,
                     onClick = { onChange(condition.copy(negate = !condition.negate)) },
-                    label = { Text("Invert") }
+                    label = { Text(stringResource(R.string.rule_negate)) }
                 )
                 Text("  ")
                 FilterChip(
                     selected = condition.caseSensitive,
                     onClick = { onChange(condition.copy(caseSensitive = !condition.caseSensitive)) },
-                    label = { Text("Case sensitive") }
+                    label = { Text(stringResource(R.string.rule_case_sensitive)) }
                 )
             }
         }

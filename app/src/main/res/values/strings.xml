@@ -1,3 +1,447 @@
 <resources>
     <string name="app_name">uwuMail</string>
+
+    <!-- Rule condition fields -->
+    <string name="field_from">From address</string>
+    <string name="field_from_name">From display name</string>
+    <string name="field_to">To</string>
+    <string name="field_cc">Cc</string>
+    <string name="field_to_or_cc">To or Cc</string>
+    <string name="field_subject">Subject</string>
+    <string name="field_body">Body text</string>
+    <string name="field_header">Raw header</string>
+    <string name="field_list_id">List-Id</string>
+    <string name="field_attachment_name">Attachment filename</string>
+    <string name="field_size">Size in bytes</string>
+    <string name="field_folder">Folder path</string>
+
+    <!-- Rule condition operators -->
+    <string name="op_regex">matches regex</string>
+    <string name="op_contains">contains</string>
+    <string name="op_equals">is exactly</string>
+    <string name="op_starts_with">starts with</string>
+    <string name="op_ends_with">ends with</string>
+    <string name="op_domain_is">domain is</string>
+    <string name="op_greater_than">is greater than</string>
+    <string name="op_less_than">is less than</string>
+
+    <!-- Rule actions -->
+    <string name="action_mark_read">Mark as read</string>
+    <string name="action_mark_unread">Mark as unread</string>
+    <string name="action_flag">Star</string>
+    <string name="action_unflag">Unstar</string>
+    <string name="action_archive">Archive</string>
+    <string name="action_move_to_trash">Move to trash</string>
+    <string name="action_delete_permanently">Delete permanently</string>
+    <string name="action_move_to_folder">Move to folder</string>
+    <string name="action_copy_to_folder">Copy to folder</string>
+    <string name="action_move_to_local">Move to local folder</string>
+    <string name="action_copy_to_local">Copy to local folder</string>
+    <string name="action_download">Download full message</string>
+    <string name="action_suppress_notification">Don\'t notify</string>
+    <string name="action_notify_silent">Notify silently</string>
+    <string name="action_notify_high">Notify with high priority</string>
+
+    <!-- Swipe actions -->
+    <string name="swipe_none">Nothing</string>
+    <string name="swipe_toggle_read">Mark read / unread</string>
+    <string name="swipe_toggle_star">Star / unstar</string>
+    <string name="swipe_archive">Archive</string>
+    <string name="swipe_trash">Move to trash</string>
+    <string name="swipe_move">Move to folder…</string>
+    <string name="swipe_delete">Delete permanently</string>
+
+    <!-- Themes -->
+    <string name="theme_system">Follow the system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_mocha">Catppuccin Mocha</string>
+
+    <!-- Rule editor -->
+    <string name="condition_negated">does not %1$s</string>
+    <string name="rule_no_actions">no actions</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="back">Back</string>
+    <string name="section_appearance">Appearance</string>
+    <string name="section_notifications">Notifications</string>
+    <string name="notif_allow">Allow notifications</string>
+    <string name="notif_allow_sub">Required for new-mail alerts</string>
+    <string name="notif_channels">Per-account notification channels</string>
+    <string name="notif_channels_sub">Sounds and importance for each account, in Android settings</string>
+    <string name="section_background">Background mail</string>
+    <string name="section_swipe">Swipe actions</string>
+    <string name="section_reading">Reading mail</string>
+    <string name="section_images">Images and scripts</string>
+    <string name="section_sync">Sync</string>
+    <string name="sync_now">Sync all accounts now</string>
+    <string name="sync_queued">Sync queued</string>
+    <string name="outbox_retry">Retry outbox</string>
+    <string name="outbox_flushed">Outbox flushed</string>
+    <string name="outbox_empty">Nothing waiting to send</string>
+    <string name="section_window">When to check for mail</string>
+    <string name="section_spam">Spam lists</string>
+    <string name="section_google">Google sign-in</string>
+    <string name="section_maintenance">Maintenance</string>
+    <string name="clear_rule_log">Clear rule activity log</string>
+    <string name="rule_log_cleared">Rule activity log cleared</string>
+    <string name="section_about">About</string>
+    <string name="about_body">Multi-account IMAP client with regex rules, custom From addresses and device-local folders.</string>
+    <string name="notif_enabled">Notifications enabled</string>
+    <string name="notif_denied">Notification permission denied</string>
+    <string name="google_help">Create an OAuth client of type Android at console.cloud.google.com/apis/credentials, enable the Gmail API, then paste the client id here.</string>
+    <string name="google_package">Package name</string>
+    <string name="google_sha1">SHA-1 fingerprint</string>
+    <string name="google_redirect">Redirect URI</string>
+    <string name="google_client_id">Google OAuth client id</string>
+    <string name="google_unset">Until this is set, "Sign in with Google" stays disabled.</string>
+    <string name="unavailable">unavailable</string>
+
+    <!-- Reading settings -->
+    <string name="set_unsub">Unsubscribe banner</string>
+    <string name="set_unsub_sub">Offer a one-tap unsubscribe when a message advertises one</string>
+    <string name="set_tracking">Ask before opening tracked links</string>
+    <string name="set_tracking_sub">Offer to strip utm_, fbclid, gclid and the like from a link before it opens</string>
+    <string name="set_preload">Preload unread mail</string>
+
+    <!-- Image settings -->
+    <string name="set_block_images">Block remote images</string>
+    <string name="set_tiny">Skip tiny images</string>
+    <string name="set_tiny_sub">Never load images below the size set here — that is what a tracking pixel is</string>
+    <string name="set_min_size">Minimum size</string>
+    <string name="set_width">width</string>
+    <string name="set_height">height</string>
+    <string name="set_js">Allow JavaScript in mail</string>
+    <string name="set_js_sub">Off is the safe setting: nothing a mail needs to be read requires scripts</string>
+
+    <!-- Swipe settings -->
+    <string name="swipe_right">Swipe right</string>
+    <string name="swipe_left">Swipe left</string>
+    <string name="swipe_hint">Set a direction to "Nothing" and it stops swiping altogether. Swiping is off while messages are selected.</string>
+
+    <!-- Appearance -->
+    <string name="set_theme">Theme</string>
+    <string name="set_block_images_sub">A banner in each message loads them on request. Loading them tells the sender the mail was opened.</string>
+    <string name="set_preload_sub">Fetch the bodies of unread mail while the list is open, so it opens instantly and reads offline</string>
+
+    <!-- Mail list -->
+    <string name="undo">Undo</string>
+    <string name="folders">Folders</string>
+    <string name="search_folder">Search this folder</string>
+    <string name="search">Search</string>
+    <string name="refresh">Refresh</string>
+    <string name="more">More</string>
+    <string name="rules">Rules</string>
+    <string name="manage_folders">Manage folders</string>
+    <string name="accounts">Accounts</string>
+    <string name="compose">Compose</string>
+    <string name="no_accounts">No accounts yet</string>
+    <string name="no_accounts_sub">Add a mail account to get started.</string>
+    <string name="nothing_here">Nothing here</string>
+    <string name="no_matches">No matches</string>
+    <string name="pull_to_sync">Pull down to sync.</string>
+    <string name="copy_to">Copy to</string>
+    <string name="copy_here">Copy here</string>
+    <string name="delete_forever_q">Delete permanently?</string>
+    <string name="delete_forever_body">This removes the message from the server. It cannot be undone.</string>
+    <string name="delete">Delete</string>
+    <string name="clear_selection">Clear selection</string>
+    <string name="archive">Archive</string>
+    <string name="trash">Trash</string>
+    <string name="move">Move</string>
+    <string name="create_rule_from">Create rule from selection</string>
+    <string name="mark_read">Mark as read</string>
+    <string name="mark_unread">Mark as unread</string>
+    <string name="star">Star</string>
+    <string name="save_attachments">Save attachments</string>
+    <string name="download_to_device">Download to device</string>
+    <string name="select_all">Select all</string>
+    <string name="delete_permanently">Delete permanently</string>
+    <string name="sender_on_spam_list">Sender is on a spam list</string>
+    <string name="stored_on_device">Stored on device</string>
+    <string name="has_attachments">Has attachments</string>
+    <string name="unknown_sender">(unknown sender)</string>
+    <string name="no_subject">(no subject)</string>
+    <string name="all_inboxes">All inboxes</string>
+    <string name="all_outboxes">All outboxes</string>
+    <string name="all_deleted">All deleted mails</string>
+    <string name="settings">Settings</string>
+    <string name="edit_folders">Edit folders</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="reset_order">Reset order</string>
+    <string name="mark_all_read">Mark all as read</string>
+    <string name="stop_syncing">Stop syncing</string>
+    <string name="sync_automatically">Sync automatically</string>
+    <string name="hide_on_device">Hide on this device</string>
+    <string name="synced_in_background">Synced in the background</string>
+    <string name="gravity_unlocked">Gravity unlocked</string>
+
+    <!-- Message view -->
+    <string name="message">Message</string>
+    <string name="reply">Reply</string>
+    <string name="reply_all">Reply all</string>
+    <string name="forward">Forward</string>
+    <string name="move_to_folder">Move to folder</string>
+    <string name="copy_to_folder">Copy to folder</string>
+    <string name="save_eml">Save .eml to device</string>
+    <string name="show_plain">Show plain text</string>
+    <string name="show_html">Show HTML</string>
+    <string name="hide_headers">Hide headers</string>
+    <string name="show_headers">Show headers</string>
+    <string name="enable_gravity">Enable gravity</string>
+    <string name="disable_gravity">Disable gravity</string>
+    <string name="open_with">Open with</string>
+    <string name="loading">Loading…</string>
+    <string name="empty_message">(empty message)</string>
+    <string name="move_to">Move to</string>
+    <string name="move_here">Move here</string>
+
+    <!-- Message banners -->
+    <string name="unsub_one_click">This sender supports one-click unsubscribe.</string>
+    <string name="unsub_mailto">Unsubscribing from this sender sends a mail.</string>
+    <string name="unsub_body">This message contains an unsubscribe link.</string>
+    <string name="unsub_header">This sender offers an unsubscribe link.</string>
+    <string name="unsubscribe">Unsubscribe</string>
+    <string name="show_images">Show images</string>
+
+    <!-- Tracking links -->
+    <string name="tracking_title">Remove tracking?</string>
+    <string name="tracking_open_clean">Open cleaned</string>
+    <string name="tracking_open_original">Open original</string>
+
+    <!-- Common -->
+    <string name="cancel">Cancel</string>
+    <string name="confirm">Confirm</string>
+    <string name="create">Create</string>
+    <string name="on_this_device">on this device</string>
+
+    <!-- Composer -->
+    <string name="new_message">New message</string>
+    <string name="draft">Draft</string>
+    <string name="save_draft">Save draft</string>
+    <string name="send">Send</string>
+    <string name="keep_message_q">Keep this message?</string>
+    <string name="keep_changes">Save your changes to the draft?</string>
+    <string name="keep_new">Save it as a draft so you can finish it later?</string>
+    <string name="discard">Discard</string>
+    <string name="account">Account</string>
+    <string name="select_account">Select account</string>
+    <string name="subject">Subject</string>
+
+    <!-- Folders -->
+    <string name="folders_title">Folders</string>
+    <string name="refresh_from_server">Refresh from server</string>
+    <string name="new_folder">New folder</string>
+    <string name="working">Working…</string>
+    <string name="on_the_server">On the server (IMAP)</string>
+    <string name="on_device_only">On this device only</string>
+    <string name="new_imap_folder">New IMAP folder</string>
+    <string name="folder_path">Folder path</string>
+    <string name="new_device_folder">New device folder</string>
+    <string name="name">Name</string>
+    <string name="device_folder_hint">Messages moved here are downloaded and removed from the server</string>
+    <string name="rename_folder">Rename folder</string>
+    <string name="new_path">New path</string>
+    <string name="rename">Rename</string>
+    <string name="device_folder">device folder</string>
+
+    <!-- Rules -->
+    <string name="rules_title">Rules</string>
+    <string name="new_rule">New rule</string>
+
+    <!-- Notifications -->
+    <string name="notif_new_mail">New mail</string>
+    <string name="notif_messages">%1$d new messages</string>
+    <string name="notif_watching">Watching for new mail</string>
+    <string name="notif_channel_service">Background</string>
+    <string name="channel_background">Background sync</string>
+    <string name="channel_background_desc">Keeps push connections alive</string>
+    <string name="channel_default">New mail</string>
+    <string name="channel_silent">New mail (silent)</string>
+    <string name="channel_high">New mail (priority)</string>
+    <string name="unknown_sender_notif">Unknown sender</string>
+    <string name="no_subject_notif">(no subject)</string>
+
+    <plurals name="new_messages">
+        <item quantity="one">%1$d new message</item>
+        <item quantity="other">%1$d new messages</item>
+    </plurals>
+
+    <!-- Accounts -->
+    <string name="accounts_title">Accounts</string>
+    <string name="add_account">Add account</string>
+    <string name="edit">Edit</string>
+    <string name="remove">Remove</string>
+
+    <!-- Sync window -->
+    <string name="window_only_at">Only check at set times</string>
+    <string name="window_always">Background checks and push run around the clock</string>
+    <string name="window_start">Start checking at</string>
+    <string name="window_stop">Stop checking at</string>
+    <string name="window_set">Set</string>
+    <string name="window_every_day">every day</string>
+
+    <!-- Background mail -->
+    <string name="bg_push_off">Push is off for every account</string>
+    <string name="bg_push_stopped">Push is enabled but not running</string>
+    <string name="bg_allow">Allow background activity</string>
+    <string name="bg_battery_off">Battery optimisation is off for uwuMail</string>
+    <string name="bg_battery_on">Battery optimisation is limiting uwuMail</string>
+    <string name="bg_battery_cannot_open">Could not open battery settings</string>
+
+    <!-- Account setup -->
+    <string name="setup_add">Add account</string>
+    <string name="setup_edit">Edit account</string>
+    <string name="save">Save</string>
+    <string name="identity">Identity</string>
+    <string name="your_name">Your name</string>
+    <string name="email_address">Email address</string>
+    <string name="used_as_default_from">Used as the default From address</string>
+    <string name="password">Password</string>
+    <string name="new_password">New password (leave empty to keep)</string>
+    <string name="toggle_password">Toggle password</string>
+    <string name="same_password_smtp">Same password for SMTP</string>
+    <string name="smtp_password">SMTP password</string>
+    <string name="incoming_imap">Incoming (IMAP)</string>
+    <string name="host">Host</string>
+    <string name="port">Port</string>
+    <string name="username">Username</string>
+    <string name="defaults_to_email">Defaults to the email address</string>
+    <string name="outgoing_smtp">Outgoing (SMTP)</string>
+    <string name="sync_and_notifications">Sync &amp; notifications</string>
+    <string name="background_sync">Background sync</string>
+    <string name="sync_interval">Sync interval (minutes)</string>
+    <string name="sync_interval_hint">Android enforces a 15 minute minimum</string>
+    <string name="push_idle">Push (keep IMAP IDLE open)</string>
+    <string name="notifications">Notifications</string>
+    <string name="sending_as">Sending as</string>
+    <string name="envelope_follows">Envelope sender follows the From address</string>
+    <string name="identities">Identities</string>
+    <string name="default_address">Default address</string>
+    <string name="use_as_default">Use as default</string>
+    <string name="remove_identity">Remove identity</string>
+    <string name="no_identities">None saved — the account address is used.</string>
+    <string name="add_identity">Add identity</string>
+    <string name="advanced">Advanced</string>
+    <string name="accept_any_cert">Accept any TLS certificate</string>
+    <string name="signature">Signature</string>
+    <string name="test_connection">Test connection</string>
+    <string name="delete_identity_q">Delete identity?</string>
+    <string name="add">Add</string>
+    <string name="any_from_address">Any address your server allows in the From header</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="use_a_password">Use a password</string>
+    <string name="sec_none_insecure">None (insecure)</string>
+
+    <!-- Spam lists -->
+    <string name="spam_intro">Mail from a listed sender is highlighted in red. Nothing is deleted or moved — use a rule if you want that.</string>
+    <string name="spam_not_downloaded">Not downloaded yet</string>
+    <string name="spam_off">Off</string>
+    <string name="spam_remove_list">Remove list</string>
+    <string name="spam_blocked_senders">Blocked senders</string>
+    <string name="spam_blocked_hint">Add a domain like example.com, or a single address.</string>
+    <string name="spam_add_list">Add spam list</string>
+    <string name="spam_url">URL</string>
+    <string name="spam_url_hint">A plain text list with one domain per line</string>
+    <string name="spam_list_added">List added</string>
+    <string name="spam_block_sender">Block sender</string>
+    <string name="spam_domain_or_address">Domain or address</string>
+    <string name="spam_block">Block</string>
+    <string name="spam_block_hint">example.com blocks the whole domain</string>
+    <string name="spam_remove_confirm">The downloaded domains are deleted from this device.</string>
+
+    <!-- Rule editor -->
+    <string name="rule_edit">Edit rule</string>
+    <string name="rule_new">New rule</string>
+    <string name="rule_name">Rule name</string>
+    <string name="rule_enabled">Enabled</string>
+    <string name="rule_stop">Stop processing later rules</string>
+    <string name="rule_priority">Priority</string>
+    <string name="rule_all_accounts">All accounts</string>
+    <string name="rule_all_folders">All folders</string>
+    <string name="rule_when">When</string>
+    <string name="rule_then">Then do</string>
+    <string name="rule_match_all">Match all conditions</string>
+    <string name="rule_match_any">Match any condition</string>
+    <string name="rule_add_condition">Add condition</string>
+    <string name="rule_add_action">Add action</string>
+    <string name="rule_remove_condition">Remove condition</string>
+    <string name="rule_value">Value</string>
+    <string name="rule_bad_regex">Not a valid regular expression</string>
+    <string name="rule_header_name">Header name</string>
+    <string name="rule_case_sensitive">Case sensitive</string>
+    <string name="rule_negate">Invert</string>
+    <string name="rule_test">Test against cached mail</string>
+    <string name="rule_no_folder">No matching folder — create one first</string>
+
+    <!-- Rule wizard -->
+    <string name="wizard_title">New rule from selection</string>
+    <string name="wizard_conditions">Suggested conditions</string>
+    <string name="wizard_actions">What should happen</string>
+    <string name="wizard_save">Save rule</string>
+
+    <!-- Rule editor 2 -->
+    <string name="rule_stop_after">Stop after this rule</string>
+    <string name="rule_applies_to">Applies to</string>
+    <string name="rule_conditions">Conditions</string>
+    <string name="rule_match_all_short">Match all</string>
+    <string name="rule_match_any_short">Match any</string>
+    <string name="rule_before_save">Before you save</string>
+    <string name="rule_nothing_matched">Nothing matched. Loosen a condition, or sync more mail first.</string>
+    <string name="rule_apply_existing">Apply rules to mail already synced</string>
+
+    <!-- Rule wizard 2 -->
+    <string name="wizard_create">Create rule</string>
+    <string name="wizard_looking">Looking for what these mails have in common…</string>
+    <string name="wizard_common">What they have in common</string>
+    <string name="wizard_nothing">Nothing shared found</string>
+    <string name="wizard_then">Then do</string>
+    <string name="wizard_no_folder">No folder available — create one first</string>
+
+    <!-- Rules list -->
+    <string name="rules_none">No rules yet</string>
+    <string name="rules_delete">Delete rule</string>
+    <string name="rules_activity">Recent activity</string>
+    <string name="rules_delete_body">Mail this rule already acted on is not restored.</string>
+    <string name="rule_no_conditions">no conditions</string>
+    <string name="rule_join_and"> and </string>
+    <string name="rule_join_or"> or </string>
+    <string name="rule_not">not</string>
+    <string name="rule_header_prefix">header</string>
+
+    <!-- Shared labels -->
+    <string name="find_settings">Find settings</string>
+    <string name="testing">Testing…</string>
+    <string name="waiting">Waiting…</string>
+    <string name="sign_in_again">Sign in again</string>
+    <string name="sec_none">None</string>
+    <string name="folder_actions">Folder actions</string>
+    <string name="show_in_list">Show in folder list</string>
+    <string name="hide_from_list">Hide from folder list</string>
+    <string name="from">From</string>
+    <string name="update_identity">Update this identity</string>
+    <string name="save_as_identity">Save as identity</string>
+    <string name="display_name">Display name</string>
+    <string name="address">Address</string>
+    <string name="hide">Hide</string>
+    <string name="no_accounts_title">No accounts</string>
+    <string name="no_accounts_hint">Tap + to add your first mail account.</string>
+    <string name="remove_account">Remove account</string>
+    <string name="bg_explains">uwuMail holds an IMAP connection open so mail arrives without opening the app. Turn push on or off per account under Accounts.</string>
+    <string name="bg_exempt">Android will leave the connection alone while the screen is off.</string>
+    <string name="bg_not_exempt">Doze will suspend the connection while the screen is off, so mail may not arrive until you open the app. Granting the exemption is what makes background mail reliable.</string>
+    <string name="bg_vendors">Samsung, Xiaomi, OnePlus and others add their own battery managers on top of Android\'s. If mail still stops arriving overnight, look for uwuMail in your phone\'s app battery settings and set it to unrestricted there too.</string>
+    <string name="folder_synced"> · synced</string>
+    <string name="folder_hidden"> · hidden</string>
+    <string name="folder_delete_local">The downloaded messages in this device folder are deleted permanently.</string>
+    <string name="folder_delete_remote">The folder and everything in it is deleted on the server. This cannot be undone.</string>
+    <string name="account_muted"> · muted</string>
+    <string name="account_remove_body">Cached mail, folders and stored passwords for this account are deleted from the device. Nothing on the server changes.</string>
+    <string name="identity_any_address">Any address your server lets you send as. Save it as an identity to reuse it.</string>
+    <string name="envelope_hint">Off means MAIL FROM always uses the account address, which some servers require.</string>
+    <string name="identities_hint">Addresses you can send as from this account. The default is used for new messages.</string>
+    <string name="google_needs_id">Needs a Google OAuth client id. Add one under Settings &gt; Google sign-in, then come back.</string>
+    <string name="google_only_option">For Gmail this is the only option that works — Google no longer accepts your account password over IMAP.</string>
 </resources>

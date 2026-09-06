@@ -27,18 +27,18 @@ class Notifier(private val context: Context) {
         system.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_SERVICE,
-                "Background sync",
+                context.getString(R.string.channel_background),
                 NotificationManager.IMPORTANCE_MIN
-            ).apply { description = "Keeps push connections alive" }
+            ).apply { description = context.getString(R.string.channel_background_desc) }
         )
         accounts.forEach { account ->
             system.createNotificationChannelGroup(
                 NotificationChannelGroup(groupId(account.id), account.displayName)
             )
             listOf(
-                Triple(defaultChannel(account.id), "New mail", NotificationManager.IMPORTANCE_DEFAULT),
-                Triple(silentChannel(account.id), "New mail (silent)", NotificationManager.IMPORTANCE_LOW),
-                Triple(highChannel(account.id), "New mail (priority)", NotificationManager.IMPORTANCE_HIGH)
+                Triple(defaultChannel(account.id), context.getString(R.string.channel_default), NotificationManager.IMPORTANCE_DEFAULT),
+                Triple(silentChannel(account.id), context.getString(R.string.channel_silent), NotificationManager.IMPORTANCE_LOW),
+                Triple(highChannel(account.id), context.getString(R.string.channel_high), NotificationManager.IMPORTANCE_HIGH)
             ).forEach { (id, name, importance) ->
                 system.createNotificationChannel(
                     NotificationChannel(id, name, importance).apply {
@@ -73,18 +73,18 @@ class Notifier(private val context: Context) {
         }
         val sender = message.fromName?.takeIf { it.isNotBlank() }
             ?: message.fromAddress
-            ?: "Unknown sender"
+            ?: context.getString(R.string.unknown_sender_notif)
 
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_stat_mail)
             .setContentTitle(sender)
-            .setContentText(message.subject.ifBlank { "(no subject)" })
+            .setContentText(message.subject.ifBlank { context.getString(R.string.no_subject_notif) })
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .setBigContentTitle(sender)
                     .bigText(
                         buildString {
-                            append(message.subject.ifBlank { "(no subject)" })
+                            append(message.subject.ifBlank { context.getString(R.string.no_subject_notif) })
                             if (message.preview.isNotBlank()) append("\n").append(message.preview)
                         }
                     )
@@ -112,7 +112,9 @@ class Notifier(private val context: Context) {
         val summary = NotificationCompat.Builder(context, defaultChannel(account.id))
             .setSmallIcon(R.drawable.ic_stat_mail)
             .setContentTitle(account.displayName)
-            .setContentText("$newCount new message${if (newCount == 1) "" else "s"}")
+            .setContentText(
+                context.resources.getQuantityString(R.plurals.new_messages, newCount, newCount)
+            )
             .setGroup(groupId(account.id))
             .setGroupSummary(true)
             .setAutoCancel(true)

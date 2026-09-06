@@ -58,8 +58,13 @@ data class RulePlan(
             it.type == ActionType.COPY_TO_FOLDER || it.type == ActionType.COPY_TO_LOCAL
         }
 
+    /**
+     * For the activity log, which is a record rather than a screen: the action
+     * is named by what it is, not by whatever the display language happens to
+     * be when it is read back.
+     */
     fun summary(): String = actions.joinToString(", ") { action ->
-        action.arg?.let { "${action.type.label} -> $it" } ?: action.type.label
+        action.arg?.let { "${action.type.name} -> $it" } ?: action.type.name
     }
 
     companion object {

@@ -23,7 +23,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.ui.LocalAppContainer
 
@@ -35,13 +37,13 @@ fun SyncWindowSection() {
     var editing by remember { mutableStateOf<Boundary?>(null) }
 
     SettingSwitch(
-        title = "Only check at set times",
+        title = stringResource(R.string.window_only_at),
         subtitle = if (settings.syncWindowEnabled) {
             "${AppSettings.formatTime(settings.syncStartMinutes)} to " +
                 "${AppSettings.formatTime(settings.syncEndMinutes)} on " +
                 daysSummary(settings)
         } else {
-            "Background checks and push run around the clock"
+            stringResource(R.string.window_always)
         },
         icon = Icons.Default.Schedule,
         checked = settings.syncWindowEnabled,
@@ -105,7 +107,7 @@ fun SyncWindowSection() {
 
     editing?.let { boundary ->
         TimeDialog(
-            title = if (boundary == Boundary.START) "Start checking at" else "Stop checking at",
+            title = if (boundary == Boundary.START) stringResource(R.string.window_start) else stringResource(R.string.window_stop),
             minutes = if (boundary == Boundary.START) settings.syncStartMinutes
             else settings.syncEndMinutes,
             onConfirm = { value ->
@@ -122,8 +124,9 @@ fun SyncWindowSection() {
 
 private enum class Boundary { START, END }
 
+@Composable
 private fun daysSummary(settings: AppSettings): String = when {
-    settings.syncDays.size == AppSettings.ALL_DAYS.size -> "every day"
+    settings.syncDays.size == AppSettings.ALL_DAYS.size -> stringResource(R.string.window_every_day)
     else -> AppSettings.DAY_ORDER.filter { it in settings.syncDays }
         .joinToString(", ", transform = AppSettings::dayLabel)
 }
@@ -146,7 +149,7 @@ private fun TimeDialog(
         title = { Text(title) },
         text = { TimePicker(state = state) },
         confirmButton = {
-            TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) { Text("Set") }
+            TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) { Text(stringResource(R.string.window_set)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )

@@ -47,8 +47,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
+import de.uwumail.R
 import de.uwumail.data.db.IdentityEntity
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.containerViewModel
@@ -100,10 +102,10 @@ fun ComposeScreen(
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
             TopAppBar(
-                title = { Text(if (state.editingDraftId != null) "Draft" else "New message") },
+                title = { Text(if (state.editingDraftId != null) stringResource(R.string.draft) else stringResource(R.string.new_message)) },
                 navigationIcon = {
                     IconButton(onClick = ::leave) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -114,10 +116,10 @@ fun ComposeScreen(
                             onClick = viewModel::saveDraft,
                             enabled = state.canSaveDraft
                         ) {
-                            Icon(Icons.Default.Save, "Save draft")
+                            Icon(Icons.Default.Save, stringResource(R.string.save_draft))
                         }
                         IconButton(onClick = viewModel::send, enabled = state.canSend) {
-                            Icon(Icons.AutoMirrored.Filled.Send, "Send")
+                            Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send))
                         }
                     }
                 }
@@ -135,9 +137,9 @@ fun ComposeScreen(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Account", Modifier.width(72.dp), style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.account), Modifier.width(72.dp), style = MaterialTheme.typography.labelLarge)
                 TextButton(onClick = { accountMenu = true }) {
-                    Text(state.account?.displayName ?: "Select account")
+                    Text(state.account?.displayName ?: stringResource(R.string.select_account))
                     Icon(Icons.Default.ArrowDropDown, null)
                 }
                 DropdownMenu(expanded = accountMenu, onDismissRequest = { accountMenu = false }) {
@@ -154,7 +156,7 @@ fun ComposeScreen(
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "From",
+                        stringResource(R.string.from),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
@@ -211,8 +213,8 @@ fun ComposeScreen(
                     ) {
                         Icon(
                             if (alreadySaved) Icons.Default.Bookmark else Icons.Default.BookmarkAdd,
-                            contentDescription = if (alreadySaved) "Update this identity"
-                            else "Save as identity"
+                            contentDescription = if (alreadySaved) stringResource(R.string.update_identity)
+                            else stringResource(R.string.save_as_identity)
                         )
                     }
                 }
@@ -220,14 +222,14 @@ fun ComposeScreen(
                     OutlinedTextField(
                         value = state.fromName,
                         onValueChange = viewModel::setFromName,
-                        label = { Text("Display name") },
+                        label = { Text(stringResource(R.string.display_name)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
                         value = state.fromAddress,
                         onValueChange = viewModel::setFromAddress,
-                        label = { Text("Address") },
+                        label = { Text(stringResource(R.string.address)) },
                         singleLine = true,
                         isError = state.fromAddress.isNotBlank() && !state.fromAddress.contains('@'),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -235,7 +237,7 @@ fun ComposeScreen(
                     )
                 }
                 Text(
-                    "Any address your server lets you send as. Save it as an identity to reuse it.",
+                    stringResource(R.string.identity_any_address),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
@@ -252,7 +254,7 @@ fun ComposeScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 trailingIcon = {
                     TextButton(onClick = viewModel::toggleCcBcc) {
-                        Text(if (state.showCcBcc) "Hide" else "Cc/Bcc")
+                        Text(if (state.showCcBcc) stringResource(R.string.hide) else "Cc/Bcc")
                     }
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
@@ -278,7 +280,7 @@ fun ComposeScreen(
             OutlinedTextField(
                 value = state.subject,
                 onValueChange = viewModel::setSubject,
-                label = { Text("Subject") },
+                label = { Text(stringResource(R.string.subject)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
             )
@@ -286,7 +288,7 @@ fun ComposeScreen(
             OutlinedTextField(
                 value = state.body,
                 onValueChange = viewModel::setBody,
-                label = { Text("Message") },
+                label = { Text(stringResource(R.string.message)) },
                 minLines = 12,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
@@ -296,21 +298,21 @@ fun ComposeScreen(
     if (confirmLeave) {
         AlertDialog(
             onDismissRequest = { confirmLeave = false },
-            title = { Text("Keep this message?") },
+            title = { Text(stringResource(R.string.keep_message_q)) },
             text = {
                 Text(
-                    if (state.editingDraftId != null) "Save your changes to the draft?"
-                    else "Save it as a draft so you can finish it later?"
+                    if (state.editingDraftId != null) stringResource(R.string.keep_changes)
+                    else stringResource(R.string.keep_new)
                 )
             },
             confirmButton = {
                 TextButton(onClick = { confirmLeave = false; viewModel.saveDraft() }) {
-                    Text("Save draft")
+                    Text(stringResource(R.string.save_draft))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmLeave = false; onDone() }) {
-                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.discard), color = MaterialTheme.colorScheme.error)
                 }
             }
         )
@@ -318,10 +320,10 @@ fun ComposeScreen(
 
     identityToDelete?.let { identity ->
         ConfirmDialog(
-            title = "Delete identity?",
+            title = stringResource(R.string.delete_identity_q),
             message = "\"${identity.email}\" is removed from this account's saved " +
                 "addresses. Mail already sent from it is not affected.",
-            confirmLabel = "Delete",
+            confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = { viewModel.deleteIdentity(identity) },
             onDismiss = { identityToDelete = null }

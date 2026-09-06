@@ -46,7 +46,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.uwumail.R
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.TextPromptDialog
@@ -66,6 +68,8 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
     var renaming by remember { mutableStateOf<FolderEntity?>(null) }
     var deleting by remember { mutableStateOf<FolderEntity?>(null) }
     var fabMenu by remember { mutableStateOf(false) }
+    val synced = stringResource(R.string.folder_synced)
+    val hidden = stringResource(R.string.folder_hidden)
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -79,15 +83,15 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
         topBar = {
             Column {
             TopAppBar(
-                title = { Text("Folders") },
+                title = { Text(stringResource(R.string.folders_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = viewModel::refresh, enabled = !state.busy) {
-                        Icon(Icons.Default.Sync, "Refresh from server")
+                        Icon(Icons.Default.Sync, stringResource(R.string.refresh_from_server))
                     }
                 }
             )
@@ -104,16 +108,16 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
                         if (state.busy) CircularProgressIndicator(Modifier.size(20.dp))
                         else Icon(Icons.Default.Add, null)
                     },
-                    text = { Text(if (state.busy) "Working…" else "New folder") }
+                    text = { Text(if (state.busy) stringResource(R.string.working) else stringResource(R.string.new_folder)) }
                 )
                 DropdownMenu(expanded = fabMenu, onDismissRequest = { fabMenu = false }) {
                     DropdownMenuItem(
-                        text = { Text("On the server (IMAP)") },
+                        text = { Text(stringResource(R.string.on_the_server)) },
                         leadingIcon = { Icon(Icons.Default.CloudQueue, null) },
                         onClick = { fabMenu = false; createRemote = true }
                     )
                     DropdownMenuItem(
-                        text = { Text("On this device only") },
+                        text = { Text(stringResource(R.string.on_device_only)) },
                         leadingIcon = { Icon(Icons.Default.PhoneAndroid, null) },
                         onClick = { fabMenu = false; createLocal = true }
                     )
@@ -140,11 +144,11 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
                     supportingContent = {
                         Text(
                             buildString {
-                                append(if (folder.isLocal) "device folder" else folder.path)
+                                append(if (folder.isLocal) stringResource(R.string.device_folder) else folder.path)
                                 append(" · ${folder.totalCount} messages")
                                 if (folder.unreadCount > 0) append(", ${folder.unreadCount} unread")
-                                if (folder.syncEnabled && !folder.isLocal) append(" · synced")
-                                if (folder.hidden) append(" · hidden")
+                                if (folder.syncEnabled && !folder.isLocal) append(synced)
+                                if (folder.hidden) append(hidden)
                             },
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -170,8 +174,8 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
 
     if (createRemote) {
         TextPromptDialog(
-            title = "New IMAP folder",
-            label = "Folder path",
+            title = stringResource(R.string.new_imap_folder),
+            label = stringResource(R.string.folder_path),
             supportingText = "Use ${state.delimiter} to nest, e.g. Projects${state.delimiter}CI",
             onConfirm = viewModel::createRemoteFolder,
             onDismiss = { createRemote = false }
@@ -179,19 +183,19 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
     }
     if (createLocal) {
         TextPromptDialog(
-            title = "New device folder",
-            label = "Name",
-            supportingText = "Messages moved here are downloaded and removed from the server",
+            title = stringResource(R.string.new_device_folder),
+            label = stringResource(R.string.name),
+            supportingText = stringResource(R.string.device_folder_hint),
             onConfirm = viewModel::createLocalFolder,
             onDismiss = { createLocal = false }
         )
     }
     renaming?.let { folder ->
         TextPromptDialog(
-            title = "Rename folder",
-            label = "New path",
+            title = stringResource(R.string.rename_folder),
+            label = stringResource(R.string.new_path),
             initial = if (folder.isLocal) folder.displayName else folder.path,
-            confirmLabel = "Rename",
+            confirmLabel = stringResource(R.string.rename),
             onConfirm = { viewModel.rename(folder, it) },
             onDismiss = { renaming = null }
         )
@@ -200,11 +204,11 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
         ConfirmDialog(
             title = "Delete \"${folder.displayName}\"?",
             message = if (folder.isLocal) {
-                "The downloaded messages in this device folder are deleted permanently."
+                stringResource(R.string.folder_delete_local)
             } else {
-                "The folder and everything in it is deleted on the server. This cannot be undone."
+                stringResource(R.string.folder_delete_remote)
             },
-            confirmLabel = "Delete",
+            confirmLabel = stringResource(R.string.delete),
             destructive = true,
             onConfirm = { viewModel.delete(folder) },
             onDismiss = { deleting = null }
@@ -227,28 +231,28 @@ private fun FolderActions(
     var menu by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { menu = true }) {
-            Icon(Icons.Default.DriveFileRenameOutline, "Folder actions")
+            Icon(Icons.Default.DriveFileRenameOutline, stringResource(R.string.folder_actions))
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(
-                text = { Text("Move up") },
+                text = { Text(stringResource(R.string.move_up)) },
                 enabled = canMoveUp,
                 leadingIcon = { Icon(Icons.Default.ArrowUpward, null) },
                 onClick = { menu = false; onMove(-1) }
             )
             DropdownMenuItem(
-                text = { Text("Move down") },
+                text = { Text(stringResource(R.string.move_down)) },
                 enabled = canMoveDown,
                 leadingIcon = { Icon(Icons.Default.ArrowDownward, null) },
                 onClick = { menu = false; onMove(1) }
             )
             DropdownMenuItem(
-                text = { Text("Reset order") },
+                text = { Text(stringResource(R.string.reset_order)) },
                 onClick = { menu = false; onResetOrder() }
             )
             HorizontalDivider()
             DropdownMenuItem(
-                text = { Text(if (folder.hidden) "Show in folder list" else "Hide from folder list") },
+                text = { Text(if (folder.hidden) stringResource(R.string.show_in_list) else stringResource(R.string.hide_from_list)) },
                 leadingIcon = {
                     Icon(
                         if (folder.hidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
@@ -259,7 +263,7 @@ private fun FolderActions(
             )
             if (!folder.isLocal) {
                 DropdownMenuItem(
-                    text = { Text("Sync automatically") },
+                    text = { Text(stringResource(R.string.sync_automatically)) },
                     trailingIcon = {
                         Switch(checked = folder.syncEnabled, onCheckedChange = null)
                     },
@@ -267,11 +271,11 @@ private fun FolderActions(
                 )
             }
             DropdownMenuItem(
-                text = { Text("Rename") },
+                text = { Text(stringResource(R.string.rename)) },
                 onClick = { menu = false; onRename() }
             )
             DropdownMenuItem(
-                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                 leadingIcon = {
                     Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
                 },

@@ -1,5 +1,8 @@
 package de.uwumail.core
 
+import androidx.annotation.StringRes
+import de.uwumail.R
+
 /** Transport security for IMAP/SMTP connections. */
 enum class Security { SSL_TLS, STARTTLS, NONE }
 
@@ -7,34 +10,34 @@ enum class Security { SSL_TLS, STARTTLS, NONE }
 enum class FolderType { INBOX, ARCHIVE, SENT, DRAFTS, TRASH, SPAM, CUSTOM, LOCAL }
 
 /** Part of a message a rule condition looks at. */
-enum class RuleField(val label: String) {
-    FROM("From address"),
-    FROM_NAME("From display name"),
-    TO("To"),
-    CC("Cc"),
-    TO_OR_CC("To or Cc"),
-    SUBJECT("Subject"),
-    BODY("Body text"),
-    HEADER("Raw header"),
-    LIST_ID("List-Id"),
-    ATTACHMENT_NAME("Attachment filename"),
-    SIZE_BYTES("Size in bytes"),
-    FOLDER("Folder path");
+enum class RuleField(@StringRes val label: Int) {
+    FROM(R.string.field_from),
+    FROM_NAME(R.string.field_from_name),
+    TO(R.string.field_to),
+    CC(R.string.field_cc),
+    TO_OR_CC(R.string.field_to_or_cc),
+    SUBJECT(R.string.field_subject),
+    BODY(R.string.field_body),
+    HEADER(R.string.field_header),
+    LIST_ID(R.string.field_list_id),
+    ATTACHMENT_NAME(R.string.field_attachment_name),
+    SIZE_BYTES(R.string.field_size),
+    FOLDER(R.string.field_folder);
 
     /** Body matching forces a full body fetch during sync, so we track it. */
     val needsBody: Boolean get() = this == BODY
 }
 
 /** How a condition's value is compared against the extracted field text. */
-enum class RuleOperator(val label: String) {
-    REGEX("matches regex"),
-    CONTAINS("contains"),
-    EQUALS("is exactly"),
-    STARTS_WITH("starts with"),
-    ENDS_WITH("ends with"),
-    DOMAIN_IS("domain is"),
-    GREATER_THAN("is greater than"),
-    LESS_THAN("is less than")
+enum class RuleOperator(@StringRes val label: Int) {
+    REGEX(R.string.op_regex),
+    CONTAINS(R.string.op_contains),
+    EQUALS(R.string.op_equals),
+    STARTS_WITH(R.string.op_starts_with),
+    ENDS_WITH(R.string.op_ends_with),
+    DOMAIN_IS(R.string.op_domain_is),
+    GREATER_THAN(R.string.op_greater_than),
+    LESS_THAN(R.string.op_less_than)
 }
 
 /** Conditions inside one rule are combined with this. */
@@ -46,22 +49,22 @@ enum class MatchMode { ALL, ANY }
  * [needsTargetFolder] marks the actions whose `stringArg` carries a folder path
  * (remote IMAP path, or a local folder name for [MOVE_TO_LOCAL]).
  */
-enum class ActionType(val label: String, val needsTargetFolder: Boolean = false) {
-    MARK_READ("Mark as read"),
-    MARK_UNREAD("Mark as unread"),
-    FLAG("Star"),
-    UNFLAG("Unstar"),
-    ARCHIVE("Archive"),
-    MOVE_TO_TRASH("Move to trash"),
-    DELETE_PERMANENTLY("Delete permanently"),
-    MOVE_TO_FOLDER("Move to folder", true),
-    COPY_TO_FOLDER("Copy to folder", true),
-    MOVE_TO_LOCAL("Move to local folder", true),
-    COPY_TO_LOCAL("Copy to local folder", true),
-    DOWNLOAD("Download full message"),
-    SUPPRESS_NOTIFICATION("Don't notify"),
-    NOTIFY_SILENT("Notify silently"),
-    NOTIFY_HIGH("Notify with high priority");
+enum class ActionType(@StringRes val label: Int, val needsTargetFolder: Boolean = false) {
+    MARK_READ(R.string.action_mark_read),
+    MARK_UNREAD(R.string.action_mark_unread),
+    FLAG(R.string.action_flag),
+    UNFLAG(R.string.action_unflag),
+    ARCHIVE(R.string.action_archive),
+    MOVE_TO_TRASH(R.string.action_move_to_trash),
+    DELETE_PERMANENTLY(R.string.action_delete_permanently),
+    MOVE_TO_FOLDER(R.string.action_move_to_folder, true),
+    COPY_TO_FOLDER(R.string.action_copy_to_folder, true),
+    MOVE_TO_LOCAL(R.string.action_move_to_local, true),
+    COPY_TO_LOCAL(R.string.action_copy_to_local, true),
+    DOWNLOAD(R.string.action_download),
+    SUPPRESS_NOTIFICATION(R.string.action_suppress_notification),
+    NOTIFY_SILENT(R.string.action_notify_silent),
+    NOTIFY_HIGH(R.string.action_notify_high);
 
     /** Actions that take the message off the server side of the current folder. */
     val removesFromFolder: Boolean
@@ -75,14 +78,14 @@ enum class ActionType(val label: String, val needsTargetFolder: Boolean = false)
  * Each direction is configured separately, and [NONE] is how a direction is
  * turned off — a swipe that does nothing simply does not start.
  */
-enum class SwipeAction(val label: String) {
-    NONE("Nothing"),
-    TOGGLE_READ("Mark read / unread"),
-    TOGGLE_STAR("Star / unstar"),
-    ARCHIVE("Archive"),
-    TRASH("Move to trash"),
-    MOVE("Move to folder…"),
-    DELETE("Delete permanently");
+enum class SwipeAction(@StringRes val label: Int) {
+    NONE(R.string.swipe_none),
+    TOGGLE_READ(R.string.swipe_toggle_read),
+    TOGGLE_STAR(R.string.swipe_toggle_star),
+    ARCHIVE(R.string.swipe_archive),
+    TRASH(R.string.swipe_trash),
+    MOVE(R.string.swipe_move),
+    DELETE(R.string.swipe_delete);
 
     /**
      * Whether the row is on its way out, so the swipe can carry it off the
@@ -103,11 +106,11 @@ enum class SwipeAction(val label: String) {
 }
 
 /** Which colours the app wears. */
-enum class AppTheme(val label: String) {
-    SYSTEM("Follow the system"),
-    LIGHT("Light"),
-    DARK("Dark"),
-    MOCHA("Catppuccin Mocha");
+enum class AppTheme(@StringRes val label: Int) {
+    SYSTEM(R.string.theme_system),
+    LIGHT(R.string.theme_light),
+    DARK(R.string.theme_dark),
+    MOCHA(R.string.theme_mocha);
 
     companion object {
         /** Tolerates a name that is no longer known, rather than losing the setting. */
