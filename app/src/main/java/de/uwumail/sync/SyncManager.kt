@@ -3,7 +3,9 @@ package de.uwumail.sync
 import android.content.Context
 import de.uwumail.core.ActionType
 import de.uwumail.core.FolderType
+import de.uwumail.core.DeviceDownloads
 import de.uwumail.core.Json
+import de.uwumail.core.SavedAttachments
 import de.uwumail.core.joinAddresses
 import de.uwumail.data.crypto.CredentialStore
 import de.uwumail.data.db.AccountEntity
@@ -1015,6 +1017,46 @@ class SyncManager(
             }
         )
         return updated
+    }
+
+    /**
+     * Fetches every attachment on [messageIds] and saves it to the device's
+     * Downloads folder.
+     *
+     * Bodies are fetched first where they have not been already: until a
+     * message has been opened, its attachment list is not known — the envelope
+     * only says whether there are any.
+     */
+    suspend fun saveAttachmentsToDevice(messageIds: List<Long>): SavedAttachments {
+        var saved = 0
+        var missing = 0
+        var withNone = 0
+
+        for (messageId in messageIds) {
+            runCatching { ensureBody(messageId) }
+            val attachments = db.attachmentDao().forMessage(messageId).filter { !it.isInline }
+            if (attachments.isEmpty()) {
+                withNone++
+                continue
+            }
+            for (attachment in attachments) {
+                val file = runCatching { downloadAttachment(attachment.id) }.getOrNull()
+                if (file == null) {
+                    missing++
+                    continue
+                }
+                val name = withContext(Dispatchers.IO) {
+                    DeviceDownloads.save(
+                        context,
+                        file,
+                        MimeUtil.sanitizeFileName(attachment.fileName),
+                        attachment.mimeType
+                    )
+                }
+                if (name == null) missing++ else saved++
+            }
+        }
+        return SavedAttachments(saved, missing, withNone)
     }
 
     suspend fun downloadAttachment(attachmentId: Long): File? = withContext(Dispatchers.IO) {

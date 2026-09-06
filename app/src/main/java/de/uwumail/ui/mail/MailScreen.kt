@@ -239,6 +239,7 @@ fun MailScreen(
                         onMove = { showMovePicker = true },
                         onCopy = { showCopyPicker = true },
                         onDownload = viewModel::downloadSelection,
+                        onSaveAttachments = viewModel::saveSelectionAttachments,
                         onCreateRule = {
                             val ids = state.selection.toList()
                             viewModel.clearSelection()
@@ -489,6 +490,7 @@ private fun SelectionAppBar(
     onMove: () -> Unit,
     onCopy: () -> Unit,
     onDownload: () -> Unit,
+    onSaveAttachments: () -> Unit,
     onCreateRule: () -> Unit
 ) {
     var overflow by remember { mutableStateOf(false) }
@@ -525,6 +527,11 @@ private fun SelectionAppBar(
                     text = { Text("Copy to folder") },
                     leadingIcon = { Icon(Icons.Default.FileCopy, null) },
                     onClick = { overflow = false; onCopy() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Save attachments") },
+                    leadingIcon = { Icon(Icons.Default.AttachFile, null) },
+                    onClick = { overflow = false; onSaveAttachments() }
                 )
                 DropdownMenuItem(
                     text = { Text("Download to device") },

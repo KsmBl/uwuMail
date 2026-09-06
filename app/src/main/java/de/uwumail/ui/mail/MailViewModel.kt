@@ -2,6 +2,7 @@ package de.uwumail.ui.mail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.uwumail.core.DeviceDownloads
 import de.uwumail.core.FolderType
 import de.uwumail.core.SwipeAction
 import de.uwumail.data.settings.AppSettings
@@ -331,6 +332,12 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
     fun downloadSelection() = withSelection { ids ->
         ids.forEach { container.syncManager.downloadRaw(it) }
         report("Saved ${ids.size} message${if (ids.size == 1) "" else "s"} to device")
+    }
+
+    /** Pulls every attachment off the selected mail and into Downloads. */
+    fun saveSelectionAttachments() = withSelection { ids ->
+        val result = container.syncManager.saveAttachmentsToDevice(ids)
+        report(result.summary(ids.size, DeviceDownloads.folderLabel))
     }
 
     fun toggleSeen(messageId: Long, seen: Boolean) = launchGuarded {
