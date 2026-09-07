@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.RemoteInput
 import de.uwumail.R
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.MessageEntity
@@ -102,6 +103,7 @@ class Notifier(private val context: Context) {
                 }
             )
             .setSilent(priority == NotificationPriority.SILENT)
+            .addAction(replyAction(message.id))
             .addAction(
                 R.drawable.ic_stat_mail,
                 context.getString(R.string.notif_action_read),
@@ -155,12 +157,61 @@ class Notifier(private val context: Context) {
     fun cancel(messageId: Long) = manager.cancel(messageId.toInt())
 
     /**
+     * Types a reply straight into the shade.
+     *
+     * Every other quick reply is a gamble on the connection being up at the
+     * moment of typing; this one goes to the outbox, so a reply written on a
+     * train leaves when the train does.
+     */
+    private fun replyAction(messageId: Long): NotificationCompat.Action {
+        val input = RemoteInput.Builder(NotificationActionReceiver.KEY_REPLY)
+            .setLabel(context.getString(R.string.notif_action_reply))
+            .build()
+        return NotificationCompat.Action.Builder(
+            R.drawable.ic_stat_mail,
+            context.getString(R.string.notif_action_reply),
+            actionIntent(messageId, NotificationActionReceiver.ACTION_REPLY, mutable = true)
+        )
+            .addRemoteInput(input)
+            .setAllowGeneratedReplies(false)
+            .build()
+    }
+
+    /**
+     * Says what became of a reply typed in the shade.
+     *
+     * It clears itself after a few seconds: this is a receipt, not something
+     * anybody needs to dismiss, and one that lingered would be worse than none.
+     */
+    fun postReplyOutcome(accountId: Long, sent: Boolean) {
+        if (!manager.areNotificationsEnabled()) return
+        val notification = NotificationCompat.Builder(context, silentChannel(accountId))
+            .setSmallIcon(R.drawable.ic_stat_mail)
+            .setContentText(
+                context.getString(
+                    if (sent) R.string.reply_sent else R.string.reply_queued
+                )
+            )
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setSilent(true)
+            .setAutoCancel(true)
+            .setTimeoutAfter(RECEIPT_MILLIS)
+            .build()
+        runCatching { manager.notify(RECEIPT_BASE + accountId.toInt(), notification) }
+    }
+
+    /**
      * One button on a notification.
      *
      * The request code mixes the message with the action, so the three buttons
      * on one notification do not collide and neither do two notifications.
      */
-    private fun actionIntent(messageId: Long, action: String): PendingIntent {
+    private fun actionIntent(
+        messageId: Long,
+        action: String,
+        /** A reply has to be mutable: the typed text is filled into it. */
+        mutable: Boolean = false
+    ): PendingIntent {
         val intent = Intent(context, NotificationActionReceiver::class.java).apply {
             this.action = action
             putExtra(NotificationActionReceiver.EXTRA_MESSAGE_ID, messageId)
@@ -169,7 +220,8 @@ class Notifier(private val context: Context) {
             context,
             (messageId.toInt() * 31) + action.hashCode(),
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE
         )
     }
 
@@ -208,6 +260,8 @@ class Notifier(private val context: Context) {
 
         const val CHANNEL_SERVICE = "background_sync"
         private const val SUMMARY_BASE = 1_000_000
+        private const val RECEIPT_BASE = 2_000_000
+        private const val RECEIPT_MILLIS = 6_000L
 
         fun groupId(accountId: Long) = "account_$accountId"
         fun defaultChannel(accountId: Long) = "acct_${accountId}_default"

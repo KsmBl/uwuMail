@@ -184,6 +184,54 @@ class OutboxTest {
     }
 
     @Test
+    fun `a reply typed in the shade is queued`() = runBlocking {
+        val id = db.messageDao().insert(
+            MessageEntity(
+                accountId = accountId, folderId = drafts, uid = 9,
+                subject = "Question", fromAddress = "them@elsewhere.org",
+                toList = "me@example.com", messageIdHeader = "<q@elsewhere.org>"
+            )
+        )
+
+        // There is no server here, so it cannot go now — and must not be lost.
+        val sent = sync.queueReply(id, "On my way")
+
+        assertEquals(false, sent)
+        val waiting = db.outboxDao().pending()
+        assertEquals(1, waiting.size)
+        assertEquals("them@elsewhere.org", waiting.first().to)
+        assertEquals("On my way", waiting.first().bodyPlain)
+    }
+
+    @Test
+    fun `a queued shade reply remembers what it answers`() = runBlocking {
+        val id = db.messageDao().insert(
+            MessageEntity(accountId = accountId, folderId = drafts, uid = 9, subject = "Question")
+        )
+
+        sync.queueReply(id, "Yes")
+
+        assertEquals(id, db.outboxDao().pending().first().answeringMessageId)
+    }
+
+    @Test
+    fun `replying marks the message read`() = runBlocking {
+        val id = db.messageDao().insert(
+            MessageEntity(accountId = accountId, folderId = drafts, uid = 9, subject = "Question")
+        )
+
+        sync.queueReply(id, "Yes")
+
+        assertTrue(db.messageDao().get(id)!!.seen)
+    }
+
+    @Test
+    fun `a reply to a message that has gone queues nothing`() = runBlocking {
+        assertEquals(false, sync.queueReply(9999L, "Hello"))
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    @Test
     fun `the waiting count is what the settings screen reads`() = runBlocking {
         db.outboxDao().insert(queued())
         db.outboxDao().insert(queued())

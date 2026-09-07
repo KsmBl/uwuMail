@@ -91,6 +91,7 @@
                 <action android:name="de.uwumail.action.MARK_READ" />
                 <action android:name="de.uwumail.action.ARCHIVE" />
                 <action android:name="de.uwumail.action.TRASH" />
+                <action android:name="de.uwumail.action.REPLY" />
             </intent-filter>
         </receiver>
 

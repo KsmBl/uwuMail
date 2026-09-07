@@ -438,9 +438,14 @@ have.
   means the night, and the part after midnight belongs to the day it opened on.
   Anything you ask for yourself — opening the app, pulling to refresh, sending —
   is never held back.
-- **Mark read, Archive and Trash straight from the notification.** The point of
-  the rules engine is to handle mail before it asks for attention; finishing
-  the job without opening the app is the end of the same idea.
+- **Reply, Mark read, Archive and Trash straight from the notification.** The
+  point of the rules engine is to handle mail before it asks for attention;
+  finishing the job without opening the app is the end of the same idea.
+- **A reply typed in the shade goes through the outbox**, so one written with no
+  signal leaves when the signal comes back rather than evaporating with the
+  notification. A short receipt says which of the two happened and clears itself
+  after a few seconds. Replying flags the original read and, once it has gone,
+  answered.
 - One notification channel group per account, with default / silent / high
   channels so rules can downgrade or mute specific mail. An account's
   notifications gather under one summary line as soon as there are two of them

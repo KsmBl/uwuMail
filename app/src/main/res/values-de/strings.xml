@@ -675,4 +675,7 @@
     <string name="block_this_address">Nur diese Adresse</string>
     <string name="block_whole_domain">Alles von dieser Domain</string>
     <string name="sender_blocked">%1$s blockiert</string>
+    <string name="notif_action_reply">Antworten</string>
+    <string name="reply_sent">Antwort gesendet</string>
+    <string name="reply_queued">Keine Verbindung — die Antwort wartet im Postausgang</string>
 </resources>

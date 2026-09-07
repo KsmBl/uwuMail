@@ -21,6 +21,7 @@ import de.uwumail.mail.FolderClassifier
 import de.uwumail.mail.ImapPool
 import de.uwumail.mail.MailException
 import de.uwumail.mail.MimeUtil
+import de.uwumail.mail.ReplyDraft
 import de.uwumail.mail.SmtpSender
 import de.uwumail.mail.oauth.TokenStore
 import de.uwumail.notify.NotificationPriority
@@ -1421,6 +1422,35 @@ class SyncManager(
                 }
         }
         return sent
+    }
+
+    /**
+     * Queues a reply typed into a notification, and sends it if it can.
+     *
+     * Returns true when it actually went. Everything goes through the outbox
+     * either way: the shade is exactly where somebody replies one-handed on a
+     * train, and a reply that only existed while the network was down would be
+     * the worst possible place to lose one.
+     */
+    suspend fun queueReply(messageId: Long, body: String): Boolean {
+        val message = db.messageDao().get(messageId) ?: return false
+        val account = db.accountDao().get(message.accountId) ?: return false
+        val ownAddresses = db.identityDao().forAccount(account.id)
+            .map { it.email.lowercase() } + account.email.lowercase()
+
+        db.outboxDao().insert(
+            ReplyDraft.build(
+                account = account,
+                message = message,
+                ownAddresses = ownAddresses,
+                headers = Json.decodeHeaders(message.headersJson),
+                body = body,
+                now = System.currentTimeMillis()
+            )
+        )
+        // Answering something is having read it.
+        runCatching { setSeen(listOf(messageId), true) }
+        return runCatching { sendOutbox() }.getOrDefault(0) > 0
     }
 
     // ------------------------------------------------------- retroactive rules
