@@ -217,6 +217,23 @@ class MessageViewModel(
     fun toggleHeaders() = local.update { it.copy(showHeaders = !it.showHeaders) }
     fun clearStatus() = local.update { it.copy(status = null, error = null) }
 
+    /**
+     * Adds this message's sender to the blocked list, by address or by domain.
+     *
+     * The whole blocklist machinery was reachable only by typing a domain into
+     * Settings, which is the wrong end: the mail you want rid of is the one on
+     * screen. Nothing is deleted or hidden by blocking — the sender is drawn in
+     * red from here on — and the entry can be taken back off the list on its
+     * own screen.
+     */
+    fun blockSender(wholeDomain: Boolean) = guarded {
+        val address = state.value.message?.fromAddress?.takeIf { it.isNotBlank() }
+            ?: return@guarded
+        val pattern = if (wholeDomain) address.substringAfterLast('@') else address.lowercase()
+        container.blocklistRepository.blockSender(pattern)
+        local.update { it.copy(status = text(R.string.sender_blocked, pattern)) }
+    }
+
     fun setSeen(seen: Boolean) = guarded { container.syncManager.setSeen(listOf(messageId), seen) }
     fun setFlagged(flagged: Boolean) = guarded {
         container.syncManager.setFlagged(listOf(messageId), flagged)

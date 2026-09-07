@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -46,6 +47,9 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
@@ -127,6 +131,9 @@ fun MessageScreen(
     var showMove by remember { mutableStateOf(false) }
     var showCopy by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    // Whether the "block this sender" dialog is up; the choice it asks for is
+    // the address alone or everything from that domain.
+    var blockSender by remember { mutableStateOf(false) }
     // Set when a tapped link carries tracking parameters and the user has asked
     // to be consulted; the dialog is what actually opens it.
     var trackingLink by remember { mutableStateOf<String?>(null) }
@@ -279,6 +286,13 @@ fun MessageScreen(
                             leadingIcon = { Icon(Icons.Default.FileCopy, null) },
                             onClick = { overflow = false; showCopy = true }
                         )
+                        message?.fromAddress?.takeIf { it.isNotBlank() }?.let {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.block_sender)) },
+                                leadingIcon = { Icon(Icons.Default.Block, null) },
+                                onClick = { overflow = false; blockSender = true }
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.mark_unread)) },
                             leadingIcon = { Icon(Icons.Default.MarkEmailUnread, null) },
@@ -598,6 +612,47 @@ fun MessageScreen(
             url = url,
             onOpen = { openLink(context, it) },
             onDismiss = { trackingLink = null }
+        )
+    }
+
+    if (blockSender) {
+        val address = message?.fromAddress.orEmpty()
+        AlertDialog(
+            onDismissRequest = { blockSender = false },
+            title = { Text(stringResource(R.string.block_sender)) },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.block_sender_body),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            blockSender = false
+                            viewModel.blockSender(wholeDomain = false)
+                        },
+                        leadingContent = { Icon(Icons.Default.Person, null) },
+                        headlineContent = { Text(stringResource(R.string.block_this_address)) },
+                        supportingContent = { Text(address) }
+                    )
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            blockSender = false
+                            viewModel.blockSender(wholeDomain = true)
+                        },
+                        leadingContent = { Icon(Icons.Default.Language, null) },
+                        headlineContent = { Text(stringResource(R.string.block_whole_domain)) },
+                        supportingContent = { Text("@" + address.substringAfterLast('@')) }
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { blockSender = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
     }
 

@@ -670,4 +670,9 @@
         <item quantity="one">%1$d Nachricht gelöscht</item>
         <item quantity="other">%1$d Nachrichten gelöscht</item>
     </plurals>
+    <string name="block_sender">Absender blockieren</string>
+    <string name="block_sender_body">Blockierte Mail wird weder gelöscht noch versteckt — sie wird rot dargestellt, damit der Treffer nachvollziehbar bleibt. Für Aktionen eine Regel verwenden. Einträge lassen sich in den Einstellungen wieder entfernen.</string>
+    <string name="block_this_address">Nur diese Adresse</string>
+    <string name="block_whole_domain">Alles von dieser Domain</string>
+    <string name="sender_blocked">%1$s blockiert</string>
 </resources>

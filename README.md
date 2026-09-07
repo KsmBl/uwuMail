@@ -177,6 +177,10 @@ have.
 - Settings holds a set of public sender blocklists (disposable-mail providers,
   StopForumSpam's toxic domains, FakeFilter) plus any list URL you add and your
   own blocked senders. Lists are plain text, one domain per line.
+- **Block the sender you are reading** from the message's own menu — the
+  address alone, or everything from that domain. Nothing is deleted or hidden by
+  it; the mail is drawn in red as any other match is, and the entry can be taken
+  back off on the blocked-senders screen.
 - **Blocked senders** get a screen of their own: every entry, a filter, and each
   one removable. A blocklist you cannot read back is one you cannot trust.
 - Mail from a listed sender is drawn in red in the message list. Nothing is

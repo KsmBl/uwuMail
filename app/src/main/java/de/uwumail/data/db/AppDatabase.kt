@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleLogEntity::class,
         OutboxEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -132,11 +132,38 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * One entry per pattern per list.
+         *
+         * The insert always said it ignored conflicts and there was nothing for
+         * it to conflict with, so blocking a sender twice made two rows to
+         * remove separately — and a public list repeating itself counted twice.
+         */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """DELETE FROM blocklist_entries WHERE id NOT IN (
+                           SELECT MIN(id) FROM blocklist_entries GROUP BY listId, pattern
+                       )"""
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_blocklist_entries_listId_pattern " +
+                        "ON blocklist_entries (listId, pattern)"
+                )
+                db.execSQL(
+                    """UPDATE blocklists SET entryCount = (
+                           SELECT COUNT(*) FROM blocklist_entries WHERE listId = blocklists.id
+                       )"""
+                )
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "uwumail.db")
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
                 .addMigrations(
-                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6
+                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
+                    MIGRATION_6_7
                 )
                 .fallbackToDestructiveMigration()
                 .build()

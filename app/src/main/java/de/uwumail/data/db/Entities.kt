@@ -336,7 +336,14 @@ data class BlocklistEntity(
         childColumns = ["listId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("pattern"), Index("listId")]
+    indices = [
+        Index("pattern"),
+        Index("listId"),
+        // The same domain twice on one list is one entry. Public lists repeat
+        // themselves, and blocking a sender already blocked must not pile up a
+        // second row that has to be removed separately.
+        Index(value = ["listId", "pattern"], unique = true)
+    ]
 )
 data class BlocklistEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

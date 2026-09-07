@@ -672,4 +672,9 @@
         <item quantity="one">%1$d message deleted</item>
         <item quantity="other">%1$d messages deleted</item>
     </plurals>
+    <string name="block_sender">Block sender</string>
+    <string name="block_sender_body">Blocked mail is not deleted or hidden — it is drawn in red so the match can be judged. Use a rule to act on it. Entries can be taken off the list under Settings.</string>
+    <string name="block_this_address">This address only</string>
+    <string name="block_whole_domain">Everything from this domain</string>
+    <string name="sender_blocked">%1$s blocked</string>
 </resources>
