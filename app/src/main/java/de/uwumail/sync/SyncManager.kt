@@ -808,10 +808,23 @@ class SyncManager(
         return pool.use(account.id) { it.fetchRaw(folder.path, message.uid) }
     }
 
+    /**
+     * Moves mail to [targetPath] and shows it where it landed.
+     *
+     * The source row goes as soon as the server has taken the copy, so without
+     * fetching the destination the mail is nowhere: gone from the folder it
+     * left and not yet in the one it arrived in. The bin is where that bit
+     * hardest — it is not background-synced, so a deleted message stayed
+     * invisible here while every other client showed it sitting in the trash.
+     *
+     * [syncTarget] is off when a rule is working through a folder, which would
+     * otherwise fetch the destination once per message.
+     */
     private suspend fun moveMessagesToPath(
         account: AccountEntity,
         messageIds: List<Long>,
-        targetPath: String
+        targetPath: String,
+        syncTarget: Boolean = true
     ) {
         val messages = db.messageDao().getAll(messageIds).filter { it.accountId == account.id }
         val local = messages.filter { it.isLocal }
@@ -835,7 +848,10 @@ class SyncManager(
             runCatching { File(message.rawFilePath).delete() }
         }
 
-        db.folderDao().getByPath(account.id, targetPath)?.let { db.folderDao().refreshCounts(it.id) }
+        db.folderDao().getByPath(account.id, targetPath)?.let { target ->
+            if (syncTarget) runCatching { syncFolder(target.id) }
+            db.folderDao().refreshCounts(target.id)
+        }
     }
 
     /** Server-side copy, leaving the originals where they are. */
@@ -1571,7 +1587,7 @@ class SyncManager(
         plan.relocation?.let { action ->
             when (action.type) {
                 ActionType.ARCHIVE -> account.archiveFolder?.let {
-                    moveMessagesToPath(account, listOf(message.id), it)
+                    moveMessagesToPath(account, listOf(message.id), it, syncTarget = false)
                 }
                 // A rule runs unattended, so there is no one to offer the
                 // moment of second thought to.
@@ -1579,7 +1595,7 @@ class SyncManager(
                 ActionType.DELETE_PERMANENTLY ->
                     deletePermanently(listOf(message.id), allowUndo = false)
                 ActionType.MOVE_TO_FOLDER -> action.arg?.let {
-                    moveMessagesToPath(account, listOf(message.id), it)
+                    moveMessagesToPath(account, listOf(message.id), it, syncTarget = false)
                 }
                 ActionType.MOVE_TO_LOCAL -> action.arg?.let { name ->
                     localFolderFor(account.id, name)?.let { target ->

@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-447%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-463%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -255,6 +255,11 @@ have.
   menu. They go to `Downloads/uwuMail` through MediaStore rather than into the
   app's private storage, because a download you cannot open from a file manager
   is not one.
+- **Mail is fetched where it landed.** The row in the folder a message left
+  goes as soon as the server has taken the copy, so the destination is synced
+  straight afterwards; the bin needs it most, being the one folder nothing
+  checks in the background. Opening a unified view fetches its folders for the
+  same reason.
 - **Undo.** Archiving, trashing, moving and deleting wait five seconds before
   touching the server, and offer an Undo in the meantime. Holding the work back
   is the only honest way to do it: a permanent deletion cannot be reversed once
@@ -580,7 +585,7 @@ to read and to run rules against.
 
 ## Tests
 
-447 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+463 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the

@@ -322,7 +322,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         selection.value = emptySet()
         query.value = ""
         visibleLimit.value = PAGE
-        if (destination is MailTarget.Folder) refresh()
+        if (refreshesOnOpen(destination)) refresh()
     }
 
     fun folderAction(folder: FolderEntity, action: FolderAction) = launchGuarded {
@@ -684,6 +684,18 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
          * shorter than its own window has run out of cached mail, and the rest
          * has to come from the server.
          */
+        /**
+         * Whether arriving somewhere should ask the server for it.
+         *
+         * Folders did and the unified views did not, which is why "All deleted
+         * mails" could sit empty over a bin the server had mail in: the trash
+         * is not background-synced, so nothing else was ever going to fetch it.
+         * A conversation is read out of the cache, and a search has its own
+         * button for reaching the server.
+         */
+        fun refreshesOnOpen(target: MailTarget): Boolean =
+            target is MailTarget.Folder || target is MailTarget.Unified
+
         fun canWiden(shown: Int, window: Int): Boolean = shown >= window
 
         /**
