@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 
 /** Actions offered when a folder in the drawer is long-pressed. */
 enum class FolderAction {
-    MOVE_UP, MOVE_DOWN, HIDE, SHOW, TOGGLE_SYNC, MARK_READ, RESET_ORDER,
+    MOVE_UP, MOVE_DOWN, HIDE, SHOW, TOGGLE_SYNC, TOGGLE_NOTIFY, MARK_READ, RESET_ORDER,
     /** Deletes everything in the folder for good; offered on the bin alone. */
     EMPTY
 }
@@ -321,6 +321,17 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             FolderAction.SHOW -> container.syncManager.setFolderHidden(folder.id, false)
             FolderAction.TOGGLE_SYNC ->
                 container.syncManager.setFolderSyncEnabled(folder.id, !folder.syncEnabled)
+            FolderAction.TOGGLE_NOTIFY -> {
+                val syncTurnedOn = container.syncManager
+                    .setFolderNotify(folder.id, !folder.notify)
+                report(
+                    when {
+                        syncTurnedOn -> text(R.string.status_notify_on_with_sync, folder.displayName)
+                        !folder.notify -> text(R.string.status_notify_on, folder.displayName)
+                        else -> text(R.string.status_notify_off, folder.displayName)
+                    }
+                )
+            }
             FolderAction.MARK_READ -> {
                 val count = container.syncManager.markFolderRead(folder.id)
                 report(

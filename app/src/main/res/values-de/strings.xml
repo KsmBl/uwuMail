@@ -678,4 +678,10 @@
     <string name="notif_action_reply">Antworten</string>
     <string name="reply_sent">Antwort gesendet</string>
     <string name="reply_queued">Keine Verbindung — die Antwort wartet im Postausgang</string>
+    <string name="notify_of_new_mail">Bei neuer Mail benachrichtigen</string>
+    <string name="stop_notifying">Nicht mehr benachrichtigen</string>
+    <string name="notifies_of_new_mail">Benachrichtigt bei neuer Mail</string>
+    <string name="status_notify_on">%1$s benachrichtigt bei neuer Mail</string>
+    <string name="status_notify_on_with_sync">%1$s benachrichtigt bei neuer Mail und wird jetzt im Hintergrund abgerufen</string>
+    <string name="status_notify_off">%1$s benachrichtigt nicht mehr</string>
 </resources>

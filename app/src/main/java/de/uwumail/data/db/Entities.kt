@@ -109,7 +109,15 @@ data class FolderEntity(
     /** Set once the user drags a folder about; overrides [position] from then on. */
     val sortOverride: Int? = null,
     /** Hidden from the folder list on this device only; untouched on the server. */
-    val hidden: Boolean = false
+    val hidden: Boolean = false,
+    /**
+     * Whether new mail here is worth a notification.
+     *
+     * On for the inbox and off for everything else, which is where the app
+     * started — but a mailbox whose server files mail with sieve never sees its
+     * inbox, and used to get silence from a folder it was watching.
+     */
+    val notify: Boolean = false
 )
 
 @Entity(

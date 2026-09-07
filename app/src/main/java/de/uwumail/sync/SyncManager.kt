@@ -159,6 +159,7 @@ class SyncManager(
                         subscribed = folder.subscribed,
                         // Only the inbox syncs automatically; the rest sync on open.
                         syncEnabled = folder.type == FolderType.INBOX.name,
+                        notify = folder.type == FolderType.INBOX.name,
                         position = index
                     )
                 )
@@ -439,7 +440,7 @@ class SyncManager(
         fetched: List<FetchedMessage>,
         plans: Map<Long, RulePlan>
     ) {
-        if (folder.type != FolderType.INBOX.name) return
+        if (!folder.notify) return
         var posted = 0
         for (message in fetched) {
             if (message.seen) continue
@@ -972,6 +973,23 @@ class SyncManager(
     suspend fun setFolderSyncEnabled(folderId: Long, enabled: Boolean) {
         val folder = db.folderDao().get(folderId) ?: return
         db.folderDao().update(folder.copy(syncEnabled = enabled))
+    }
+
+    /**
+     * Turns notifications for a folder on or off.
+     *
+     * Switching them on switches background sync on with them: a folder nobody
+     * checks unattended has no new mail to announce, and a notification setting
+     * that quietly does nothing is worse than not offering it. Returns whether
+     * sync had to be turned on too, so the screen can say so.
+     */
+    suspend fun setFolderNotify(folderId: Long, notify: Boolean): Boolean {
+        val folder = db.folderDao().get(folderId) ?: return false
+        val needsSync = notify && !folder.syncEnabled && !folder.isLocal
+        db.folderDao().update(
+            folder.copy(notify = notify, syncEnabled = folder.syncEnabled || needsSync)
+        )
+        return needsSync
     }
 
     /** Marks everything currently unread in a folder as read, locally and on the server. */

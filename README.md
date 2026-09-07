@@ -201,6 +201,11 @@ have.
   folders stay listed in the folder manager, which is where you unhide them.
 - Folders that are synced in the background are marked; the rest are not, since
   background sync is off by default for everything but the inbox.
+- **Any folder can notify**, not just the inbox: long-press it and turn
+  notifications on. A mailbox whose server files mail with sieve never sees its
+  inbox, and used to get silence. Switching notifications on switches background
+  checking on with them, since a folder nobody checks has no new mail to
+  announce; the folders that will notify are marked in the drawer.
 - The inbox always sorts first, then Drafts/Sent/Archive/Spam/Trash, then custom
   folders A-Z, then device folders.
 - Create, rename and delete IMAP folders on the server, including nested paths.

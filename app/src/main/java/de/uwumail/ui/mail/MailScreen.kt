@@ -49,6 +49,8 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.MarkEmailUnread
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
@@ -1252,6 +1254,15 @@ private fun FolderRow(
                 )
                 Spacer(Modifier.width(6.dp))
             }
+            if (folder.notify && !folder.isLocal) {
+                Icon(
+                    Icons.Default.Notifications,
+                    contentDescription = stringResource(R.string.notifies_of_new_mail),
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(6.dp))
+            }
             if (folder.unreadCount > 0) {
                 Text(
                     folder.unreadCount.toString(),
@@ -1296,6 +1307,22 @@ private fun FolderRow(
                     text = { Text(if (folder.syncEnabled) stringResource(R.string.stop_syncing) else stringResource(R.string.sync_automatically)) },
                     leadingIcon = { Icon(Icons.Default.Sync, null) },
                     onClick = { menuOpen = false; onAction(FolderAction.TOGGLE_SYNC) }
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (folder.notify) stringResource(R.string.stop_notifying)
+                            else stringResource(R.string.notify_of_new_mail)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            if (folder.notify) Icons.Default.NotificationsOff
+                            else Icons.Default.Notifications,
+                            null
+                        )
+                    },
+                    onClick = { menuOpen = false; onAction(FolderAction.TOGGLE_NOTIFY) }
                 )
             }
             DropdownMenuItem(

@@ -680,4 +680,10 @@
     <string name="notif_action_reply">Reply</string>
     <string name="reply_sent">Reply sent</string>
     <string name="reply_queued">No connection — the reply is waiting in the outbox</string>
+    <string name="notify_of_new_mail">Notify of new mail</string>
+    <string name="stop_notifying">Stop notifying</string>
+    <string name="notifies_of_new_mail">Notifies of new mail</string>
+    <string name="status_notify_on">%1$s will notify of new mail</string>
+    <string name="status_notify_on_with_sync">%1$s will notify of new mail, and is now checked in the background</string>
+    <string name="status_notify_off">%1$s will no longer notify</string>
 </resources>

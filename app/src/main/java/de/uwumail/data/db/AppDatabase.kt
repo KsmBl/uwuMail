@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleLogEntity::class,
         OutboxEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -158,12 +158,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Lets any folder notify, not just the inbox.
+         *
+         * Existing mailboxes keep exactly what they had: the inbox notifies and
+         * nothing else does, which is what the code did when it was hardcoded.
+         */
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE folders ADD COLUMN notify INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL("UPDATE folders SET notify = 1 WHERE type = 'INBOX'")
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "uwumail.db")
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                    MIGRATION_6_7
+                    MIGRATION_6_7, MIGRATION_7_8
                 )
                 .fallbackToDestructiveMigration()
                 .build()
