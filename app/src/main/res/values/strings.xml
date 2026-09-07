@@ -705,4 +705,16 @@
     <string name="role_spam">Spam</string>
     <string name="role_none">An ordinary folder</string>
     <string name="theme_femboy">Cute Femboy</string>
+    <string name="matches_show">Show what this catches</string>
+    <string name="matches_scanned">Checked against the %1$d most recent messages on this device</string>
+    <string name="matches_none">Nothing else on this device matches. The rule will still act on mail as it arrives.</string>
+    <string name="matches_picked">· picked</string>
+    <plurals name="matches_title">
+        <item quantity="one">%1$d message caught</item>
+        <item quantity="other">%1$d messages caught</item>
+    </plurals>
+    <plurals name="rule_matches_count">
+        <item quantity="one">Catches %1$d of the %2$d messages on this device</item>
+        <item quantity="other">Catches %1$d of the %2$d messages on this device</item>
+    </plurals>
 </resources>

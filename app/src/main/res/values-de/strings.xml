@@ -703,4 +703,16 @@
     <string name="role_spam">Spam</string>
     <string name="role_none">Ein gewöhnlicher Ordner</string>
     <string name="theme_femboy">Cute Femboy</string>
+    <string name="matches_show">Zeigen, was das erfasst</string>
+    <string name="matches_scanned">Geprüft gegen die %1$d neuesten Nachrichten auf diesem Gerät</string>
+    <string name="matches_none">Sonst passt nichts auf diesem Gerät. Die Regel greift trotzdem bei neu eintreffender Mail.</string>
+    <string name="matches_picked">· ausgewählt</string>
+    <plurals name="matches_title">
+        <item quantity="one">%1$d Nachricht erfasst</item>
+        <item quantity="other">%1$d Nachrichten erfasst</item>
+    </plurals>
+    <plurals name="rule_matches_count">
+        <item quantity="one">Erfasst %1$d von %2$d Nachrichten auf diesem Gerät</item>
+        <item quantity="other">Erfasst %1$d von %2$d Nachrichten auf diesem Gerät</item>
+    </plurals>
 </resources>

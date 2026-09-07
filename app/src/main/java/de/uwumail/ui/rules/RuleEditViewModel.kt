@@ -13,6 +13,7 @@ import de.uwumail.data.db.RuleActionEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
 import de.uwumail.di.AppContainer
+import de.uwumail.ui.common.folderLabel
 import de.uwumail.rules.MatchContext
 import de.uwumail.rules.RuleMatcher
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,8 @@ data class RuleEditState(
     val accounts: List<AccountEntity> = emptyList(),
     val folders: List<FolderEntity> = emptyList(),
     val previewCount: Int? = null,
+    /** What the draft rule caught, for the sheet that lists it. */
+    val matches: List<MatchedMail> = emptyList(),
     val previewTotal: Int = 0,
     val previewing: Boolean = false,
     /** Replaying rules over cached mail; can take a while on a big folder. */
@@ -139,27 +142,54 @@ class RuleEditViewModel(
         _state.update { it.copy(previewing = true) }
         viewModelScope.launch {
             val current = _state.value
-            val attachmentNames = container.db.attachmentDao().fileNames()
+            val attachmentRows = container.db.attachmentDao().fileNames()
             val result = withContext(Dispatchers.Default) {
                 val corpus = container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
                 val paths = current.folders.associate { it.id to it.path }
+                val folderNames = current.folders
+                    .associate { it.id to folderLabel(it, current.accounts) }
                 // So a condition on an attachment name is scored against the
                 // names actually held rather than against nothing at all.
-                val names = attachmentNames.groupBy({ it.messageId }, { it.fileName })
-                val matched = corpus.count { message ->
-                    if (current.accountId != null && message.accountId != current.accountId) return@count false
+                val attachmentNames = attachmentRows.groupBy({ it.messageId }, { it.fileName })
+                val matched = corpus.filter { message ->
+                    if (current.accountId != null && message.accountId != current.accountId) {
+                        return@filter false
+                    }
                     val path = paths[message.folderId].orEmpty()
-                    if (current.folderPath != null && !current.folderPath.equals(path, true)) return@count false
+                    if (current.folderPath != null && !current.folderPath.equals(path, true)) {
+                        return@filter false
+                    }
                     RuleMatcher.matchesAll(
                         current.conditions.filter { it.value.isNotBlank() },
-                        MatchContext.of(message, path, names[message.id].orEmpty()),
+                        MatchContext.of(message, path, attachmentNames[message.id].orEmpty()),
                         current.matchMode == MatchMode.ALL
                     )
                 }
-                matched to corpus.size
+                // Kept as well as counted: the same pass that says how many can
+                // say which, and a count on its own is a number to be trusted
+                // rather than a thing to be checked.
+                Triple(
+                    matched.size,
+                    corpus.size,
+                    matched.map { message ->
+                        MatchedMail(
+                            id = message.id,
+                            subject = message.subject,
+                            from = message.fromName?.takeIf { it.isNotBlank() }
+                                ?: message.fromAddress.orEmpty(),
+                            folder = folderNames[message.folderId].orEmpty(),
+                            receivedAt = message.receivedAt
+                        )
+                    }
+                )
             }
             _state.update {
-                it.copy(previewing = false, previewCount = result.first, previewTotal = result.second)
+                it.copy(
+                    previewing = false,
+                    previewCount = result.first,
+                    previewTotal = result.second,
+                    matches = result.third
+                )
             }
         }
     }

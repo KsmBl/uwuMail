@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -69,6 +71,7 @@ fun RuleWizardScreen(
     }
     val state by viewModel.state.collectAsState()
     var actionMenu by remember { mutableStateOf(false) }
+    var showMatches by remember { mutableStateOf(false) }
     // The wizard has been seen to sit on its spinner on a device I cannot
     // reproduce it on, so the trace is on screen as well as in the file.
     val log by WizardLog.lines.collectAsState()
@@ -201,6 +204,16 @@ fun RuleWizardScreen(
                                 },
                                 style = MaterialTheme.typography.bodyMedium
                             )
+                            // A count is a number to be trusted; the list is a
+                            // thing to be checked, which is what anybody
+                            // actually wants before saving a rule.
+                            TextButton(
+                                onClick = { showMatches = true },
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Icon(Icons.Default.ListAlt, null)
+                                Text("  " + stringResource(R.string.matches_show))
+                            }
                         }
                     }
                 }
@@ -256,6 +269,14 @@ fun RuleWizardScreen(
                 Box(Modifier.padding(32.dp))
             }
         }
+    }
+
+    if (showMatches) {
+        MatchesSheet(
+            matches = state.matches,
+            scanned = state.scanned,
+            onDismiss = { showMatches = false }
+        )
     }
 }
 

@@ -10,6 +10,7 @@ import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.db.RuleActionEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
+import de.uwumail.ui.common.folderLabel
 import de.uwumail.di.AppContainer
 import de.uwumail.rules.MatchContext
 import de.uwumail.rules.RuleMatcher
@@ -34,6 +35,10 @@ data class WizardState(
     val name: String = "",
     val folders: List<FolderEntity> = emptyList(),
     val matchedOthers: Int = 0,
+    /** Every message the picked conditions catch, for the sheet that lists them. */
+    val matches: List<MatchedMail> = emptyList(),
+    /** How much cached mail the count above was measured against. */
+    val scanned: Int = 0,
     val saved: Boolean = false,
     val error: String? = null
 ) {
@@ -63,6 +68,12 @@ class RuleWizardViewModel(
      * thousands of rows for a single toggle.
      */
     private var otherContexts: List<MatchContext> = emptyList()
+
+    /** The messages behind [otherContexts], in the same order, so a match can be shown. */
+    private var otherMessages: List<MessageEntity> = emptyList()
+
+    /** Folder id to the "[mailbox] Folder" the sheet lists a match under. */
+    private var folderNames: Map<Long, String> = emptyMap()
 
     /** What the analysis is doing, for the watchdog to name. */
     @Volatile private var step: String = "starting"
@@ -115,6 +126,10 @@ class RuleWizardViewModel(
             }
         }
         val pathById = folders.associate { it.id to it.path }
+        val accounts = container.db.accountDao().getAll()
+        // Which mailbox a match sits in is half of what makes the list worth
+        // reading: the same folder name exists on every account.
+        folderNames = folders.associate { it.id to folderLabel(it, accounts) }
         val corpus = mark("reading the corpus") {
             container.db.messageDao().recentForAnalysis(CORPUS_LIMIT)
         }
@@ -123,10 +138,9 @@ class RuleWizardViewModel(
         val report = withContext(Dispatchers.Default) {
             worker = Thread.currentThread()
             val selectedIds = samples.mapTo(HashSet()) { it.id }
+            otherMessages = corpus.filter { it.id !in selectedIds }
             otherContexts = mark("building match contexts") {
-                corpus
-                    .filter { it.id !in selectedIds }
-                    .map { MatchContext.of(it, pathById[it.folderId].orEmpty()) }
+                otherMessages.map { MatchContext.of(it, pathById[it.folderId].orEmpty()) }
             }
             WizardLog.write("built ${otherContexts.size} match contexts")
             mark("looking for what they share") {
@@ -150,9 +164,11 @@ class RuleWizardViewModel(
                 name = report.suggestedRuleName.let {
                     container.appContext.getString(it.id, *it.args.toTypedArray())
                 },
-                matchedOthers = report.recommendedOthersMatched
+                matchedOthers = report.recommendedOthersMatched,
+                scanned = corpus.size
             )
         }
+        recount()
     }
 
     fun toggleSuggestion(index: Int) {
@@ -211,21 +227,49 @@ class RuleWizardViewModel(
     }
 
     /** Recomputes how much extra mail the current selection would catch. */
+    /**
+     * Re-scores the picked conditions, and keeps what they caught.
+     *
+     * The list is gathered here rather than counted twice: the same pass that
+     * answers "how many" can say which, and the sheet showing them has to be
+     * able to open without waiting for the corpus to be walked again.
+     */
     private fun recount() {
         viewModelScope.launch {
             val current = _state.value
             val conditions = current.selected.map { current.suggestions[it].condition }
             if (conditions.isEmpty()) {
-                _state.update { it.copy(matchedOthers = 0) }
+                _state.update { it.copy(matchedOthers = 0, matches = emptyList()) }
                 return@launch
             }
             val contexts = otherContexts
-            val count = withContext(Dispatchers.Default) {
-                contexts.count { ctx -> conditions.all { RuleMatcher.matches(it, ctx) } }
+            val messages = otherMessages
+            val caught = withContext(Dispatchers.Default) {
+                contexts.indices.filter { i ->
+                    conditions.all { RuleMatcher.matches(it, contexts[i]) }
+                }.map { messages[it] }
             }
-            _state.update { it.copy(matchedOthers = count) }
+            // The messages the wizard was started from are caught by definition
+            // and belong in the list, marked as the ones that were asked for.
+            val samples = current.samples.map { describe(it, sample = true) }
+            _state.update {
+                it.copy(
+                    matchedOthers = caught.size,
+                    matches = samples + caught.map { m -> describe(m, sample = false) }
+                )
+            }
         }
     }
+
+    /** Puts one message into the words the sheet lists it by. */
+    private fun describe(message: MessageEntity, sample: Boolean) = MatchedMail(
+        id = message.id,
+        subject = message.subject,
+        from = message.fromName?.takeIf { it.isNotBlank() } ?: message.fromAddress.orEmpty(),
+        folder = folderNames[message.folderId].orEmpty(),
+        receivedAt = message.receivedAt,
+        isSample = sample
+    )
 
     /** Names a step while it runs, and says how long it took when it ends. */
     private inline fun <T> mark(what: String, body: () -> T): T {

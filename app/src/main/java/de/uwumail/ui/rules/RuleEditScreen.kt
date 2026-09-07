@@ -9,6 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -68,6 +73,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val snackbarHost = remember { SnackbarHostState() }
     var addActionOpen by remember { mutableStateOf(false) }
+    var showMatches by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.saved) { if (state.saved) onBack() }
     LaunchedEffect(state.message) {
@@ -239,7 +245,9 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp)) {
                             Text(
-                                "Matches $count of ${state.previewTotal} cached messages",
+                                pluralStringResource(
+                                    R.plurals.rule_matches_count, count, count, state.previewTotal
+                                ),
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
@@ -251,6 +259,15 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (count > 0) {
+                                TextButton(
+                                    onClick = { showMatches = true },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Icon(Icons.Default.ListAlt, null)
+                                    Text("  " + stringResource(R.string.matches_show))
+                                }
+                            }
                         }
                     }
                 }
@@ -269,8 +286,16 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                     }
                 }
             }
-            Column(Modifier.padding(24.dp)) { Text("") }
+            Spacer(Modifier.height(48.dp))
         }
+    }
+
+    if (showMatches) {
+        MatchesSheet(
+            matches = state.matches,
+            scanned = state.previewTotal ?: 0,
+            onDismiss = { showMatches = false }
+        )
     }
 }
 
