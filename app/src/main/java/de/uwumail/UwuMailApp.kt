@@ -30,6 +30,10 @@ class UwuMailApp : Application() {
             // last run left hidden has no one to finish it and must come back.
             runCatching { container.syncManager.releaseAbandonedRemovals() }
             runCatching { container.blocklistRepository.seedIfEmpty() }
+            // Mail cached before conversations existed has no thread yet; the
+            // headers it needs are stored, but as JSON the migration could not
+            // read. Finds nothing on every start after the first.
+            runCatching { container.syncManager.backfillThreadIds() }
             val accounts = container.db.accountDao().getAll()
             container.notifier.ensureChannels(accounts)
             SyncScheduler.scheduleAll(this@UwuMailApp, accounts)

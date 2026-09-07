@@ -48,6 +48,9 @@ sealed interface MailTarget {
     /** Everything cached, everywhere, matching whatever was typed. */
     data object Search : MailTarget
 
+    /** One conversation, opened from the row standing for it. */
+    data class Thread(val id: String, val title: String) : MailTarget
+
     companion object {
         val INBOXES = Unified(FolderType.INBOX)
 
@@ -178,18 +181,31 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
      */
     private val visibleLimit = MutableStateFlow(PAGE)
 
-    private val messages = combine(target, typedQuery, visibleLimit) { selected, q, limit ->
-        Triple(selected, q, limit)
-    }
+    private val messages = combine(
+        target,
+        typedQuery,
+        visibleLimit,
+        container.settings.state.map { it.groupIntoConversations }.distinctUntilChanged()
+    ) { selected, q, limit, _ -> Triple(selected, q, limit) }
         .flatMapLatest { (selected, q, limit) ->
+            val threaded = container.settings.current.groupIntoConversations
             when (selected) {
-                is MailTarget.Unified ->
-                    if (q.isBlank()) container.db.messageDao().observeUnified(selected.type.name, limit)
-                    else container.db.messageDao().searchUnified(selected.type.name, q, limit)
-                is MailTarget.Folder ->
-                    if (q.isBlank()) container.db.messageDao().observeFolder(selected.id, limit)
-                    else container.db.messageDao().searchInFolder(selected.id, q, limit)
+                // A search is a hunt for one message, so it always shows the
+                // messages themselves rather than the threads holding them.
+                is MailTarget.Unified -> when {
+                    q.isNotBlank() ->
+                        container.db.messageDao().searchUnified(selected.type.name, q, limit)
+                    threaded ->
+                        container.db.messageDao().observeUnifiedThreads(selected.type.name, limit)
+                    else -> container.db.messageDao().observeUnified(selected.type.name, limit)
+                }
+                is MailTarget.Folder -> when {
+                    q.isNotBlank() -> container.db.messageDao().searchInFolder(selected.id, q, limit)
+                    threaded -> container.db.messageDao().observeFolderThreads(selected.id, limit)
+                    else -> container.db.messageDao().observeFolder(selected.id, limit)
+                }
                 is MailTarget.Search -> container.db.messageDao().searchEverywhere(q, limit)
+                is MailTarget.Thread -> container.db.messageDao().observeThread(selected.id, limit)
             }
         }
 
@@ -289,8 +305,9 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
                                 destination.type.name, SyncManager.PREFETCH_LIMIT
                             )
                         // Search results are somebody looking for one thing,
-                        // not a list to read through.
-                        MailTarget.Search -> emptyList()
+                        // not a list to read through. A conversation is already
+                        // open and its bodies come down as it is read.
+                        MailTarget.Search, is MailTarget.Thread -> emptyList()
                     }
                     container.syncManager.prefetchBodies(ids)
                 }
@@ -380,7 +397,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             is MailTarget.Folder -> listOfNotNull(destination.id)
             is MailTarget.Unified -> state.value.visibleFolders
                 .filter { it.type == destination.type.name && !it.isLocal }.map { it.id }
-            MailTarget.Search -> state.value.visibleFolders
+            MailTarget.Search, is MailTarget.Thread -> state.value.visibleFolders
                 .filter { !it.isLocal && it.selectable }.map { it.id }
         }
         var found = 0
@@ -456,6 +473,10 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
                         // sync, which leaves the Sent and Trash views empty.
                         is MailTarget.Unified -> container.syncManager.syncUnified(destination.type)
                         MailTarget.Search -> searchOnServer()
+                        // A conversation is read out of the cache; refreshing it
+                        // means refreshing the folder its newest message is in.
+                        is MailTarget.Thread -> state.value.messages.lastOrNull()
+                            ?.let { container.syncManager.syncFolder(it.folderId) }
                     }
                 }.onFailure { e ->
                     transient.update { it.copy(error = e.message ?: e.toString()) }

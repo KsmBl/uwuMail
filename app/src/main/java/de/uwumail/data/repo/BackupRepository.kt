@@ -79,6 +79,7 @@ class BackupRepository(
             .put("swipeRight", current.swipeRight.name)
             .put("swipeLeft", current.swipeLeft.name)
             .put("swipeThresholdPercent", current.swipeThresholdPercent)
+            .put("groupIntoConversations", current.groupIntoConversations)
             .put("syncWindowEnabled", current.syncWindowEnabled)
             .put("syncDays", JSONArray(current.syncDays.toList()))
             .put("syncStartMinutes", current.syncStartMinutes)
@@ -165,6 +166,9 @@ class BackupRepository(
         // edited by hand, must not restore a hair-trigger swipe.
         swipeThresholdPercent = AppSettings.clampSwipePercent(
             json.optInt("swipeThresholdPercent", swipeThresholdPercent)
+        ),
+        groupIntoConversations = json.optBoolean(
+            "groupIntoConversations", groupIntoConversations
         ),
         syncWindowEnabled = json.optBoolean("syncWindowEnabled", syncWindowEnabled),
         syncDays = json.optJSONArray("syncDays")?.let { days ->

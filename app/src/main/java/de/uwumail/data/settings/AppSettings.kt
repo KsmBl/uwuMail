@@ -54,6 +54,15 @@ data class AppSettings(
      */
     val swipeThresholdPercent: Int = DEFAULT_SWIPE_PERCENT,
 
+    /**
+     * Gather a list into conversations, one row per thread.
+     *
+     * On, because a reply arriving as a second copy of a subject you have
+     * already read is the commonest thing a mail list gets wrong. It is a
+     * setting because the flat list is a defensible preference, not a mistake.
+     */
+    val groupIntoConversations: Boolean = true,
+
     /** Set by the easter egg; until then the gravity menu entry does not exist. */
     val gravityUnlocked: Boolean = false,
 

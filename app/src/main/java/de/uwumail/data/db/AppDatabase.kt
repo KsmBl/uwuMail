@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleLogEntity::class,
         OutboxEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -173,12 +173,28 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Gathers mail into conversations.
+         *
+         * The column is left empty and filled in afterwards from each message's
+         * stored headers, which SQL cannot read: see
+         * [de.uwumail.sync.SyncManager.backfillThreadIds]. Until that has run a
+         * message simply has no thread, which the list reads as a conversation
+         * of one — the same thing it showed before.
+         */
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN threadId TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_messages_threadId ON messages (threadId)")
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "uwumail.db")
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                    MIGRATION_6_7, MIGRATION_7_8
+                    MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9
                 )
                 .fallbackToDestructiveMigration()
                 .build()

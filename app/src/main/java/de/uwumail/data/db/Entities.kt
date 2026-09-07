@@ -134,7 +134,8 @@ data class FolderEntity(
         Index("folderId"),
         Index("receivedAt"),
         Index("messageIdHeader"),
-        Index("senderDomain")
+        Index("senderDomain"),
+        Index("threadId")
     ]
 )
 data class MessageEntity(
@@ -144,6 +145,11 @@ data class MessageEntity(
     /** IMAP UID, or a negative synthetic id for local-only messages. */
     val uid: Long,
     val messageIdHeader: String? = null,
+    /**
+     * The id shared by every message in this conversation — the root the
+     * `References` header points back to. See [de.uwumail.mail.Threading].
+     */
+    val threadId: String? = null,
 
     val subject: String = "",
     val fromName: String? = null,

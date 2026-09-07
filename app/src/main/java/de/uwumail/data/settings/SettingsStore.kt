@@ -40,6 +40,7 @@ class SettingsStore(context: Context) {
             putString(SWIPE_RIGHT, next.swipeRight.name)
             putString(SWIPE_LEFT, next.swipeLeft.name)
             putInt(SWIPE_THRESHOLD, next.swipeThresholdPercent)
+            putBoolean(CONVERSATIONS, next.groupIntoConversations)
             putBoolean(GRAVITY, next.gravityUnlocked)
             putBoolean(WINDOW_ON, next.syncWindowEnabled)
             putStringSet(WINDOW_DAYS, next.syncDays.map(Int::toString).toSet())
@@ -68,6 +69,9 @@ class SettingsStore(context: Context) {
             swipeThresholdPercent = AppSettings.clampSwipePercent(
                 prefs.getInt(SWIPE_THRESHOLD, defaults.swipeThresholdPercent)
             ),
+            groupIntoConversations = prefs.getBoolean(
+                CONVERSATIONS, defaults.groupIntoConversations
+            ),
             gravityUnlocked = prefs.getBoolean(GRAVITY, defaults.gravityUnlocked),
             syncWindowEnabled = prefs.getBoolean(WINDOW_ON, defaults.syncWindowEnabled),
             syncDays = prefs.getStringSet(WINDOW_DAYS, null)
@@ -92,6 +96,7 @@ class SettingsStore(context: Context) {
         const val SWIPE_RIGHT = "swipe_right_action"
         const val SWIPE_LEFT = "swipe_left_action"
         const val SWIPE_THRESHOLD = "swipe_threshold_percent"
+        const val CONVERSATIONS = "group_into_conversations"
         const val GRAVITY = "gravity_unlocked"
         const val WINDOW_ON = "sync_window_enabled"
         const val WINDOW_DAYS = "sync_window_days"

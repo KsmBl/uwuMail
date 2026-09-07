@@ -22,6 +22,7 @@ import de.uwumail.mail.ImapPool
 import de.uwumail.mail.MailException
 import de.uwumail.mail.MimeUtil
 import de.uwumail.mail.ReplyDraft
+import de.uwumail.mail.Threading
 import de.uwumail.mail.SmtpSender
 import de.uwumail.mail.oauth.TokenStore
 import de.uwumail.notify.NotificationPriority
@@ -592,6 +593,33 @@ class SyncManager(
      * a moment before the app was killed — would otherwise leave mail present
      * but invisible, with nothing left running to finish the job.
      */
+    /**
+     * Fills in the conversation of every message cached before threading
+     * existed.
+     *
+     * The headers are already stored, but as JSON that SQL cannot read, so the
+     * migration leaves the column empty and this walks it afterwards. Runs once
+     * at startup and finds nothing on every start after that.
+     */
+    suspend fun backfillThreadIds(): Int {
+        var filled = 0
+        while (true) {
+            val batch = db.messageDao().withoutThread(BACKFILL_BATCH)
+            if (batch.isEmpty()) return filled
+            batch.forEach { message ->
+                db.messageDao().setThreadId(
+                    message.id,
+                    Threading.threadIdOf(
+                        messageId = message.messageIdHeader,
+                        headers = Json.decodeHeaders(message.headersJson),
+                        fallback = "uid:${message.folderId}:${message.uid}"
+                    )
+                )
+            }
+            filled += batch.size
+        }
+    }
+
     suspend fun releaseAbandonedRemovals() {
         db.messageDao().clearPendingRemovals()
         db.folderDao().refreshAllCounts()
@@ -1641,6 +1669,7 @@ class SyncManager(
         const val SEARCH_LIMIT = 100
         private const val PREFETCH_GAP_MILLIS = 400L
         private const val FLAG_WINDOW = 200
+        private const val BACKFILL_BATCH = 500
 
         fun localPath(name: String) = "local/$name"
         fun localName(path: String) = path.removePrefix("local/")
@@ -1652,6 +1681,13 @@ private fun FetchedMessage.toEntity(accountId: Long, folderId: Long) = MessageEn
     folderId = folderId,
     uid = uid,
     messageIdHeader = messageIdHeader,
+    threadId = Threading.threadIdOf(
+        messageId = messageIdHeader,
+        headers = headers,
+        // Nothing identifiable: a conversation of its own, keyed by where it
+        // sits, rather than gathered in with every other unidentifiable mail.
+        fallback = "uid:$folderId:$uid"
+    ),
     subject = subject,
     fromName = fromName,
     fromAddress = fromAddress,

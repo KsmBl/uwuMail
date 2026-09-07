@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-381%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-447%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -40,6 +40,7 @@ pixels that are never requested · folders that live only on your phone.
 - [Searching](#searching) — every folder, and the server too
 - [Backup](#backup) — the rules are the part that exists nowhere else
 - [Folders and mailboxes](#folders-and-mailboxes) — device folders, moving mail across accounts
+- [Conversations](#conversations) — one row per thread, gathered by what the headers say
 - [The message list](#the-message-list) — grouped by day, and where new mail lands
 - [Accounts and sending](#accounts-and-sending) — OAuth2, and a From address you choose
 - [Replying](#replying) — and what a reply flags on the message it answers
@@ -279,6 +280,28 @@ have.
   cached like any other message, so the list picks them up and asking twice is
   instant. Subject, sender and recipients only: a full-text search over every
   message is expensive on the server and slow on a phone.
+
+## Conversations
+
+- **A thread is one row**, standing for the newest message in it and carrying a
+  count of what is behind it. Tapping it opens the conversation oldest-first,
+  the way it was read; tapping a message in there opens the message.
+- A conversation is **unread while any part of it is**, however long ago the
+  rest was dealt with — a reply arriving on something finished last week makes
+  it live again.
+- Threads are gathered by the root of the `References` chain, which every
+  message in a conversation agrees on. **Subjects are deliberately not used**:
+  "Re: lunch?" from two people in one week is two conversations, and merging
+  them puts one person's mail inside another's. Mail carrying no usable headers
+  stays a conversation of its own rather than being lumped in with every other
+  unidentifiable message.
+- A conversation is gathered **within the list it is shown in**, so the inbox
+  does not pull in its own replies out of Sent, while a unified view gathers
+  across every account feeding it.
+- Searching always shows the **messages themselves**: a search is a hunt for one
+  message, not a list to read through.
+- All of it is *Settings → Message list → Group into conversations*, on by
+  default. The flat list is a defensible preference, not a mistake.
 
 ## The message list
 
@@ -547,7 +570,7 @@ to read and to run rules against.
 
 ## Tests
 
-381 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+447 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -593,6 +616,13 @@ to read and to run rules against.
   carries it, across angle brackets, case and percent-encoding.
 - `data/repo/BackupFormatTest` — refusing a file that is not a backup, or is
   from a later format, before anything is written.
+- `mail/ThreadingTest` — which conversation a message belongs to: the root of
+  a `References` chain, a whole exchange agreeing on one thread, headers holding
+  prose rather than an id, and mail with nothing to go on keeping to itself.
+- `data/db/ConversationQueryTest` — the gathering itself against a real
+  database: an exchange becoming one row, the newest standing for it, a thread
+  staying unread while any part of it is, folder and account scope, and the flat
+  list still showing every message.
 - `data/db/MessageSearchTest` — the search queries against a real database:
   a query narrowing a unified view, staying inside its folder role, skipping
   hidden folders and rows on their way out, the three searches agreeing on what

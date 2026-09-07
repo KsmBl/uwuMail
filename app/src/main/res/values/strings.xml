@@ -686,4 +686,7 @@
     <string name="status_notify_on">%1$s will notify of new mail</string>
     <string name="status_notify_on_with_sync">%1$s will notify of new mail, and is now checked in the background</string>
     <string name="status_notify_off">%1$s will no longer notify</string>
+    <string name="set_conversations">Group into conversations</string>
+    <string name="set_conversations_sub">One row per thread, newest first, with a count of what is in it. Off shows every message on its own.</string>
+    <string name="section_list">Message list</string>
 </resources>

@@ -32,10 +32,36 @@ private const val TEXT_MATCH =
         preview LIKE '%' || :q || '%' OR
         bodyPlain LIKE '%' || :q || '%')"""
 
-private const val SUMMARY_COLUMNS =
+/**
+ * One row per conversation instead of per message.
+ *
+ * The newest message of each thread stands for it, and carries the size of the
+ * conversation and whether any of it is still unread — a thread with one unread
+ * reply in it is unread, however long ago the rest was dealt with.
+ *
+ * `:scope` is the set of folders being gathered over, so a conversation in the
+ * inbox does not pull in its own copy out of Sent.
+ */
+private const val THREAD_KEY = "COALESCE(messages.threadId, 'id:' || messages.id)"
+
+/**
+ * Everything a list row needs, bar which conversation it belongs to and
+ * whether it has been read.
+ *
+ * `seen` is left out because a conversation answers it differently from a
+ * message: a thread is unread while any part of it is, however long ago the
+ * rest was dealt with.
+ */
+private const val SUMMARY_BASE =
     "id, accountId, folderId, uid, subject, fromName, fromAddress, toList, receivedAt, " +
-        "seen, flagged, answered, hasAttachments, sizeBytes, preview, isLocal, bodyDownloaded, " +
+        "flagged, answered, hasAttachments, sizeBytes, preview, isLocal, bodyDownloaded, " +
         SPAM_FLAG
+
+/**
+ * The same, for a list showing one row per message: the row stands for itself,
+ * so its conversation is whatever it says and the count is one.
+ */
+private const val SUMMARY_COLUMNS = "$SUMMARY_BASE, seen, threadId, 1 AS threadCount"
 
 @Dao
 interface AccountDao {
@@ -182,6 +208,74 @@ interface MessageDao {
     )
     fun observeFolder(folderId: Long, limit: Int): Flow<List<MessageSummary>>
 
+    /**
+     * One folder, gathered into conversations.
+     *
+     * Each row is the newest message of its thread, standing for the whole of
+     * it. The counting and the unread flag are taken across the thread, so a
+     * conversation with one unread reply reads as unread.
+     */
+    @Query(
+        """
+        SELECT $SUMMARY_BASE,
+               $THREAD_KEY AS threadId,
+               (SELECT MIN(t.seen) FROM messages t
+                  WHERE t.folderId = :folderId AND t.pendingRemoval = 0
+                    AND COALESCE(t.threadId, 'id:' || t.id) = $THREAD_KEY) AS seen,
+               (SELECT COUNT(*) FROM messages t
+                  WHERE t.folderId = :folderId AND t.pendingRemoval = 0
+                    AND COALESCE(t.threadId, 'id:' || t.id) = $THREAD_KEY) AS threadCount
+        FROM messages
+        WHERE folderId = :folderId AND pendingRemoval = 0
+          AND messages.id = (
+              SELECT n.id FROM messages n
+               WHERE n.folderId = :folderId AND n.pendingRemoval = 0
+                 AND COALESCE(n.threadId, 'id:' || n.id) = $THREAD_KEY
+               ORDER BY n.receivedAt DESC, n.id DESC LIMIT 1)
+        ORDER BY receivedAt DESC LIMIT :limit
+        """
+    )
+    fun observeFolderThreads(folderId: Long, limit: Int): Flow<List<MessageSummary>>
+
+    /** The same gathering, across every folder playing [type]. */
+    @Query(
+        """
+        SELECT $SUMMARY_BASE,
+               $THREAD_KEY AS threadId,
+               (SELECT MIN(t.seen) FROM messages t
+                  WHERE t.pendingRemoval = 0
+                    AND t.folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+                    AND COALESCE(t.threadId, 'id:' || t.id) = $THREAD_KEY) AS seen,
+               (SELECT COUNT(*) FROM messages t
+                  WHERE t.pendingRemoval = 0
+                    AND t.folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+                    AND COALESCE(t.threadId, 'id:' || t.id) = $THREAD_KEY) AS threadCount
+        FROM messages
+        WHERE pendingRemoval = 0
+          AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+          AND messages.id = (
+              SELECT n.id FROM messages n
+               WHERE n.pendingRemoval = 0
+                 AND n.folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+                 AND COALESCE(n.threadId, 'id:' || n.id) = $THREAD_KEY
+               ORDER BY n.receivedAt DESC, n.id DESC LIMIT 1)
+        ORDER BY receivedAt DESC LIMIT :limit
+        """
+    )
+    fun observeUnifiedThreads(type: String, limit: Int): Flow<List<MessageSummary>>
+
+    /** Every message of one conversation, oldest first, the way it was read. */
+    @Query(
+        """
+        SELECT $SUMMARY_BASE, seen, $THREAD_KEY AS threadId, 1 AS threadCount
+        FROM messages
+        WHERE pendingRemoval = 0 AND $THREAD_KEY = :threadId
+          AND folderId IN (SELECT id FROM folders WHERE hidden = 0)
+        ORDER BY receivedAt ASC LIMIT :limit
+        """
+    )
+    fun observeThread(threadId: String, limit: Int): Flow<List<MessageSummary>>
+
     /** Every message across all accounts whose folder plays [type], newest first. */
     @Query(
         """
@@ -302,7 +396,7 @@ interface MessageDao {
      */
     @Query(
         """
-        SELECT id, accountId, folderId, uid, messageIdHeader, subject, fromName, fromAddress,
+        SELECT id, accountId, folderId, uid, messageIdHeader, threadId, subject, fromName, fromAddress,
                senderDomain, toList, ccList, bccList, replyTo, sentAt, receivedAt, seen,
                flagged, answered, draft, hasAttachments, sizeBytes, preview,
                NULL AS bodyPlain, NULL AS bodyHtml, bodyDownloaded, headersJson,
@@ -358,6 +452,13 @@ interface MessageDao {
 
     @Query("SELECT MIN(uid) FROM messages WHERE folderId = :folderId")
     suspend fun minUid(folderId: Long): Long?
+
+    /** Mail cached before threading existed, for filling its conversation in. */
+    @Query("SELECT * FROM messages WHERE threadId IS NULL LIMIT :limit")
+    suspend fun withoutThread(limit: Int): List<MessageEntity>
+
+    @Query("UPDATE messages SET threadId = :threadId WHERE id = :id")
+    suspend fun setThreadId(id: Long, threadId: String)
 }
 
 @Dao

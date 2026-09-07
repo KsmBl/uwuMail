@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Label
@@ -141,6 +143,13 @@ private fun unifiedTitle(target: MailTarget): Int = when (target) {
     else -> MailTarget.UNIFIED.firstOrNull { it.first == target }?.second ?: R.string.all_inboxes
 }
 
+/** A conversation is titled by its subject, everything else by its own name. */
+@Composable
+private fun listTitle(state: MailUiState): String = when (val target = state.target) {
+    is MailTarget.Thread -> target.title.ifBlank { stringResource(R.string.no_subject) }
+    else -> state.currentFolder?.displayName ?: stringResource(unifiedTitle(target))
+}
+
 /**
  * Where closing the search box lands, or null to stay where the list already is.
  *
@@ -213,6 +222,8 @@ fun MailScreen(
     }
     // The bin whose emptying is being asked about.
     var confirmEmpty by remember { mutableStateOf<FolderEntity?>(null) }
+    // Where a conversation was opened from, so closing it goes back there.
+    var threadOrigin by remember { mutableStateOf<MailTarget?>(null) }
     var showSearch by remember { mutableStateOf(false) }
     var searchOrigin by remember { mutableStateOf<MailTarget?>(null) }
     var overflowOpen by remember { mutableStateOf(false) }
@@ -325,6 +336,12 @@ fun MailScreen(
         if (nearEnd && state.currentFolder != null) viewModel.loadMore()
     }
 
+    // A conversation is a place the list went, so back comes out of it.
+    BackHandler(enabled = state.target is MailTarget.Thread) {
+        viewModel.open(threadOrigin ?: MailTarget.INBOXES)
+        threadOrigin = null
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -419,7 +436,7 @@ fun MailScreen(
                                                     stringResource(R.string.search_everywhere)
                                                 is MailTarget.Unified ->
                                                     stringResource(R.string.search_these_folders)
-                                                is MailTarget.Folder ->
+                                                is MailTarget.Folder, is MailTarget.Thread ->
                                                     stringResource(R.string.search_folder)
                                             }
                                         )
@@ -430,8 +447,7 @@ fun MailScreen(
                             } else {
                                 Column {
                                     Text(
-                            state.currentFolder?.displayName
-                                ?: stringResource(unifiedTitle(state.target)),
+                            listTitle(state),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -449,8 +465,23 @@ fun MailScreen(
                             }
                         },
                         navigationIcon = {
-                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.folders))
+                            if (state.target is MailTarget.Thread) {
+                                IconButton(onClick = {
+                                    viewModel.open(threadOrigin ?: MailTarget.INBOXES)
+                                    threadOrigin = null
+                                }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.back)
+                                    )
+                                }
+                            } else {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(
+                                        Icons.Default.Menu,
+                                        contentDescription = stringResource(R.string.folders)
+                                    )
+                                }
                             }
                         },
                         actions = {
@@ -681,6 +712,17 @@ fun MailScreen(
                                                     state.inSelectionMode ->
                                                         viewModel.toggleSelection(message.id)
                                                     state.showsDrafts -> onOpenDraft(message.id)
+                                                    // A row standing for several
+                                                    // opens what it stands for.
+                                                    message.threadCount > 1 -> {
+                                                        threadOrigin = state.target
+                                                        viewModel.open(
+                                                            MailTarget.Thread(
+                                                                id = message.threadId.orEmpty(),
+                                                                title = message.subject
+                                                            )
+                                                        )
+                                                    }
                                                     else -> onOpenMessage(message.id)
                                                 }
                                             },
@@ -1009,6 +1051,21 @@ private fun MessageRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                if (message.threadCount > 1) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            message.threadCount.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                }
                 if (message.answered) {
                     Icon(
                         Icons.AutoMirrored.Filled.Reply,

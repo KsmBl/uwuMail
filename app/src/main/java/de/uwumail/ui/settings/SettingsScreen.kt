@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Notifications
@@ -64,6 +65,7 @@ fun SettingsScreen(onBack: () -> Unit, onManageBlocked: () -> Unit) {
     val scope = rememberCoroutineScope()
     val snackbarHost = remember { SnackbarHostState() }
     val outboxCount by container.db.outboxDao().observeCount().collectAsState(initial = 0)
+    val settings by container.settings.state.collectAsState()
     // Read here rather than inside the coroutines below, which are not composable.
     val notificationsEnabled = stringResource(R.string.notif_enabled)
     val notificationsDenied = stringResource(R.string.notif_denied)
@@ -137,6 +139,19 @@ fun SettingsScreen(onBack: () -> Unit, onManageBlocked: () -> Unit) {
 
             item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_reading)) }
             item { PrivacySection() }
+
+            item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_list)) }
+            item {
+                SettingSwitch(
+                    title = stringResource(R.string.set_conversations),
+                    subtitle = stringResource(R.string.set_conversations_sub),
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    checked = settings.groupIntoConversations,
+                    onChange = { value ->
+                        container.settings.update { it.copy(groupIntoConversations = value) }
+                    }
+                )
+            }
 
             item { HorizontalDivider(); SectionHeader(stringResource(R.string.section_swipe)) }
             item { SwipeSection() }

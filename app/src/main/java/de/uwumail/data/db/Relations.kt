@@ -37,5 +37,12 @@ data class MessageSummary(
     val isLocal: Boolean,
     val bodyDownloaded: Boolean,
     /** Sender appears on an enabled blocklist; the row is drawn in red. */
-    val spam: Boolean
+    val spam: Boolean,
+    /** The conversation this belongs to, or null for mail cached before threading. */
+    val threadId: String? = null,
+    /**
+     * How many messages the row stands for. One in a flat list, and the size of
+     * the conversation when the list is gathering them.
+     */
+    val threadCount: Int = 1
 )

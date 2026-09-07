@@ -684,4 +684,7 @@
     <string name="status_notify_on">%1$s benachrichtigt bei neuer Mail</string>
     <string name="status_notify_on_with_sync">%1$s benachrichtigt bei neuer Mail und wird jetzt im Hintergrund abgerufen</string>
     <string name="status_notify_off">%1$s benachrichtigt nicht mehr</string>
+    <string name="set_conversations">Zu Konversationen gruppieren</string>
+    <string name="set_conversations_sub">Eine Zeile pro Thread, neueste zuerst, mit der Anzahl darin. Aus zeigt jede Nachricht einzeln.</string>
+    <string name="section_list">Nachrichtenliste</string>
 </resources>
