@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-495%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-512%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -195,6 +195,19 @@ Select several similar messages in the list and tap the label icon. uwuMail then
 
 You pick the actions, name it, save. The generated rule is a normal rule and can
 be opened in the editor afterwards.
+
+**Which mailboxes the rule runs on** is asked at the top, rather than being
+inferred in silence from where the selected mail happened to come from. Mail
+from one account opens on that account, mail from several opens on all of them,
+and either can be changed before saving. The question is only put when more than
+one account is connected.
+
+**Adding a "then" asks one thing at a time.** The actions that need a folder
+say so with an ellipsis, then ask which mailbox, then which folder — instead of
+dropping every folder of every account into one flat list, where *Archive*
+appears once per mailbox with nothing to say which is which. Which mailbox is
+browsed does not narrow the rule: the folder is stored as its path, so a rule
+running on every account files mail into that path wherever it exists.
 
 The manual rule editor has the same safety net: **Test against cached mail**
 reports how many messages the draft would hit before you save it, and
@@ -616,7 +629,7 @@ to read and to run rules against.
 
 ## Tests
 
-495 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+512 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -676,6 +689,13 @@ to read and to run rules against.
 - `sync/` — a row put back when its removal did nothing, mail kept when the
   server would not delete it, the outbox holding a message that could not be
   sent and counting its attempts, and the `\Answered` flag.
+- `ui/rules/ActionPickerMenuTest` — adding a "then": that the folder actions are
+  named rather than drawn as the number their label resource happens to be,
+  that the mailbox is asked for before the folder and only when there is more
+  than one, that a server move is not offered device folders or the reverse, and
+  that the folder comes back as a path.
+- `ui/rules/RuleScopeTest` — which folders a rule's account scope leaves to
+  browse, and that widening the scope leaves the actions already picked alone.
 - `sync/RuleIngestVisibilityTest` — that mail a rule is filing elsewhere is in
   no list, no unified list and no badge while it is on its way, is still
   reachable by uid for the notification and the local copy that need it, and

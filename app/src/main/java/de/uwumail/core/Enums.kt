@@ -74,6 +74,13 @@ enum class ActionType(@StringRes val label: Int, val needsTargetFolder: Boolean 
     NOTIFY_SILENT(R.string.action_notify_silent),
     NOTIFY_HIGH(R.string.action_notify_high);
 
+    /**
+     * Whether [needsTargetFolder] means a folder on the device rather than one
+     * on the server. The two live in the same list and only one of them is ever
+     * a valid answer.
+     */
+    val wantsLocalFolder: Boolean get() = this == MOVE_TO_LOCAL || this == COPY_TO_LOCAL
+
     /** Actions that take the message off the server side of the current folder. */
     val removesFromFolder: Boolean
         get() = this == ARCHIVE || this == MOVE_TO_TRASH || this == DELETE_PERMANENTLY ||

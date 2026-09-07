@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AssistChip
@@ -34,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,13 +50,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import de.uwumail.R
 import de.uwumail.core.ActionType
 import de.uwumail.rules.Suggestion
-import de.uwumail.sync.SyncManager
 import de.uwumail.ui.common.EmptyState
 import de.uwumail.ui.common.SectionHeader
 import de.uwumail.ui.containerViewModel
@@ -149,22 +151,56 @@ fun RuleWizardScreen(
                 Card(Modifier.fillMaxWidth().padding(16.dp)) {
                     Column(Modifier.padding(12.dp)) {
                         Text(
-                            "${state.samples.size} messages selected",
+                            pluralStringResource(
+                                R.plurals.wizard_selected,
+                                state.samples.size,
+                                state.samples.size
+                            ),
                             fontWeight = FontWeight.SemiBold
                         )
-                        state.samples.take(3).forEach { message ->
+                        state.samples.take(SAMPLES_SHOWN).forEach { message ->
                             Text(
-                                "· ${message.subject.take(70).ifBlank { "(no subject)" }}",
+                                "· " + message.subject.take(70)
+                                    .ifBlank { stringResource(R.string.no_subject) },
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1
                             )
                         }
-                        if (state.samples.size > 3) {
+                        if (state.samples.size > SAMPLES_SHOWN) {
                             Text(
-                                "· and ${state.samples.size - 3} more",
+                                "· " + stringResource(
+                                    R.string.wizard_and_more,
+                                    state.samples.size - SAMPLES_SHOWN
+                                ),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
+                    }
+                }
+            }
+
+            // With one mailbox connected the question has one answer, so it is
+            // not asked. The editor still offers it for a rule that should stay
+            // on this account once a second one is added.
+            if (state.accounts.size > 1) {
+                item { SectionHeader(stringResource(R.string.rule_applies_to)) }
+                item {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        AccountScopeDropdown(
+                            accounts = state.accounts,
+                            selected = state.accountId,
+                            onPick = viewModel::setAccountScope
+                        )
+                        Text(
+                            if (state.accountId == null) {
+                                stringResource(R.string.wizard_scope_all)
+                            } else {
+                                stringResource(R.string.wizard_scope_one)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
                 }
             }
@@ -225,7 +261,10 @@ fun RuleWizardScreen(
                     state.actions.forEachIndexed { index, action ->
                         AssistChip(
                             onClick = { viewModel.removeAction(index) },
-                            label = { Text(action.label) },
+                            label = {
+                                val name = stringResource(action.type.label)
+                                Text(action.arg?.let { "$name → $it" } ?: name)
+                            },
                             trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.remove)) },
                             modifier = Modifier.padding(vertical = 2.dp)
                         )
@@ -238,11 +277,14 @@ fun RuleWizardScreen(
                         expanded = actionMenu,
                         onDismissRequest = { actionMenu = false }
                     ) {
-                        WizardActionMenu(
-                            folders = state.folders.filter {
-                                state.accountId == null || it.accountId == state.accountId
-                            },
-                            onPick = { actionMenu = false; viewModel.addAction(it) }
+                        ActionPickerMenu(
+                            types = WIZARD_ACTIONS,
+                            folders = state.foldersForScope(),
+                            accounts = state.accounts,
+                            onPick = { type, arg ->
+                                actionMenu = false
+                                viewModel.addAction(type, arg)
+                            }
                         )
                     }
                 }
@@ -311,63 +353,56 @@ private fun SuggestionRow(
     }
 }
 
+/** Which mailboxes the rule runs on: one of them, or all of them. */
 @Composable
-private fun WizardActionMenu(
-    folders: List<de.uwumail.data.db.FolderEntity>,
-    onPick: (PendingAction) -> Unit
+private fun AccountScopeDropdown(
+    accounts: List<de.uwumail.data.db.AccountEntity>,
+    selected: Long?,
+    onPick: (Long?) -> Unit
 ) {
-    var folderFor by remember { mutableStateOf<ActionType?>(null) }
-
-    if (folderFor == null) {
-        // The short list first: this is what people reach for after selecting mails.
-        listOf(
-            ActionType.SUPPRESS_NOTIFICATION,
-            ActionType.NOTIFY_SILENT,
-            ActionType.MARK_READ,
-            ActionType.ARCHIVE,
-            ActionType.MOVE_TO_TRASH,
-            ActionType.FLAG,
-            ActionType.DOWNLOAD,
-            ActionType.DELETE_PERMANENTLY
-        ).forEach { type ->
-            val name = stringResource(type.label)
-            DropdownMenuItem(
-                text = { Text(name) },
-                onClick = { onPick(PendingAction(type, null, name)) }
-            )
+    var open by remember { mutableStateOf(false) }
+    val label = accounts.firstOrNull { it.id == selected }?.email
+        ?: stringResource(R.string.rule_all_accounts)
+    Column {
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(label, maxLines = 1, modifier = Modifier.weight(1f))
+            Icon(Icons.Default.ArrowDropDown, null)
         }
-        listOf(
-            ActionType.MOVE_TO_FOLDER,
-            ActionType.COPY_TO_FOLDER,
-            ActionType.MOVE_TO_LOCAL
-        ).forEach { type ->
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text("${type.label}…") },
-                onClick = { folderFor = type }
+                text = { Text(stringResource(R.string.rule_all_accounts)) },
+                onClick = { open = false; onPick(null) }
             )
-        }
-    } else {
-        val type = folderFor!!
-        val candidates = if (type == ActionType.MOVE_TO_LOCAL) folders.filter { it.isLocal }
-        else folders.filter { !it.isLocal }
-        if (candidates.isEmpty()) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.wizard_no_folder)) },
-                onClick = { folderFor = null }
-            )
-        }
-        candidates.forEach { folder ->
-            DropdownMenuItem(
-                text = { Text(folder.displayName) },
-                onClick = {
-                    val arg = if (folder.isLocal) SyncManager.localName(folder.path) else folder.path
-                    folderFor = null
-                    onPick(PendingAction(type, arg, "${type.label} → ${folder.displayName}"))
-                }
-            )
+            accounts.forEach { account ->
+                DropdownMenuItem(
+                    text = { Text(account.email) },
+                    onClick = { open = false; onPick(account.id) }
+                )
+            }
         }
     }
 }
+
+/**
+ * What the wizard offers to do with the mail.
+ *
+ * A shorter list than the editor's, in the order somebody reaches for it after
+ * selecting a few messages: the reason for building a rule from mail in front
+ * of you is almost always that you did not want to be told about it.
+ */
+private val WIZARD_ACTIONS = listOf(
+    ActionType.SUPPRESS_NOTIFICATION,
+    ActionType.NOTIFY_SILENT,
+    ActionType.MARK_READ,
+    ActionType.ARCHIVE,
+    ActionType.MOVE_TO_TRASH,
+    ActionType.FLAG,
+    ActionType.DOWNLOAD,
+    ActionType.MOVE_TO_FOLDER,
+    ActionType.COPY_TO_FOLDER,
+    ActionType.MOVE_TO_LOCAL,
+    ActionType.DELETE_PERMANENTLY
+)
 
 /**
  * The trace, newest at the bottom, kept scrolled there. It is on screen and
@@ -402,6 +437,9 @@ private fun WizardLogView(log: List<String>, modifier: Modifier = Modifier) {
 
 /** How long the spinner may spin before it starts explaining itself. */
 private const val SLOW_ENOUGH_TO_EXPLAIN = 5000L
+
+/** How many of the selected subjects are listed before the rest are counted. */
+private const val SAMPLES_SHOWN = 3
 
 private fun shareLog(context: android.content.Context) {
     val intent = Intent(Intent.ACTION_SEND).apply {

@@ -396,7 +396,6 @@
     <string name="wizard_common">What they have in common</string>
     <string name="wizard_nothing">Nothing shared found</string>
     <string name="wizard_then">Then do</string>
-    <string name="wizard_no_folder">No folder available — create one first</string>
 
     <!-- Rules list -->
     <string name="rules_none">No rules yet</string>
@@ -727,4 +726,13 @@
     <string name="rules_copy_suffix">(copy)</string>
     <string name="rules_delete_q">Delete \"%1$s\"?</string>
     <string name="rules_matched_summary">Matched %1$d times · last %2$s</string>
+    <string name="rule_which_mailbox">Which mailbox?</string>
+    <string name="rule_which_folder">Which folder?</string>
+    <string name="wizard_scope_all">Runs on mail arriving at any of your accounts.</string>
+    <string name="wizard_scope_one">Runs only on mail arriving at this account.</string>
+    <string name="wizard_and_more">and %1$d more</string>
+    <plurals name="wizard_selected">
+        <item quantity="one">%1$d message selected</item>
+        <item quantity="other">%1$d messages selected</item>
+    </plurals>
 </resources>

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import de.uwumail.core.ActionType
 import de.uwumail.core.WizardLog
 import de.uwumail.core.MatchMode
+import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.db.RuleActionEntity
@@ -24,7 +25,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class PendingAction(val type: ActionType, val arg: String?, val label: String)
+/**
+ * An action on its way into the rule. The words for it are built where the
+ * strings are: an action carrying its own label was how a resource id ended up
+ * being drawn as a number.
+ */
+data class PendingAction(val type: ActionType, val arg: String?)
 
 data class WizardState(
     val analysing: Boolean = true,
@@ -34,6 +40,9 @@ data class WizardState(
     val actions: List<PendingAction> = emptyList(),
     val name: String = "",
     val folders: List<FolderEntity> = emptyList(),
+    val accounts: List<AccountEntity> = emptyList(),
+    /** Which mailboxes the rule runs on; null is all of them. */
+    val accountId: Long? = null,
     val matchedOthers: Int = 0,
     /** Every message the picked conditions catch, for the sheet that lists them. */
     val matches: List<MatchedMail> = emptyList(),
@@ -44,7 +53,14 @@ data class WizardState(
 ) {
     val suggestions: List<Suggestion> get() = report?.suggestions.orEmpty()
     val canSave: Boolean get() = name.isNotBlank() && selected.isNotEmpty() && actions.isNotEmpty()
-    val accountId: Long? get() = samples.map { it.accountId }.distinct().singleOrNull()
+
+    /**
+     * The folders the action menu offers. Scoping the rule to one account also
+     * scopes what there is to browse: the rest are not where this rule's mail
+     * is going to be.
+     */
+    fun foldersForScope(): List<FolderEntity> =
+        folders.filter { accountId == null || it.accountId == accountId }
 }
 
 /**
@@ -126,7 +142,7 @@ class RuleWizardViewModel(
             }
         }
         val pathById = folders.associate { it.id to it.path }
-        val accounts = container.db.accountDao().getAll()
+        val accounts = mark("reading accounts") { container.db.accountDao().getAll() }
         // Which mailbox a match sits in is half of what makes the list worth
         // reading: the same folder name exists on every account.
         folderNames = folders.associate { it.id to folderLabel(it, accounts) }
@@ -160,6 +176,11 @@ class RuleWizardViewModel(
                 samples = samples,
                 report = report,
                 folders = folders,
+                accounts = accounts,
+                // The mail this was started from is the rule's subject, so its
+                // account is the opening answer. It is only the opening one:
+                // the same newsletter arrives at more than one address.
+                accountId = samples.map { it.accountId }.distinct().singleOrNull(),
                 selected = report.recommended.toSet(),
                 name = report.suggestedRuleName.let {
                     container.appContext.getString(it.id, *it.args.toTypedArray())
@@ -182,9 +203,18 @@ class RuleWizardViewModel(
 
     fun setName(value: String) = _state.update { it.copy(name = value) }
 
-    fun addAction(action: PendingAction) = _state.update {
-        if (it.actions.any { existing -> existing.type == action.type && existing.arg == action.arg }) it
-        else it.copy(actions = it.actions + action)
+    /**
+     * Narrows the rule to one mailbox, or widens it to all of them.
+     *
+     * The actions are left alone. A folder is remembered as its path, not as
+     * one account's folder, so an action already picked still means something
+     * on every account that has that path.
+     */
+    fun setAccountScope(accountId: Long?) = _state.update { it.copy(accountId = accountId) }
+
+    fun addAction(type: ActionType, arg: String?) = _state.update {
+        if (it.actions.any { existing -> existing.type == type && existing.arg == arg }) it
+        else it.copy(actions = it.actions + PendingAction(type, arg))
     }
 
     fun removeAction(index: Int) = _state.update {

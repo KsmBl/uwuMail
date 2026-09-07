@@ -59,10 +59,8 @@ import de.uwumail.core.ActionType
 import de.uwumail.core.MatchMode
 import de.uwumail.core.RuleField
 import de.uwumail.core.RuleOperator
-import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.rules.RuleMatcher
-import de.uwumail.sync.SyncManager
 import de.uwumail.ui.common.SectionHeader
 import de.uwumail.ui.containerViewModel
 
@@ -217,8 +215,10 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                     expanded = addActionOpen,
                     onDismissRequest = { addActionOpen = false }
                 ) {
-                    ActionMenu(
+                    ActionPickerMenu(
+                        types = ActionType.entries,
                         folders = state.foldersForScope(),
+                        accounts = state.accounts,
                         onPick = { type, arg ->
                             addActionOpen = false
                             viewModel.addAction(type, arg)
@@ -319,49 +319,6 @@ private fun <T> ScopeDropdown(
                     onClick = { open = false; onPick(value) }
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun ActionMenu(
-    folders: List<FolderEntity>,
-    onPick: (ActionType, String?) -> Unit
-) {
-    var folderPickerFor by remember { mutableStateOf<ActionType?>(null) }
-
-    if (folderPickerFor == null) {
-        ActionType.entries.forEach { type ->
-            DropdownMenuItem(
-                text = { Text(stringResource(type.label)) },
-                onClick = {
-                    if (type.needsTargetFolder) folderPickerFor = type
-                    else onPick(type, null)
-                }
-            )
-        }
-    } else {
-        val type = folderPickerFor!!
-        val candidates = if (type == ActionType.MOVE_TO_LOCAL || type == ActionType.COPY_TO_LOCAL) {
-            folders.filter { it.isLocal }
-        } else {
-            folders.filter { !it.isLocal }
-        }
-        if (candidates.isEmpty()) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.rule_no_folder)) },
-                onClick = { folderPickerFor = null }
-            )
-        }
-        candidates.forEach { folder ->
-            DropdownMenuItem(
-                text = { Text(folder.displayName) },
-                onClick = {
-                    val arg = if (folder.isLocal) SyncManager.localName(folder.path) else folder.path
-                    folderPickerFor = null
-                    onPick(type, arg)
-                }
-            )
         }
     }
 }

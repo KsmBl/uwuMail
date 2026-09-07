@@ -394,7 +394,6 @@
     <string name="wizard_common">Was sie gemeinsam haben</string>
     <string name="wizard_nothing">Nichts Gemeinsames gefunden</string>
     <string name="wizard_then">Dann</string>
-    <string name="wizard_no_folder">Kein Ordner vorhanden — lege zuerst einen an</string>
 
     <!-- Rules list -->
     <string name="rules_none">Noch keine Regeln</string>
@@ -725,4 +724,13 @@
     <string name="rules_copy_suffix">(Kopie)</string>
     <string name="rules_delete_q">\"%1$s\" löschen?</string>
     <string name="rules_matched_summary">%1$d mal getroffen · zuletzt %2$s</string>
+    <string name="rule_which_mailbox">Welches Postfach?</string>
+    <string name="rule_which_folder">Welcher Ordner?</string>
+    <string name="wizard_scope_all">Gilt für Mail an jedes deiner Konten.</string>
+    <string name="wizard_scope_one">Gilt nur für Mail an dieses Konto.</string>
+    <string name="wizard_and_more">und %1$d weitere</string>
+    <plurals name="wizard_selected">
+        <item quantity="one">%1$d Nachricht ausgewählt</item>
+        <item quantity="other">%1$d Nachrichten ausgewählt</item>
+    </plurals>
 </resources>
