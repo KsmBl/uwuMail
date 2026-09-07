@@ -70,6 +70,7 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
     var fabMenu by remember { mutableStateOf(false) }
     val synced = stringResource(R.string.folder_synced)
     val hidden = stringResource(R.string.folder_hidden)
+    val notifies = stringResource(R.string.folder_notifies)
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -148,6 +149,7 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
                                 append(" · ${folder.totalCount} messages")
                                 if (folder.unreadCount > 0) append(", ${folder.unreadCount} unread")
                                 if (folder.syncEnabled && !folder.isLocal) append(synced)
+                                if (folder.notify && !folder.isLocal) append(notifies)
                                 if (folder.hidden) append(hidden)
                             },
                             style = MaterialTheme.typography.bodySmall
@@ -160,6 +162,7 @@ fun FoldersScreen(accountId: Long, onBack: () -> Unit) {
                             canMoveDown = index < state.folders.lastIndex,
                             onMove = { viewModel.move(folder, it) },
                             onToggleSync = { viewModel.setSyncEnabled(folder, it) },
+                            onToggleNotify = { viewModel.setNotify(folder, it) },
                             onToggleHidden = { viewModel.setHidden(folder, it) },
                             onResetOrder = viewModel::resetOrder,
                             onRename = { renaming = folder },
@@ -223,6 +226,7 @@ private fun FolderActions(
     canMoveDown: Boolean,
     onMove: (Int) -> Unit,
     onToggleSync: (Boolean) -> Unit,
+    onToggleNotify: (Boolean) -> Unit,
     onToggleHidden: (Boolean) -> Unit,
     onResetOrder: () -> Unit,
     onRename: () -> Unit,
@@ -268,6 +272,13 @@ private fun FolderActions(
                         Switch(checked = folder.syncEnabled, onCheckedChange = null)
                     },
                     onClick = { menu = false; onToggleSync(!folder.syncEnabled) }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.notify_of_new_mail)) },
+                    trailingIcon = {
+                        Switch(checked = folder.notify, onCheckedChange = null)
+                    },
+                    onClick = { menu = false; onToggleNotify(!folder.notify) }
                 )
             }
             DropdownMenuItem(

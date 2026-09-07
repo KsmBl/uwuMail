@@ -689,4 +689,7 @@
     <string name="set_conversations">Group into conversations</string>
     <string name="set_conversations_sub">One row per thread, newest first, with a count of what is in it. Off shows every message on its own.</string>
     <string name="section_list">Message list</string>
+    <string name="folder_notifies"> · notifies</string>
+    <string name="status_folder_created">Created \"%1$s\"</string>
+    <string name="status_folder_deleted">Deleted \"%1$s\"</string>
 </resources>

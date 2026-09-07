@@ -39,7 +39,9 @@ class FoldersViewModel(
         guarded(container.appContext.getString(R.string.status_folders_updated)) { container.syncManager.refreshFolders(accountId) }
 
     fun createRemoteFolder(path: String) =
-        guarded("Created \"$path\"") { container.syncManager.createRemoteFolder(accountId, path) }
+        guarded(text(R.string.status_folder_created, path)) {
+            container.syncManager.createRemoteFolder(accountId, path)
+        }
 
     fun createLocalFolder(name: String) =
         guarded(text(R.string.status_device_folder_created, name)) {
@@ -52,9 +54,32 @@ class FoldersViewModel(
         }
 
     fun delete(folder: FolderEntity) =
-        guarded("Deleted \"${folder.displayName}\"") {
+        guarded(text(R.string.status_folder_deleted, folder.displayName)) {
             container.syncManager.deleteRemoteFolder(folder.id)
         }
+
+    /**
+     * Notifications for one folder. Switching them on switches background
+     * checking on with them, since a folder nobody checks has no new mail to
+     * announce; the message says so when that happened.
+     */
+    fun setNotify(folder: FolderEntity, notify: Boolean) {
+        viewModelScope.launch {
+            val syncTurnedOn = runCatching {
+                container.syncManager.setFolderNotify(folder.id, notify)
+            }.getOrDefault(false)
+            transient.update {
+                it.copy(
+                    message = when {
+                        syncTurnedOn ->
+                            text(R.string.status_notify_on_with_sync, folder.displayName)
+                        notify -> text(R.string.status_notify_on, folder.displayName)
+                        else -> text(R.string.status_notify_off, folder.displayName)
+                    }
+                )
+            }
+        }
+    }
 
     fun setSyncEnabled(folder: FolderEntity, enabled: Boolean) {
         viewModelScope.launch {
@@ -97,7 +122,8 @@ class FoldersViewModel(
             transient.update {
                 it.copy(
                     busy = false,
-                    message = result.exceptionOrNull()?.message?.let { e -> "Failed: $e" } ?: success
+                    message = result.exceptionOrNull()?.message
+                        ?.let { e -> text(R.string.error_failed, e) } ?: success
                 )
             }
         }

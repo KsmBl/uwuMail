@@ -687,4 +687,7 @@
     <string name="set_conversations">Zu Konversationen gruppieren</string>
     <string name="set_conversations_sub">Eine Zeile pro Thread, neueste zuerst, mit der Anzahl darin. Aus zeigt jede Nachricht einzeln.</string>
     <string name="section_list">Nachrichtenliste</string>
+    <string name="folder_notifies"> · benachrichtigt</string>
+    <string name="status_folder_created">\"%1$s\" erstellt</string>
+    <string name="status_folder_deleted">\"%1$s\" gelöscht</string>
 </resources>
