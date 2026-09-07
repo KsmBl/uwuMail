@@ -9,6 +9,7 @@ import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
+import de.uwumail.core.FolderType
 import de.uwumail.core.Json
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -75,6 +76,24 @@ data class MessageUiState(
     /** Every account's folders, minus the one this message is already in. */
     fun moveTargets(): List<FolderEntity> = folders
         .filter { it.selectable && it.id != message?.folderId && !it.hidden }
+
+    /**
+     * Whether this message is already in the bin.
+     *
+     * Trashing it again has nowhere to move it to and does nothing at all, so
+     * the screen offers to finish the job instead. Read from the account's own
+     * routing as well as the folder's type: a server with no SPECIAL-USE
+     * attributes leaves the type unclassified, and a mailbox whose trash was
+     * chosen by hand is still the trash.
+     */
+    val isInTrash: Boolean
+        get() {
+            val folder = folders.firstOrNull { it.id == message?.folderId } ?: return false
+            if (folder.isLocal) return false
+            val account = accounts.firstOrNull { it.id == message?.accountId }
+            return folder.path == account?.trashFolder ||
+                folder.type == FolderType.TRASH.name
+        }
 }
 
 /** What reading the body told us, computed once per body rather than per frame. */

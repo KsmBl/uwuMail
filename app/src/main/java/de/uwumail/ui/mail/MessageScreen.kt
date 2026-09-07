@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.FileCopy
@@ -247,8 +248,22 @@ fun MessageScreen(
                     IconButton(onClick = viewModel::archive) {
                         Icon(Icons.Default.Archive, stringResource(R.string.archive))
                     }
-                    IconButton(onClick = viewModel::trash) {
-                        Icon(Icons.Default.Delete, stringResource(R.string.trash))
+                    // In the bin there is nowhere left to move it to, so the
+                    // same button finishes the job — after asking, since this
+                    // is the one thing that cannot be taken back.
+                    IconButton(
+                        onClick = {
+                            if (state.isInTrash) confirmDelete = true else viewModel.trash()
+                        }
+                    ) {
+                        if (state.isInTrash) {
+                            Icon(
+                                Icons.Default.DeleteForever,
+                                stringResource(R.string.delete_permanently)
+                            )
+                        } else {
+                            Icon(Icons.Default.Delete, stringResource(R.string.trash))
+                        }
                     }
                     IconButton(onClick = { overflow = true }) {
                         Icon(Icons.Default.MoreVert, stringResource(R.string.more))

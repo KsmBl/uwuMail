@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-325%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-334%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -217,6 +217,9 @@ have.
   the mail shows up where it landed.
 - Archive, trash, delete permanently, and save any message as `.eml` — the
   system picker chooses where it goes.
+- **In the bin, the bin button empties it.** A message already in the trash has
+  nowhere left to be moved to, so the button offers to delete it for good
+  instead — and asks first, since that is the one action nothing can take back.
 - Tapping an attachment asks whether to open it or save it, and saving asks
   where. **Hold one to start picking**: tap the rest, then save the lot into a
   folder chosen once, rather than answering the same picker for every file.
@@ -510,7 +513,7 @@ to read and to run rules against.
 
 ## Tests
 
-325 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+334 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -542,8 +545,9 @@ to read and to run rules against.
   not, the wording of a partial attachment save,
   which must not report a failure as a smaller success, and the waiting that
   keeps a search off the database until the typing stops.
-- `ui/` — day grouping of the message list, `[mailbox] folder` labelling, and
-  the order swiping between messages follows.
+- `ui/` — day grouping of the message list, `[mailbox] folder` labelling, the
+  order swiping between messages follows, and what counts as a message already
+  being in the bin.
 - `ui/NavigationGuardTest` — runs a real NavHost under Robolectric and asserts
   the back stack can never be emptied by a second tap on a screen already left.
   A blank, unresponsive window is not something a test over pure functions can
