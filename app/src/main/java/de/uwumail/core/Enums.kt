@@ -108,6 +108,17 @@ enum class SwipeAction(@StringRes val label: Int) {
     val needsConfirmation: Boolean get() = this == DELETE
 
     /**
+     * What this swipe actually does to a row already in the bin.
+     *
+     * Trashing a message that is in the trash has nowhere to move it to and
+     * does nothing at all, so the gesture becomes the one it was reaching for.
+     * It arrives as [DELETE], which already asks first and already draws itself
+     * in red — the swipe says what it is about to do before it is let go of.
+     */
+    fun inBin(isInBin: Boolean): SwipeAction =
+        if (isInBin && this == TRASH) DELETE else this
+
+    /**
      * Whether this still makes sense once messages are being picked out.
      * Selecting more of them does; archiving one of them, while others are
      * selected and untouched, does not.

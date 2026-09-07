@@ -653,4 +653,9 @@
     <string name="swipe_distance">Wischweite</string>
     <string name="swipe_distance_value">%1$d%%</string>
     <string name="swipe_distance_sub">Wie weit ein Wischen über den Bildschirm gehen muss, damit es zählt. Weniger geht schneller, mehr passiert seltener aus Versehen.</string>
+    <plurals name="trash_confirm_all">
+        <item quantity="one">Diese Nachricht ist bereits im Papierkorb. Beim Löschen wird sie vom Server entfernt und kann nicht wiederhergestellt werden.</item>
+        <item quantity="other">Diese %1$d Nachrichten sind bereits im Papierkorb. Beim Löschen werden sie vom Server entfernt und können nicht wiederhergestellt werden.</item>
+    </plurals>
+    <string name="trash_confirm_mixed">%1$d bereits im Papierkorb werden endgültig vom Server gelöscht, die anderen %2$d wandern in den Papierkorb. Das Löschen lässt sich nicht rückgängig machen.</string>
 </resources>

@@ -190,6 +190,12 @@ fun MailScreen(
     // A swipe that needs an answer before it can finish.
     var swipeMoveFor by remember { mutableStateOf<Long?>(null) }
     var swipeDeleteFor by remember { mutableStateOf<Long?>(null) }
+    // What the bin button is about to do to a selection that includes mail
+    // already in the bin: the counts are taken when it is pressed, so they do
+    // not go to zero underneath the dialog as the selection clears.
+    var confirmSelectionTrash by remember {
+        mutableStateOf<Pair<List<Long>, List<Long>>?>(null)
+    }
     var showSearch by remember { mutableStateOf(false) }
     var searchOrigin by remember { mutableStateOf<MailTarget?>(null) }
     var overflowOpen by remember { mutableStateOf(false) }
@@ -247,6 +253,10 @@ fun MailScreen(
 
     // Day headings, recomputed only when the list itself changes.
     val sections = remember(state.messages) { groupByDay(state.messages) }
+
+    // Which folders are a bin, so a row can say whether trashing it again
+    // would be a permanent deletion. Recomputed only when the folders do.
+    val binFolders = remember(state.folders, state.accounts) { state.binFolderIds() }
 
     // Pull the next page in once the user nears the end of the cached list.
     val nearEnd by remember {
@@ -320,7 +330,11 @@ fun MailScreen(
                         onMarkUnread = { viewModel.markSelectionSeen(false) },
                         onStar = { viewModel.starSelection(true) },
                         onArchive = viewModel::archiveSelection,
-                        onTrash = viewModel::trashSelection,
+                        onTrash = {
+                            val split = state.selectionByBin()
+                            if (split.first.isEmpty()) viewModel.trashSelection()
+                            else confirmSelectionTrash = split
+                        },
                         onDeleteForever = viewModel::deleteSelectionPermanently,
                         onMove = { showMovePicker = true },
                         onCopy = { showCopyPicker = true },
@@ -527,17 +541,21 @@ fun MailScreen(
                             ) { message ->
                                 // Removals collapse and arrivals slide in rather
                                 // than the list jumping to its new shape.
+                                // A row already in the bin has nowhere left to be
+                                // trashed to, so the gesture becomes the deletion
+                                // it was reaching for — which asks first.
+                                val inBin = message.folderId in binFolders
                                 Column(Modifier.animateItem()) {
                                     SwipeableMessageRow(
                                         // While messages are being picked out, only
                                         // swipes that pick out more of them still
                                         // make sense: archiving one row while others
                                         // sit selected and untouched does not.
-                                        rightAction = state.swipeRight
+                                        rightAction = state.swipeRight.inBin(inBin)
                                             .takeIf {
                                                 !state.inSelectionMode || it.worksWhileSelecting
                                             } ?: SwipeAction.NONE,
-                                        leftAction = state.swipeLeft
+                                        leftAction = state.swipeLeft.inBin(inBin)
                                             .takeIf {
                                                 !state.inSelectionMode || it.worksWhileSelecting
                                             } ?: SwipeAction.NONE,
@@ -598,6 +616,21 @@ fun MailScreen(
             preferredAccountId = state.currentFolder?.accountId,
             onPick = { swipeMoveFor = null; viewModel.moveMessage(messageId, it.id) },
             onDismiss = { swipeMoveFor = null }
+        )
+    }
+
+    confirmSelectionTrash?.let { (inBin, elsewhere) ->
+        ConfirmDialog(
+            title = stringResource(R.string.delete_forever_q),
+            message = if (elsewhere.isEmpty()) {
+                pluralStringResource(R.plurals.trash_confirm_all, inBin.size, inBin.size)
+            } else {
+                stringResource(R.string.trash_confirm_mixed, inBin.size, elsewhere.size)
+            },
+            confirmLabel = stringResource(R.string.delete),
+            destructive = true,
+            onConfirm = viewModel::trashSelection,
+            onDismiss = { confirmSelectionTrash = null }
         )
     }
 

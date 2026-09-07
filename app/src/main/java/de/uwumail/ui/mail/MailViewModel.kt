@@ -12,6 +12,7 @@ import de.uwumail.data.settings.AppSettings
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
+import de.uwumail.data.db.isBinFor
 import de.uwumail.di.AppContainer
 import de.uwumail.sync.SyncManager
 import de.uwumail.sync.Undoable
@@ -108,6 +109,25 @@ data class MailUiState(
     fun moveTargets(): List<FolderEntity> = visibleFolders
         .filter { it.selectable }
         .filter { it.id != currentFolder?.id }
+
+    /** Folders that are where their own account puts deleted mail. */
+    fun binFolderIds(): Set<Long> = folders
+        .filter { folder -> folder.isBinFor(accounts.firstOrNull { it.id == folder.accountId }) }
+        .mapTo(HashSet()) { it.id }
+
+    /**
+     * The selection split into what is already in the bin and what is not.
+     *
+     * One button covers both: a mixed selection is exactly what happens when
+     * somebody tidies up across folders, and refusing to act on it — or quietly
+     * doing nothing to half of it — is worse than doing each part properly.
+     */
+    fun selectionByBin(): Pair<List<Long>, List<Long>> {
+        val bins = binFolderIds()
+        val selected = messages.filter { it.id in selection }
+        val (inBin, elsewhere) = selected.partition { it.folderId in bins }
+        return inBin.map { it.id } to elsewhere.map { it.id }
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -427,8 +447,24 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         container.syncManager.archive(ids)
     }
 
+    /**
+     * Sends the selection to the bin, and empties the part of it that is
+     * already there.
+     *
+     * The screen asks before this runs when anything is going for good; the
+     * split is repeated here from the database rather than trusted from the
+     * rows, so what is deleted is what is actually in the bin now.
+     */
     fun trashSelection() = withSelection(silent = true) { ids ->
-        container.syncManager.moveToTrash(ids)
+        val bins = state.value.binFolderIds()
+        val (inBin, elsewhere) = container.db.messageDao().getAll(ids)
+            .partition { it.folderId in bins }
+        if (inBin.isNotEmpty()) {
+            container.syncManager.deletePermanently(inBin.map { it.id })
+        }
+        if (elsewhere.isNotEmpty()) {
+            container.syncManager.moveToTrash(elsewhere.map { it.id })
+        }
     }
 
     fun deleteSelectionPermanently() = withSelection(silent = true) { ids ->

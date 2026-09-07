@@ -6,10 +6,10 @@ import de.uwumail.R
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.AttachmentEntity
 import de.uwumail.data.db.FolderEntity
+import de.uwumail.data.db.isBinFor
 import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.di.AppContainer
-import de.uwumail.core.FolderType
 import de.uwumail.core.Json
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -89,10 +89,7 @@ data class MessageUiState(
     val isInTrash: Boolean
         get() {
             val folder = folders.firstOrNull { it.id == message?.folderId } ?: return false
-            if (folder.isLocal) return false
-            val account = accounts.firstOrNull { it.id == message?.accountId }
-            return folder.path == account?.trashFolder ||
-                folder.type == FolderType.TRASH.name
+            return folder.isBinFor(accounts.firstOrNull { it.id == message?.accountId })
         }
 }
 
