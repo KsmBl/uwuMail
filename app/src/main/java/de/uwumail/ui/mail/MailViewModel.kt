@@ -33,7 +33,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Actions offered when a folder in the drawer is long-pressed. */
-enum class FolderAction { MOVE_UP, MOVE_DOWN, HIDE, SHOW, TOGGLE_SYNC, MARK_READ, RESET_ORDER }
+enum class FolderAction {
+    MOVE_UP, MOVE_DOWN, HIDE, SHOW, TOGGLE_SYNC, MARK_READ, RESET_ORDER,
+    /** Deletes everything in the folder for good; offered on the bin alone. */
+    EMPTY
+}
 
 /** What the message list is currently showing. */
 sealed interface MailTarget {
@@ -322,6 +326,15 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
                 report(
                     if (count == 0) text(R.string.status_nothing_unread)
                     else text(R.string.status_marked_read, count)
+                )
+            }
+            FolderAction.EMPTY -> {
+                val count = container.syncManager.emptyFolder(folder.id)
+                report(
+                    if (count == 0) text(R.string.status_bin_already_empty)
+                    else container.appContext.resources.getQuantityString(
+                        R.plurals.status_bin_emptied, count, count
+                    )
                 )
             }
             FolderAction.RESET_ORDER -> {

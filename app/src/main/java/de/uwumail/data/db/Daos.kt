@@ -248,6 +248,10 @@ interface MessageDao {
     )
     suspend fun unreadIdsIn(folderId: Long): List<Long>
 
+    /** Everything a folder holds, for emptying it. */
+    @Query("SELECT id FROM messages WHERE folderId = :folderId AND pendingRemoval = 0")
+    suspend fun idsIn(folderId: Long): List<Long>
+
     /** Unread mail whose body is not cached yet, newest first — what preloading works through. */
     @Query(
         """SELECT id FROM messages

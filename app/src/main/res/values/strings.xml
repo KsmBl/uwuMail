@@ -661,4 +661,15 @@
     </plurals>
     <string name="trash_confirm_mixed">%1$d already in the bin will be deleted from the server for good; the other %2$d will be moved to the bin. Deleting cannot be undone.</string>
     <string name="select_day">Select this day</string>
+    <string name="empty_bin">Empty bin</string>
+    <string name="empty_bin_q">Empty the bin?</string>
+    <string name="status_bin_already_empty">The bin is already empty</string>
+    <plurals name="empty_bin_body">
+        <item quantity="one">This removes the message from the server for good. It cannot be undone.</item>
+        <item quantity="other">This removes all %1$d messages from the server for good. It cannot be undone.</item>
+    </plurals>
+    <plurals name="status_bin_emptied">
+        <item quantity="one">%1$d message deleted</item>
+        <item quantity="other">%1$d messages deleted</item>
+    </plurals>
 </resources>

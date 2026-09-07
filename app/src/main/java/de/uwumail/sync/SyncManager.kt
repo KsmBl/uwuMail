@@ -981,6 +981,23 @@ class SyncManager(
         return ids.size
     }
 
+    /**
+     * Removes everything a folder holds, for good. Returns how many went.
+     *
+     * Only ever reached from the bin, where the mail is already on its way out
+     * and the whole point of the folder is to be emptied. No undo is offered:
+     * the screen asks first, and holding a folder's worth of deletions back for
+     * five seconds so they can all be taken back at once is a promise this
+     * cannot keep once the server has been told.
+     */
+    suspend fun emptyFolder(folderId: Long): Int {
+        val ids = db.messageDao().idsIn(folderId)
+        if (ids.isEmpty()) return 0
+        deletePermanently(ids, allowUndo = false)
+        db.folderDao().refreshCounts(folderId)
+        return ids.size
+    }
+
     suspend fun createLocalFolder(accountId: Long, name: String): Long {
         val path = localPath(name)
         db.folderDao().getByPath(accountId, path)?.let {

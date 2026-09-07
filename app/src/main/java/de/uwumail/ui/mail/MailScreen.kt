@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
@@ -208,6 +209,8 @@ fun MailScreen(
     var confirmSelectionTrash by remember {
         mutableStateOf<Pair<List<Long>, List<Long>>?>(null)
     }
+    // The bin whose emptying is being asked about.
+    var confirmEmpty by remember { mutableStateOf<FolderEntity?>(null) }
     var showSearch by remember { mutableStateOf(false) }
     var searchOrigin by remember { mutableStateOf<MailTarget?>(null) }
     var overflowOpen by remember { mutableStateOf(false) }
@@ -335,7 +338,13 @@ fun MailScreen(
                     viewModel.open(it)
                     scope.launch { drawerState.close() }
                 },
-                onFolderAction = viewModel::folderAction,
+                binFolders = binFolders,
+                onFolderAction = { folder, action ->
+                    // Emptying cannot be taken back, so it is the one folder
+                    // action that stops to ask.
+                    if (action == FolderAction.EMPTY) confirmEmpty = folder
+                    else viewModel.folderAction(folder, action)
+                },
                 onManageRules = { scope.launch { drawerState.close() }; onManageRules() },
                 onManageFolders = { scope.launch { drawerState.close() }; onManageFolders(it) },
                 onManageAccounts = { scope.launch { drawerState.close() }; onManageAccounts() },
@@ -708,6 +717,19 @@ fun MailScreen(
         )
     }
 
+    confirmEmpty?.let { folder ->
+        ConfirmDialog(
+            title = stringResource(R.string.empty_bin_q),
+            message = pluralStringResource(
+                R.plurals.empty_bin_body, folder.totalCount, folder.totalCount
+            ),
+            confirmLabel = stringResource(R.string.delete),
+            destructive = true,
+            onConfirm = { viewModel.folderAction(folder, FolderAction.EMPTY) },
+            onDismiss = { confirmEmpty = null }
+        )
+    }
+
     confirmSelectionTrash?.let { (inBin, elsewhere) ->
         ConfirmDialog(
             title = stringResource(R.string.delete_forever_q),
@@ -1053,6 +1075,7 @@ private fun MailDrawer(
     drawerOpen: Boolean,
     onUnlocked: () -> Unit,
     onOpen: (MailTarget) -> Unit,
+    binFolders: Set<Long>,
     onFolderAction: (FolderEntity, FolderAction) -> Unit,
     onManageRules: () -> Unit,
     onManageFolders: (Long) -> Unit,
@@ -1134,6 +1157,7 @@ private fun MailDrawer(
                         canMoveUp = index > 0,
                         canMoveDown = index < folders.lastIndex,
                         onClick = { onOpen(MailTarget.Folder(folder.id)) },
+                        isBin = folder.id in binFolders,
                         onAction = { onFolderAction(folder, it) }
                     )
                 }
@@ -1179,6 +1203,8 @@ private fun FolderRow(
     selected: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    /** Whether this is where the account puts deleted mail, and so can be emptied. */
+    isBin: Boolean,
     onClick: () -> Unit,
     onAction: (FolderAction) -> Unit
 ) {
@@ -1277,6 +1303,27 @@ private fun FolderRow(
                 leadingIcon = { Icon(Icons.Default.VisibilityOff, null) },
                 onClick = { menuOpen = false; onAction(FolderAction.HIDE) }
             )
+            // Only the bin: everywhere else this would be a way to lose mail
+            // that was not on its way out in the first place.
+            if (isBin) {
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(R.string.empty_bin),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.DeleteSweep,
+                            null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    onClick = { menuOpen = false; onAction(FolderAction.EMPTY) }
+                )
+            }
         }
     }
 }

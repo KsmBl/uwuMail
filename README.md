@@ -222,6 +222,9 @@ have.
   instead — and asks first, since that is the one action nothing can take back.
   A trash swipe on such a row does the same, arriving as the red permanent
   delete so the gesture says what it is about to do before it is let go of.
+- **Empty the bin** from its own long-press menu, which is the one folder that
+  offers it. It asks first and says how many will go, since nothing about it can
+  be taken back.
 - **A selection spanning both is done properly in both halves**: the mail
   already in the bin is deleted from the server and the rest is moved to the
   bin, under one question that says how many of each.

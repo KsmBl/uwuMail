@@ -659,4 +659,15 @@
     </plurals>
     <string name="trash_confirm_mixed">%1$d bereits im Papierkorb werden endgültig vom Server gelöscht, die anderen %2$d wandern in den Papierkorb. Das Löschen lässt sich nicht rückgängig machen.</string>
     <string name="select_day">Diesen Tag auswählen</string>
+    <string name="empty_bin">Papierkorb leeren</string>
+    <string name="empty_bin_q">Papierkorb leeren?</string>
+    <string name="status_bin_already_empty">Der Papierkorb ist bereits leer</string>
+    <plurals name="empty_bin_body">
+        <item quantity="one">Damit wird die Nachricht endgültig vom Server entfernt. Das lässt sich nicht rückgängig machen.</item>
+        <item quantity="other">Damit werden alle %1$d Nachrichten endgültig vom Server entfernt. Das lässt sich nicht rückgängig machen.</item>
+    </plurals>
+    <plurals name="status_bin_emptied">
+        <item quantity="one">%1$d Nachricht gelöscht</item>
+        <item quantity="other">%1$d Nachrichten gelöscht</item>
+    </plurals>
 </resources>
