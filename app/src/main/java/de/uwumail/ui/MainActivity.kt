@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
                 AppCompatDelegate.setDefaultNightMode(
                     when (settings.theme) {
                         AppTheme.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                        AppTheme.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                        AppTheme.LIGHT, AppTheme.FEMBOY -> AppCompatDelegate.MODE_NIGHT_NO
                         AppTheme.DARK, AppTheme.MOCHA -> AppCompatDelegate.MODE_NIGHT_YES
                     }
                 )

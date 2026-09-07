@@ -137,7 +137,8 @@ enum class AppTheme(@StringRes val label: Int) {
     SYSTEM(R.string.theme_system),
     LIGHT(R.string.theme_light),
     DARK(R.string.theme_dark),
-    MOCHA(R.string.theme_mocha);
+    MOCHA(R.string.theme_mocha),
+    FEMBOY(R.string.theme_femboy);
 
     /** Whether this theme is a dark one, for everything outside Compose. */
     val isDark: Boolean get() = this == DARK || this == MOCHA;

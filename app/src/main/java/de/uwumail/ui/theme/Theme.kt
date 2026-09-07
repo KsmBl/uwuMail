@@ -76,6 +76,60 @@ private val MochaColors = darkColorScheme(
 )
 
 /**
+ * Cute Femboy: light blue on white, with just enough black to read by.
+ *
+ * Fixed by hand for the same reason Mocha is — left to Material the surfaces
+ * would be tinted from the primary and the white would stop being white. The
+ * blue climbs very slightly as the surfaces stack, so a sticky day heading and
+ * a selected row separate from the page without any of them going grey; the
+ * black is kept for text, outlines and the one dark accent rather than being
+ * spread about as shadow.
+ */
+private val FemboyColors = lightColorScheme(
+    primary = Color(0xFF3F9FD8),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFCBE9F9),
+    onPrimaryContainer = Color(0xFF06222F),
+    inversePrimary = Color(0xFF9BD8F5),
+
+    secondary = Color(0xFF5FB3DE),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFDCF1FB),
+    onSecondaryContainer = Color(0xFF06222F),
+
+    // The bit of black, used as an accent rather than as a background.
+    tertiary = Color(0xFF23262B),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFDFE4E8),
+    onTertiaryContainer = Color(0xFF16181C),
+
+    background = Color(0xFFFFFFFF),
+    onBackground = Color(0xFF16181C),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF16181C),
+    surfaceVariant = Color(0xFFE7F3FA),
+    onSurfaceVariant = Color(0xFF41525C),
+    surfaceTint = Color(0xFF3F9FD8),
+    inverseSurface = Color(0xFF1A2A33),
+    inverseOnSurface = Color(0xFFEAF5FB),
+
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFF7FCFE),
+    surfaceContainer = Color(0xFFF0F8FC),
+    surfaceContainerHigh = Color(0xFFE7F3FA),
+    surfaceContainerHighest = Color(0xFFDCEDF7),
+
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+
+    outline = Color(0xFF74838D),
+    outlineVariant = Color(0xFFC5DBE7),
+    scrim = Color(0xFF000000)
+)
+
+/**
  * Applies the chosen theme.
  *
  * Material You's dynamic colour is only used for [AppTheme.SYSTEM]: picking a
@@ -99,6 +153,7 @@ fun UwuMailTheme(
         AppTheme.LIGHT -> LightColors
         AppTheme.DARK -> DarkColors
         AppTheme.MOCHA -> MochaColors
+        AppTheme.FEMBOY -> FemboyColors
     }
     MaterialTheme(colorScheme = colors, content = content)
 }

@@ -441,7 +441,8 @@ have.
 ## Appearance and language
 
 - **Themes**: follow the system (with Material You dynamic colour where the
-  device offers it), or pick Light, Dark or **Catppuccin Mocha**. Choosing one
+  device offers it), or pick Light, Dark, **Catppuccin Mocha** or
+  **Cute Femboy** — light blue on white with just enough black to read by. Choosing one
   by name turns dynamic colour off, since a wallpaper overriding your choice
   would make it meaningless.
 - **German and English.** Every user-facing string is a resource with a German

@@ -97,4 +97,6 @@ private fun swatches(theme: AppTheme): List<Color> = when (theme) {
     AppTheme.LIGHT -> listOf(Color(0xFFFFFBFE), Color(0xFF6750A4), Color(0xFF7D5260))
     AppTheme.DARK -> listOf(Color(0xFF1C1B1F), Color(0xFFD0BCFF), Color(0xFFEFB8C8))
     AppTheme.MOCHA -> listOf(Color(0xFF1E1E2E), Color(0xFFCBA6F7), Color(0xFFF5C2E7))
+    // White, the blue it is mostly made of, and the bit of black.
+    AppTheme.FEMBOY -> listOf(Color(0xFFFFFFFF), Color(0xFF3F9FD8), Color(0xFF23262B))
 }

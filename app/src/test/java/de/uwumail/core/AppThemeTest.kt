@@ -1,6 +1,7 @@
 package de.uwumail.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,6 +18,22 @@ class AppThemeTest {
     @Test
     fun `a stored name round-trips`() {
         AppTheme.entries.forEach { assertEquals(it, AppTheme.of(it.name)) }
+    }
+
+    @Test
+    fun `the light themes are not treated as dark ones`() {
+        // isDark drives the window's night mode, which is what a WebView reads
+        // to decide whether to darken a mail body. A light theme darkening the
+        // mail inside it would be the one thing worse than not having it.
+        assertFalse(AppTheme.LIGHT.isDark)
+        assertFalse(AppTheme.FEMBOY.isDark)
+        assertFalse(AppTheme.SYSTEM.isDark)
+    }
+
+    @Test
+    fun `the dark themes are`() {
+        assertTrue(AppTheme.DARK.isDark)
+        assertTrue(AppTheme.MOCHA.isDark)
     }
 
     @Test
