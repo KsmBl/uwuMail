@@ -300,7 +300,9 @@ class SyncManager(
         val clearFlagged = mutableListOf<Long>()
         val toLocal = mutableMapOf<String, MutableList<Long>>()
         val copyToLocal = mutableMapOf<String, MutableList<Long>>()
-        val relocatedUids = mutableSetOf<Long>()
+        // Everything a rule takes out of this folder, by whatever route: moved
+        // on the server, deleted outright, or written to a local folder.
+        val leavingUids = mutableSetOf<Long>()
         val plans = mutableMapOf<Long, RulePlan>()
 
         for (message in fetched) {
@@ -358,14 +360,15 @@ class SyncManager(
                 when {
                     action.type == ActionType.DELETE_PERMANENTLY -> {
                         permanentDeletes += message.uid
-                        relocatedUids += message.uid
+                        leavingUids += message.uid
                     }
                     action.type == ActionType.MOVE_TO_LOCAL && action.arg != null -> {
                         toLocal.getOrPut(action.arg) { mutableListOf() } += message.uid
+                        leavingUids += message.uid
                     }
                     target != null -> {
                         moves.getOrPut(target) { mutableListOf() } += message.uid
-                        relocatedUids += message.uid
+                        leavingUids += message.uid
                     }
                 }
             }
@@ -382,7 +385,14 @@ class SyncManager(
                     }
             }
 
-            db.messageDao().insert(entity.copy(rulesApplied = true))
+            // The rules have finished with this message before it is written,
+            // so one they filed elsewhere goes in hidden rather than appearing
+            // in this folder and being taken out again a round trip later. The
+            // row still has to exist: the notification below and the copy into
+            // a local folder both find the message by its uid.
+            db.messageDao().insert(
+                entity.copy(rulesApplied = true, pendingRemoval = message.uid in leavingUids)
+            )
 
             if (plan.matched) {
                 val at = System.currentTimeMillis()
@@ -404,6 +414,9 @@ class SyncManager(
         }
 
         // Server-side effects, batched per target so one IMAP round trip covers many mails.
+        // What the server actually took is collected as it goes: a move it refused
+        // has to leave the message where it is.
+        val departed = mutableSetOf<Long>()
         runCatching {
             pool.use(account.id) { client ->
                 if (markSeen.isNotEmpty()) client.setFlags(folder.path, markSeen, Flags.Flag.SEEN, true)
@@ -411,8 +424,15 @@ class SyncManager(
                 if (setFlagged.isNotEmpty()) client.setFlags(folder.path, setFlagged, Flags.Flag.FLAGGED, true)
                 if (clearFlagged.isNotEmpty()) client.setFlags(folder.path, clearFlagged, Flags.Flag.FLAGGED, false)
                 copies.forEach { (target, uids) -> runCatching { client.copyMessages(folder.path, uids, target) } }
-                moves.forEach { (target, uids) -> runCatching { client.moveMessages(folder.path, uids, target) } }
-                if (permanentDeletes.isNotEmpty()) client.deleteMessages(folder.path, permanentDeletes)
+                moves.forEach { (target, uids) ->
+                    if (runCatching { client.moveMessages(folder.path, uids, target) }.isSuccess) {
+                        departed += uids
+                    }
+                }
+                if (permanentDeletes.isNotEmpty()) {
+                    client.deleteMessages(folder.path, permanentDeletes)
+                    departed += permanentDeletes
+                }
             }
         }
 
@@ -422,20 +442,30 @@ class SyncManager(
             notifyFor(account, folder, fetched, plans)
         }
 
-        // Rows for relocated mail belong to the target folder, which will pick them
-        // up on its next sync; drop the copies sitting in this folder's cache.
-        if (relocatedUids.isNotEmpty()) {
-            db.messageDao().deleteUids(folder.id, relocatedUids.toList())
-        }
-
-        // Local copies are taken before the moves, so a message that a rule both
-        // copies and moves still has a server copy to download here.
+        // The local transfers come first, while the rows a rule is taking off the
+        // server are still here to be read: a message that a rule both copies to
+        // the device and moves away has to be downloaded before it goes.
         copyToLocal.forEach { (localName, uids) ->
             runCatching { copyUidsToLocal(account, folder, uids, localName) }
         }
 
         toLocal.forEach { (localName, uids) ->
             runCatching { moveUidsToLocal(account, folder, uids, localName) }
+        }
+
+        // Rows for mail the server moved belong to the folder it went to, which
+        // will pick them up on its next sync; drop the copies sitting here.
+        if (departed.isNotEmpty()) {
+            db.messageDao().deleteUids(folder.id, departed.toList())
+        }
+
+        // Anything still in this folder that was hidden on the way in never got
+        // where it was going — a move the server refused, or a download that
+        // failed — so it is shown here instead. A row left hidden would be mail
+        // that had arrived, been filed nowhere, and vanished on the way.
+        val stranded = leavingUids - departed
+        if (stranded.isNotEmpty()) {
+            db.messageDao().clearPendingRemoval(folder.id, stranded.toList())
         }
     }
 
@@ -591,13 +621,6 @@ class SyncManager(
     }
 
     /**
-     * Puts back anything that was hidden when the process last died.
-     *
-     * A row is hidden before its removal is attempted, so a crash — or a swipe
-     * a moment before the app was killed — would otherwise leave mail present
-     * but invisible, with nothing left running to finish the job.
-     */
-    /**
      * Fills in the conversation of every message cached before threading
      * existed.
      *
@@ -624,6 +647,13 @@ class SyncManager(
         }
     }
 
+    /**
+     * Puts back anything that was hidden when the process last died.
+     *
+     * A row is hidden before its removal is attempted — by a swipe, or by a
+     * rule filing new mail elsewhere — so a crash would otherwise leave mail
+     * present but invisible, with nothing left running to finish the job.
+     */
     suspend fun releaseAbandonedRemovals() {
         db.messageDao().clearPendingRemovals()
         db.folderDao().refreshAllCounts()
@@ -1189,7 +1219,10 @@ class SyncManager(
             folderId = target.id,
             uid = nextLocalUid(target.id),
             isLocal = true,
-            rawFilePath = file.absolutePath
+            rawFilePath = file.absolutePath,
+            // It has arrived. Carrying the source row's hidden flag across would
+            // leave it in the local folder and in no list.
+            pendingRemoval = false
         )
     }
 
@@ -1205,7 +1238,8 @@ class SyncManager(
             message.copy(
                 folderId = target.id,
                 uid = nextLocalUid(target.id),
-                rawFilePath = moved?.absolutePath ?: message.rawFilePath
+                rawFilePath = moved?.absolutePath ?: message.rawFilePath,
+                pendingRemoval = false
             )
         )
         db.folderDao().refreshCounts(message.folderId)
@@ -1224,7 +1258,8 @@ class SyncManager(
             folderId = target.id,
             uid = nextLocalUid(target.id),
             isLocal = true,
-            rawFilePath = to.absolutePath
+            rawFilePath = to.absolutePath,
+            pendingRemoval = false
         )
     }
 

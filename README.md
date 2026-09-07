@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-486%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-495%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -147,6 +147,15 @@ notify**, notify silently, notify with high priority.
 Rules run during sync, before any notification is posted, and the server-side
 effects are batched per folder. A rule can be scoped to one account and/or one
 folder and told to stop later rules from running.
+
+**New mail is not drawn until the rules have finished with it.** A message
+bound for the bin or for a folder of its own used to be written into the folder
+it arrived in, shown there, and taken out again once the round trip that moved
+it came back — so opening the inbox mid-sync flashed up mail that a rule had
+already filed. It now goes in hidden, the way anything on its way out of a
+folder does, and appears only where it ends up. If the server refuses the move,
+the message comes back into view where it arrived rather than being left present
+but invisible.
 
 The Rules screen lists them **in the order they run**, numbered, with the ones
 that stop processing marked — order is what explains a rule not firing far more
@@ -607,7 +616,7 @@ to read and to run rules against.
 
 ## Tests
 
-486 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+495 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -667,6 +676,10 @@ to read and to run rules against.
 - `sync/` — a row put back when its removal did nothing, mail kept when the
   server would not delete it, the outbox holding a message that could not be
   sent and counting its attempts, and the `\Answered` flag.
+- `sync/RuleIngestVisibilityTest` — that mail a rule is filing elsewhere is in
+  no list, no unified list and no badge while it is on its way, is still
+  reachable by uid for the notification and the local copy that need it, and
+  comes back into view in the folder it arrived in when the move never happened.
 - `notify/NotificationSummaryTest` — when an account's notifications are worth
   gathering under one line, counted from what is standing in the shade rather
   than from one sync's worth of arrivals.

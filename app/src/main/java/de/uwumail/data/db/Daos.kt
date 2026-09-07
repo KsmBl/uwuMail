@@ -446,6 +446,10 @@ interface MessageDao {
     @Query("UPDATE messages SET pendingRemoval = :pending WHERE id IN (:ids)")
     suspend fun setPendingRemoval(ids: List<Long>, pending: Boolean)
 
+    /** Shows mail again by uid, for a folder-sync relocation the server refused. */
+    @Query("UPDATE messages SET pendingRemoval = 0 WHERE folderId = :folderId AND uid IN (:uids)")
+    suspend fun clearPendingRemoval(folderId: Long, uids: List<Long>)
+
     /** Un-hides everything left hidden by a removal that never finished. */
     @Query("UPDATE messages SET pendingRemoval = 0 WHERE pendingRemoval = 1")
     suspend fun clearPendingRemovals()
