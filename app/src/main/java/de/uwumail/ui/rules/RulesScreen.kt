@@ -7,6 +7,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -55,6 +65,8 @@ fun RulesScreen(
     val rules by container.db.ruleDao().observeAll().collectAsState(initial = emptyList())
     val log by container.db.ruleDao().observeLog(40).collectAsState(initial = emptyList())
     var pendingDelete by remember { mutableStateOf<RuleWithDetails?>(null) }
+    var tab by remember { mutableStateOf(0) }
+    val copySuffix = stringResource(R.string.rules_copy_suffix)
 
     Scaffold(
         topBar = {
@@ -71,88 +83,108 @@ fun RulesScreen(
             FloatingActionButton(onClick = onCreate) { Icon(Icons.Default.Add, stringResource(R.string.new_rule)) }
         }
     ) { padding ->
-        LazyColumn(Modifier.padding(padding).fillMaxSize()) {
-            if (rules.isEmpty()) {
-                item {
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            // The log used to sit under the rules in the same scroll, so forty
+            // entries of history buried the handful of things anyone came here
+            // to change. They answer different questions and now sit apart.
+            PrimaryTabRow(selectedTabIndex = tab) {
+                Tab(
+                    selected = tab == 0,
+                    onClick = { tab = 0 },
+                    text = { Text(stringResource(R.string.rules_tab_rules)) }
+                )
+                Tab(
+                    selected = tab == 1,
+                    onClick = { tab = 1 },
+                    text = { Text(stringResource(R.string.rules_tab_activity)) }
+                )
+            }
+
+            if (tab == 1) {
+                if (log.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         EmptyState(
-                            stringResource(R.string.rules_none),
-                            stringResource(R.string.rules_none_hint)
+                            stringResource(R.string.rules_log_none),
+                            stringResource(R.string.rules_log_none_hint)
                         )
+                    }
+                } else {
+                    LazyColumn(Modifier.fillMaxSize()) {
+                        items(log, key = { it.id }) { entry ->
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        entry.subject.ifBlank { stringResource(R.string.no_subject) },
+                                        maxLines = 1
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        "${entry.ruleName} → ${entry.actionsTaken}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                },
+                                trailingContent = {
+                                    Text(
+                                        formatListDate(entry.at),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            )
+                            HorizontalDivider(thickness = 0.5.dp)
+                        }
                     }
                 }
+                return@Column
             }
 
-            items(rules, key = { it.rule.id }) { entry ->
-                ListItem(
-                    modifier = Modifier.clickable { onEdit(entry.rule.id) },
-                    headlineContent = { Text(entry.rule.name) },
-                    supportingContent = {
-                        Column {
-                            Text(
-                                describeConditions(entry),
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 2
-                            )
-                            Text(
-                                describeActions(entry),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            if (entry.rule.matchCount > 0) {
-                                Text(
-                                    "matched ${entry.rule.matchCount}× · last " +
-                                        formatListDate(entry.rule.lastMatchedAt ?: 0),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    },
-                    leadingContent = {
-                        Switch(
-                            checked = entry.rule.enabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    container.db.ruleDao()
-                                        .updateRule(entry.rule.copy(enabled = enabled))
-                                }
-                            }
-                        )
-                    },
-                    trailingContent = {
-                        IconButton(onClick = { pendingDelete = entry }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                stringResource(R.string.rules_delete),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                )
-                HorizontalDivider()
-            }
-
-            if (log.isNotEmpty()) {
-                item { SectionHeader(stringResource(R.string.rules_activity)) }
-                items(log, key = { it.id }) { entry ->
-                    ListItem(
-                        headlineContent = {
-                            Text(entry.subject.ifBlank { stringResource(R.string.no_subject) }, maxLines = 1)
-                        },
-                        supportingContent = {
-                            Text(
-                                "${entry.ruleName} → ${entry.actionsTaken}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        },
-                        trailingContent = {
-                            Text(
-                                formatListDate(entry.at),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+            if (rules.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    EmptyState(
+                        stringResource(R.string.rules_none),
+                        stringResource(R.string.rules_none_hint)
                     )
+                }
+                return@Column
+            }
+
+            if (rules.size > 1) {
+                Text(
+                    stringResource(R.string.rules_order_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            LazyColumn(Modifier.fillMaxSize()) {
+                itemsIndexed(rules, key = { _, it -> it.rule.id }) { index, entry ->
+                    RuleRow(
+                        entry = entry,
+                        position = index + 1,
+                        canMoveUp = index > 0,
+                        canMoveDown = index < rules.lastIndex,
+                        showOrder = rules.size > 1,
+                        onOpen = { onEdit(entry.rule.id) },
+                        onToggle = { enabled ->
+                            scope.launch {
+                                container.db.ruleDao()
+                                    .updateRule(entry.rule.copy(enabled = enabled))
+                            }
+                        },
+                        onMove = { delta ->
+                            scope.launch {
+                                val reordered = rules.map { it.rule }.toMutableList()
+                                reordered.add(index + delta, reordered.removeAt(index))
+                                container.db.ruleDao().renumber(reordered)
+                            }
+                        },
+                        onDuplicate = {
+                            scope.launch { container.db.ruleDao().duplicate(entry, copySuffix) }
+                        },
+                        onDelete = { pendingDelete = entry }
+                    )
+                    HorizontalDivider()
                 }
             }
         }
@@ -160,7 +192,7 @@ fun RulesScreen(
 
     pendingDelete?.let { entry ->
         ConfirmDialog(
-            title = "Delete \"${entry.rule.name}\"?",
+            title = stringResource(R.string.rules_delete_q, entry.rule.name),
             message = stringResource(R.string.rules_delete_body),
             confirmLabel = stringResource(R.string.delete),
             destructive = true,
@@ -168,6 +200,121 @@ fun RulesScreen(
             onDismiss = { pendingDelete = null }
         )
     }
+}
+
+/**
+ * One rule, as a line that says what it does and where it sits.
+ *
+ * The number is the order it runs in, which is the thing that explains a rule
+ * misbehaving more often than the rule itself does: an earlier one that stops
+ * processing means a later one never runs at all.
+ */
+@Composable
+private fun RuleRow(
+    entry: RuleWithDetails,
+    position: Int,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    showOrder: Boolean,
+    onOpen: () -> Unit,
+    onToggle: (Boolean) -> Unit,
+    onMove: (Int) -> Unit,
+    onDuplicate: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menu by remember { mutableStateOf(false) }
+    ListItem(
+        modifier = Modifier.clickable(onClick = onOpen),
+        leadingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (showOrder) {
+                    Text(
+                        position.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+                Switch(checked = entry.rule.enabled, onCheckedChange = onToggle)
+            }
+        },
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(entry.rule.name, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                if (entry.rule.stopProcessing) {
+                    Text(
+                        "  " + stringResource(R.string.rules_stops_here),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    describeConditions(entry),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2
+                )
+                Text(
+                    describeActions(entry),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (entry.rule.matchCount > 0) {
+                    Text(
+                        stringResource(
+                            R.string.rules_matched_summary,
+                            entry.rule.matchCount,
+                            formatListDate(entry.rule.lastMatchedAt ?: 0)
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        trailingContent = {
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Default.MoreVert, stringResource(R.string.more))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.move_up)) },
+                        enabled = canMoveUp,
+                        leadingIcon = { Icon(Icons.Default.ArrowUpward, null) },
+                        onClick = { menu = false; onMove(-1) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.move_down)) },
+                        enabled = canMoveDown,
+                        leadingIcon = { Icon(Icons.Default.ArrowDownward, null) },
+                        onClick = { menu = false; onMove(1) }
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.rules_duplicate)) },
+                        leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                        onClick = { menu = false; onDuplicate() }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(R.string.rules_delete),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                        },
+                        onClick = { menu = false; onDelete() }
+                    )
+                }
+            }
+        }
+    )
 }
 
 @Composable
@@ -181,7 +328,12 @@ private fun describeConditions(entry: RuleWithDetails): String {
     val headerLabel = stringResource(R.string.rule_header_prefix)
     val none = stringResource(R.string.rule_no_conditions)
     val parts = entry.conditions.map { condition ->
-        val field = condition.headerName?.let { "$headerLabel $it" } ?: condition.field.lowercase()
+        // The label the editor uses, in the reader's own language, rather than
+        // the enum constant lowercased — "to_or_cc" is not a phrase.
+        val field = condition.headerName?.let { "$headerLabel $it" }
+            ?: runCatching {
+                stringResource(de.uwumail.core.RuleField.valueOf(condition.field).label)
+            }.getOrDefault(condition.field.lowercase())
         val operator = runCatching {
             stringResource(de.uwumail.core.RuleOperator.valueOf(condition.operator).label)
         }.getOrDefault(condition.operator.lowercase())

@@ -540,6 +540,20 @@ interface RuleDao {
     @Query("DELETE FROM rule_actions WHERE ruleId = :ruleId")
     suspend fun clearActions(ruleId: Long)
 
+    /**
+     * Writes the order rules run in.
+     *
+     * Renumbered from the top rather than swapping a pair: the priorities that
+     * arrive here are whatever previous versions and hand-edited rules left
+     * behind, and two rules sharing one number have no defined order at all.
+     */
+    @Transaction
+    suspend fun renumber(ordered: List<RuleEntity>) {
+        ordered.forEachIndexed { index, rule ->
+            if (rule.priority != index) updateRule(rule.copy(priority = index))
+        }
+    }
+
     @Query("UPDATE rules SET matchCount = matchCount + 1, lastMatchedAt = :at WHERE id = :id")
     suspend fun recordMatch(id: Long, at: Long)
 
@@ -551,6 +565,30 @@ interface RuleDao {
 
     @Query("DELETE FROM rule_log WHERE at < :before")
     suspend fun pruneLog(before: Long)
+
+    /**
+     * Copies a rule whole, disabled.
+     *
+     * Off to begin with because the commonest reason to copy one is to change
+     * it into something else, and two identical rules both running is not what
+     * anybody meant by "duplicate".
+     */
+    @Transaction
+    suspend fun duplicate(entry: RuleWithDetails, suffix: String): Long {
+        val id = insertRule(
+            entry.rule.copy(
+                id = 0,
+                name = "${entry.rule.name} $suffix",
+                enabled = false,
+                matchCount = 0,
+                lastMatchedAt = null,
+                createdAt = System.currentTimeMillis()
+            )
+        )
+        insertConditions(entry.conditions.map { it.copy(id = 0, ruleId = id) })
+        insertActions(entry.actions.map { it.copy(id = 0, ruleId = id) })
+        return id
+    }
 
     @Transaction
     suspend fun replaceRule(

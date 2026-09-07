@@ -715,4 +715,14 @@
         <item quantity="one">Erfasst %1$d von %2$d Nachrichten auf diesem Gerät</item>
         <item quantity="other">Erfasst %1$d von %2$d Nachrichten auf diesem Gerät</item>
     </plurals>
+    <string name="rules_tab_rules">Regeln</string>
+    <string name="rules_tab_activity">Verlauf</string>
+    <string name="rules_log_none">Bisher ist nichts passiert</string>
+    <string name="rules_log_none_hint">Was deine Regeln mit eintreffender Mail machen, steht hier.</string>
+    <string name="rules_order_hint">Regeln laufen von oben nach unten. Eine, die die Verarbeitung stoppt, verhindert alle darunter.</string>
+    <string name="rules_stops_here">stoppt hier</string>
+    <string name="rules_duplicate">Duplizieren</string>
+    <string name="rules_copy_suffix">(Kopie)</string>
+    <string name="rules_delete_q">\"%1$s\" löschen?</string>
+    <string name="rules_matched_summary">%1$d mal getroffen · zuletzt %2$s</string>
 </resources>

@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-477%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-486%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -146,8 +146,22 @@ notify**, notify silently, notify with high priority.
 
 Rules run during sync, before any notification is posted, and the server-side
 effects are batched per folder. A rule can be scoped to one account and/or one
-folder, given a priority, and told to stop later rules from running. Everything a
-rule does is written to an activity log you can read on the Rules screen.
+folder and told to stop later rules from running.
+
+The Rules screen lists them **in the order they run**, numbered, with the ones
+that stop processing marked — order is what explains a rule not firing far more
+often than the rule itself does, and it used to be invisible. Rules can be moved
+up and down, duplicated (the copy arrives switched off, since two identical rules
+both running is not what anybody meant), and switched on and off in place.
+**Activity** is a tab of its own rather than forty entries of history under the
+handful of things anyone came to change.
+
+**See what a rule catches before saving it.** Both the wizard and the manual
+editor could only say "matches 312 of 1,240", which is a number to be trusted
+rather than a thing to be checked. *Show what this catches* lists the actual
+messages, from every folder, with the mailbox each sits in — and in the wizard
+the ones you picked are marked, so it is clear which of the list was asked for
+and which the rule went and found on its own.
 
 <details>
 <summary><b>Building a rule without knowing regex</b></summary>
@@ -593,7 +607,7 @@ to read and to run rules against.
 
 ## Tests
 
-477 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+486 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
