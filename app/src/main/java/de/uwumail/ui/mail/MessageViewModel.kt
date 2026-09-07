@@ -211,6 +211,19 @@ class MessageViewModel(
         return runCatching { file.readBytes() to attachment.mimeType }.getOrNull()
     }
 
+    /**
+     * Grows or shrinks the text of a message by a pinch of [factor].
+     *
+     * Written to the settings rather than held on the screen: it is a way of
+     * reading rather than a property of one message, and pinching every mail
+     * open again would be worse than the small text was.
+     */
+    fun zoomBy(factor: Float) {
+        container.settings.update {
+            it.copy(readerTextZoom = AppSettings.zoomedBy(it.readerTextZoom, factor))
+        }
+    }
+
     fun toggleHtml() = local.update { it.copy(showHtml = !it.showHtml) }
     fun showRemoteImages() = local.update { it.copy(imagesUnblocked = true) }
     fun toggleGravity() = local.update { it.copy(gravity = !it.gravity) }

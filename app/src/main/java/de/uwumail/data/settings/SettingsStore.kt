@@ -41,6 +41,7 @@ class SettingsStore(context: Context) {
             putString(SWIPE_LEFT, next.swipeLeft.name)
             putInt(SWIPE_THRESHOLD, next.swipeThresholdPercent)
             putBoolean(CONVERSATIONS, next.groupIntoConversations)
+            putInt(TEXT_ZOOM, next.readerTextZoom)
             putBoolean(GRAVITY, next.gravityUnlocked)
             putBoolean(WINDOW_ON, next.syncWindowEnabled)
             putStringSet(WINDOW_DAYS, next.syncDays.map(Int::toString).toSet())
@@ -72,6 +73,9 @@ class SettingsStore(context: Context) {
             groupIntoConversations = prefs.getBoolean(
                 CONVERSATIONS, defaults.groupIntoConversations
             ),
+            readerTextZoom = AppSettings.clampTextZoom(
+                prefs.getInt(TEXT_ZOOM, defaults.readerTextZoom)
+            ),
             gravityUnlocked = prefs.getBoolean(GRAVITY, defaults.gravityUnlocked),
             syncWindowEnabled = prefs.getBoolean(WINDOW_ON, defaults.syncWindowEnabled),
             syncDays = prefs.getStringSet(WINDOW_DAYS, null)
@@ -97,6 +101,7 @@ class SettingsStore(context: Context) {
         const val SWIPE_LEFT = "swipe_left_action"
         const val SWIPE_THRESHOLD = "swipe_threshold_percent"
         const val CONVERSATIONS = "group_into_conversations"
+        const val TEXT_ZOOM = "reader_text_zoom"
         const val GRAVITY = "gravity_unlocked"
         const val WINDOW_ON = "sync_window_enabled"
         const val WINDOW_DAYS = "sync_window_days"

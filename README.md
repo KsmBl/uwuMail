@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-463%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-477%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -88,6 +88,13 @@ each one starts where it is described.
 - **Inline pictures** — the ones a message carries with it, referenced as
   `cid:` — always show. They arrived with the mail, cost no request, and tell
   the sender nothing, so the remote-image setting does not hold them back.
+- **Pinch a message to resize its text.** The pinch is taken anywhere in the
+  message rather than only over the body, since a two-line mail leaves nowhere
+  to put two fingers, and it changes the text size rather than scaling the page
+  — so the words reflow to the width of the screen instead of running off the
+  side of it. The size is remembered, because it is a way of reading rather than
+  a property of one message. One finger still scrolls and still swipes to the
+  next message: nothing is claimed from a gesture until a second finger is down.
 - **Mail is darkened** to match a dark theme: bodies with no dark styling of
   their own are darkened by the WebView, and senders who wrote
   `prefers-color-scheme` styling get to use it instead.
@@ -586,7 +593,7 @@ to read and to run rules against.
 
 ## Tests
 
-463 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+477 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the

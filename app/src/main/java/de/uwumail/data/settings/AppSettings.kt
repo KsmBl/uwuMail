@@ -32,6 +32,17 @@ data class AppSettings(
     val minImageWidth: Int = 10,
     val minImageHeight: Int = 10,
 
+    /**
+     * How large mail is drawn, as a percentage of its normal size.
+     *
+     * Pinching a message changes this rather than scaling the page, so the text
+     * reflows to the width of the screen instead of running off the side of it.
+     * Kept as a setting because it is a way of reading, not a property of one
+     * message: having to pinch every mail open would be worse than the small
+     * text was.
+     */
+    val readerTextZoom: Int = DEFAULT_TEXT_ZOOM,
+
     /** Which colours the app wears. */
     val theme: AppTheme = AppTheme.SYSTEM,
 
@@ -84,6 +95,9 @@ data class AppSettings(
     val swipeThresholdFraction: Float
         get() = clampSwipePercent(swipeThresholdPercent) / 100f
 
+    /** [readerTextZoom] as the multiplier the plain-text view scales by. */
+    val readerTextScale: Float get() = clampTextZoom(readerTextZoom) / 100f
+
     /** What a message body is allowed to fetch, as the image code wants it. */
     fun imagePolicy() = de.uwumail.mail.RemoteImagePolicy(
         filterTiny = filterTinyImages,
@@ -127,6 +141,30 @@ data class AppSettings(
 
         fun clampSwipePercent(percent: Int): Int =
             percent.coerceIn(MIN_SWIPE_PERCENT, MAX_SWIPE_PERCENT)
+
+        const val DEFAULT_TEXT_ZOOM = 100
+
+        /**
+         * How small and how large mail may be drawn.
+         *
+         * Below the minimum it cannot be read at all, which makes the pinch
+         * that got there hard to reverse; above the maximum a single word fills
+         * the screen.
+         */
+        const val MIN_TEXT_ZOOM = 50
+        const val MAX_TEXT_ZOOM = 300
+
+        fun clampTextZoom(percent: Int): Int =
+            percent.coerceIn(MIN_TEXT_ZOOM, MAX_TEXT_ZOOM)
+
+        /**
+         * The zoom a pinch of [factor] arrives at from [from].
+         *
+         * Rounded to whole percent so the value settles rather than drifting
+         * through fractions, and held inside the range at both ends.
+         */
+        fun zoomedBy(from: Int, factor: Float): Int =
+            clampTextZoom(Math.round(clampTextZoom(from) * factor))
 
         val ALL_DAYS: Set<Int> = (Calendar.SUNDAY..Calendar.SATURDAY).toSet()
 

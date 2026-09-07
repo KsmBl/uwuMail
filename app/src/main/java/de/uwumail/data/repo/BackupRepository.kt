@@ -80,6 +80,7 @@ class BackupRepository(
             .put("swipeLeft", current.swipeLeft.name)
             .put("swipeThresholdPercent", current.swipeThresholdPercent)
             .put("groupIntoConversations", current.groupIntoConversations)
+            .put("readerTextZoom", current.readerTextZoom)
             .put("syncWindowEnabled", current.syncWindowEnabled)
             .put("syncDays", JSONArray(current.syncDays.toList()))
             .put("syncStartMinutes", current.syncStartMinutes)
@@ -169,6 +170,9 @@ class BackupRepository(
         ),
         groupIntoConversations = json.optBoolean(
             "groupIntoConversations", groupIntoConversations
+        ),
+        readerTextZoom = AppSettings.clampTextZoom(
+            json.optInt("readerTextZoom", readerTextZoom)
         ),
         syncWindowEnabled = json.optBoolean("syncWindowEnabled", syncWindowEnabled),
         syncDays = json.optJSONArray("syncDays")?.let { days ->

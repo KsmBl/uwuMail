@@ -365,6 +365,10 @@ fun MessageScreen(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState(), enabled = !state.gravity)
+                // The whole message, not only the body: a two-line mail leaves
+                // a body far too small to get two fingers into, and the header
+                // and attachments are part of what is being read anyway.
+                .pinchToZoom(enabled = !state.gravity, onZoom = viewModel::zoomBy)
         ) {
             state.unsubscribe?.let { target ->
                 UnsubscribeBanner(target) { follow(target.url) }
@@ -510,6 +514,7 @@ fun MessageScreen(
                     onLink = ::follow,
                     inlineImage = viewModel::inlineImage,
                     darkTheme = isSystemInDarkTheme() || state.settings.theme.isDark,
+                    textZoom = state.settings.readerTextZoom,
                     handOverGlyphs = state.gravity,
                     glyphLimit = MAX_GRAVITY_LETTERS,
                     onGlyphs = { lifted["3body"] = it }
@@ -517,7 +522,14 @@ fun MessageScreen(
             } else {
                 FallingText(
                     text = plain.ifBlank { if (state.loading) stringResource(R.string.loading) else stringResource(R.string.empty_message) },
-                    style = MaterialTheme.typography.bodyMedium,
+                    // Plain text is scaled the same way the WebView scales its
+                    // own, so switching between the two keeps the size.
+                    style = MaterialTheme.typography.bodyMedium.let { base ->
+                        base.copy(
+                            fontSize = base.fontSize * state.settings.readerTextScale,
+                            lineHeight = base.lineHeight * state.settings.readerTextScale
+                        )
+                    },
                     color = MaterialTheme.colorScheme.onSurface,
                     handOverGlyphs = state.gravity,
                     glyphLimit = MAX_GRAVITY_LETTERS,

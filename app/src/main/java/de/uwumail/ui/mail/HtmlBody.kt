@@ -57,6 +57,8 @@ fun HtmlBody(
     onLink: (String) -> Unit,
     inlineImage: suspend (String) -> Pair<ByteArray, String>? = { null },
     darkTheme: Boolean = false,
+    /** Text size as a percentage of normal; see [de.uwumail.data.settings.AppSettings]. */
+    textZoom: Int = 100,
     handOverGlyphs: Boolean = false,
     glyphLimit: Int = 0,
     onGlyphs: (List<FallingPiece>) -> Unit = {}
@@ -174,7 +176,11 @@ fun HtmlBody(
                 }
                 settings.allowFileAccess = false
                 settings.allowContentAccess = false
-                settings.builtInZoomControls = true
+                // The page itself does not scale: a pinch changes the text size
+                // instead, so the words reflow to the width of the screen
+                // rather than running off the side of it. Leaving both on would
+                // have them fighting over the same gesture.
+                settings.builtInZoomControls = false
                 settings.displayZoomControls = false
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = true
@@ -184,6 +190,9 @@ fun HtmlBody(
             }
         },
         update = { web ->
+            // Applied before the early return below: the zoom changes far more
+            // often than the body does, and must not wait for a reload.
+            web.settings.textZoom = textZoom
             val stamp = Triple(html to darkTheme, allowRemoteImages, allowJavaScript)
             if (loaded.value == stamp) return@AndroidView
             web.settings.javaScriptEnabled = allowJavaScript
