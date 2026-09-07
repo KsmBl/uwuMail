@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-371%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-381%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -281,6 +281,11 @@ have.
   the actions that empty the row carry it off the screen — the toggles spring
   back, since the row is still there — and permanent deletion asks first,
   because a swipe is far too easy to do by accident for something irreversible.
+- **Tap a day heading to take that whole day.** It is the grouping the list
+  already draws, so it doubles as the handle for everything under it. The
+  heading wears the selected colour while its day is entirely picked out, and
+  tapping it again gives that day back and nothing else. A day only partly
+  picked out is finished rather than undone.
 - **Hold and drag to pick out many.** A long press starts the selection and
   keeps it under the finger: everything dragged over joins it, dragging back
   towards where it started gives those up again, and anything picked out before
@@ -525,7 +530,7 @@ to read and to run rules against.
 
 ## Tests
 
-371 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+381 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -560,8 +565,9 @@ to read and to run rules against.
 - `ui/` — day grouping of the message list, `[mailbox] folder` labelling, the
   order swiping between messages follows, what counts as a message already being
   in the bin, how a bin-bound swipe and a mixed selection are each resolved, and
-  the three sums behind dragging a selection: which row is under the finger,
-  which range that reaches, and how fast an edge scrolls.
+  the three sums behind dragging a selection — which row is under the finger,
+  which range that reaches, and how fast an edge scrolls — and taking a whole
+  day from its heading without disturbing the days either side of it.
 - `ui/NavigationGuardTest` — runs a real NavHost under Robolectric and asserts
   the back stack can never be emptied by a second tap on a screen already left.
   A blank, unresponsive window is not something a test over pure functions can

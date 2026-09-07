@@ -658,4 +658,5 @@
         <item quantity="other">Diese %1$d Nachrichten sind bereits im Papierkorb. Beim Löschen werden sie vom Server entfernt und können nicht wiederhergestellt werden.</item>
     </plurals>
     <string name="trash_confirm_mixed">%1$d bereits im Papierkorb werden endgültig vom Server gelöscht, die anderen %2$d wandern in den Papierkorb. Das Löschen lässt sich nicht rückgängig machen.</string>
+    <string name="select_day">Diesen Tag auswählen</string>
 </resources>

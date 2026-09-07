@@ -610,7 +610,14 @@ fun MailScreen(
                             stickyHeader(
                                 key = section.dayStart,
                                 contentType = DAY_HEADER
-                            ) { DayHeader(section.label) }
+                            ) {
+                                val ids = remember(section) { section.messages.map { it.id } }
+                                DayHeader(
+                                    label = section.label,
+                                    allSelected = state.selection.containsAll(ids),
+                                    onClick = { viewModel.toggleDay(ids) }
+                                )
+                            }
                             // The content types tell the list that a heading and
                             // a row are different things, so it reuses each kind
                             // for its own kind instead of rebuilding whatever it
@@ -844,20 +851,46 @@ private fun SelectionAppBar(
 /**
  * The date a run of messages arrived on, pinned to the top of the list while
  * that day is on screen so a long scroll always says which day it is showing.
+ *
+ * It is also the handle for the whole day: a day is the grouping the list
+ * already draws, so the line naming it is where anyone reaches to take the lot.
+ * It wears the selected colour once its day is entirely picked out, which is
+ * both the confirmation and the invitation to tap again and give it back.
  */
 @Composable
-private fun DayHeader(label: String) {
+private fun DayHeader(label: String, allSelected: Boolean, onClick: () -> Unit) {
+    val haptics = rememberHaptics()
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        modifier = Modifier.fillMaxWidth()
+        color = if (allSelected) MaterialTheme.colorScheme.secondaryContainer
+        else MaterialTheme.colorScheme.surfaceContainerHighest,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = stringResource(R.string.select_day)) {
+                haptics.confirm()
+                onClick()
+            }
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-        )
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (allSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            if (allSelected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
     }
 }
 

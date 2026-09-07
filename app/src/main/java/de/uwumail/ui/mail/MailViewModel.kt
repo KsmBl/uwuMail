@@ -392,6 +392,19 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         selection.value = base + rangeBetween(ids, anchor, through)
     }
 
+    /**
+     * Picks out a whole day at once, or gives it back when it is already all
+     * picked out.
+     *
+     * A day's mail is the one grouping the list already draws, so the heading
+     * over it is the obvious place to reach for all of it. Toggling means the
+     * same tap undoes a day taken by mistake, and only that day: anything
+     * picked out elsewhere is left where it is.
+     */
+    fun toggleDay(ids: List<Long>) {
+        selection.update { withDayToggled(it, ids) }
+    }
+
     fun selectAll() {
         selection.value = state.value.messages.map { it.id }.toSet()
     }
@@ -626,6 +639,18 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
          * has to come from the server.
          */
         fun canWiden(shown: Int, window: Int): Boolean = shown >= window
+
+        /**
+         * A day's worth of ids added to [current], or taken out of it when
+         * every one of them is in there already.
+         *
+         * A day half picked out is treated as not picked out: the tap that
+         * follows a few individual ones should finish the job rather than
+         * undo them.
+         */
+        fun withDayToggled(current: Set<Long>, day: List<Long>): Set<Long> =
+            if (day.isNotEmpty() && current.containsAll(day)) current - day.toSet()
+            else current + day
 
         private const val PAGE = 300
 

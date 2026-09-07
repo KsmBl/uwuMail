@@ -660,4 +660,5 @@
         <item quantity="other">These %1$d messages are already in the bin. Deleting them removes them from the server, and cannot be undone.</item>
     </plurals>
     <string name="trash_confirm_mixed">%1$d already in the bin will be deleted from the server for good; the other %2$d will be moved to the bin. Deleting cannot be undone.</string>
+    <string name="select_day">Select this day</string>
 </resources>
