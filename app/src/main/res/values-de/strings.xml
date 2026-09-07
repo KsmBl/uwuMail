@@ -650,4 +650,7 @@
         <item quantity="one">%1$s hat %2$d Nachricht nicht angenommen; sie bleibt unberührt</item>
         <item quantity="other">%1$s hat %2$d Nachrichten nicht angenommen; sie bleiben unberührt</item>
     </plurals>
+    <string name="swipe_distance">Wischweite</string>
+    <string name="swipe_distance_value">%1$d%%</string>
+    <string name="swipe_distance_sub">Wie weit ein Wischen über den Bildschirm gehen muss, damit es zählt. Weniger geht schneller, mehr passiert seltener aus Versehen.</string>
 </resources>

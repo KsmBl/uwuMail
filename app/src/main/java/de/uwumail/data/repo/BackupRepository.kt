@@ -78,6 +78,7 @@ class BackupRepository(
             .put("theme", current.theme.name)
             .put("swipeRight", current.swipeRight.name)
             .put("swipeLeft", current.swipeLeft.name)
+            .put("swipeThresholdPercent", current.swipeThresholdPercent)
             .put("syncWindowEnabled", current.syncWindowEnabled)
             .put("syncDays", JSONArray(current.syncDays.toList()))
             .put("syncStartMinutes", current.syncStartMinutes)
@@ -160,6 +161,11 @@ class BackupRepository(
         theme = de.uwumail.core.AppTheme.of(json.optString("theme")),
         swipeRight = de.uwumail.core.SwipeAction.of(json.optString("swipeRight")),
         swipeLeft = de.uwumail.core.SwipeAction.of(json.optString("swipeLeft")),
+        // Held to the allowed range: a backup from a later version, or one
+        // edited by hand, must not restore a hair-trigger swipe.
+        swipeThresholdPercent = AppSettings.clampSwipePercent(
+            json.optInt("swipeThresholdPercent", swipeThresholdPercent)
+        ),
         syncWindowEnabled = json.optBoolean("syncWindowEnabled", syncWindowEnabled),
         syncDays = json.optJSONArray("syncDays")?.let { days ->
             (0 until days.length()).map { days.optInt(it) }.toSet()

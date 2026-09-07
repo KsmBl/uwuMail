@@ -652,4 +652,7 @@
         <item quantity="one">%1$s did not accept %2$d message; it has been left alone</item>
         <item quantity="other">%1$s did not accept %2$d messages; they have been left alone</item>
     </plurals>
+    <string name="swipe_distance">Swipe distance</string>
+    <string name="swipe_distance_value">%1$d%%</string>
+    <string name="swipe_distance_sub">How far across the screen a swipe must travel before it counts. Lower is quicker; higher is harder to do by accident.</string>
 </resources>

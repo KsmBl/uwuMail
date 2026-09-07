@@ -87,7 +87,9 @@ data class MailUiState(
     val undos: List<Undoable> = emptyList(),
     /** What a swipe across a row does, per direction. */
     val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
-    val swipeLeft: SwipeAction = SwipeAction.SELECT
+    val swipeLeft: SwipeAction = SwipeAction.SELECT,
+    /** How far a swipe must travel to count, as a fraction of the row's width. */
+    val swipeThreshold: Float = AppSettings().swipeThresholdFraction
 ) {
     val inSelectionMode: Boolean get() = selection.isNotEmpty()
 
@@ -195,7 +197,8 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             status = rest.extra.status,
             undos = rest.extra.undos,
             swipeRight = rest.settings.swipeRight,
-            swipeLeft = rest.settings.swipeLeft
+            swipeLeft = rest.settings.swipeLeft,
+            swipeThreshold = rest.settings.swipeThresholdFraction
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MailUiState())
 

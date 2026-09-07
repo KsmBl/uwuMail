@@ -43,6 +43,17 @@ data class AppSettings(
     val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
     val swipeLeft: SwipeAction = SwipeAction.SELECT,
 
+    /**
+     * How far across the row a swipe must travel before it counts, as a
+     * percentage of the screen's width.
+     *
+     * Half by default, which is deliberately a long way: these actions move and
+     * delete mail, and one done by accident costs more than one that had to be
+     * meant. Hands and screens differ though, so it is a setting rather than a
+     * judgement — see [swipeThresholdFraction] for the range it is held to.
+     */
+    val swipeThresholdPercent: Int = DEFAULT_SWIPE_PERCENT,
+
     /** Set by the easter egg; until then the gravity menu entry does not exist. */
     val gravityUnlocked: Boolean = false,
 
@@ -54,6 +65,15 @@ data class AppSettings(
     val syncStartMinutes: Int = 6 * 60,
     val syncEndMinutes: Int = 18 * 60
 ) {
+
+    /**
+     * [swipeThresholdPercent] as the fraction the list actually swipes by, held
+     * inside a range whatever was stored: a threshold near zero turns a brush
+     * past the screen into a deletion, and one near the full width cannot be
+     * reached on a wide phone at all.
+     */
+    val swipeThresholdFraction: Float
+        get() = clampSwipePercent(swipeThresholdPercent) / 100f
 
     /** What a message body is allowed to fetch, as the image code wants it. */
     fun imagePolicy() = de.uwumail.mail.RemoteImagePolicy(
@@ -84,6 +104,21 @@ data class AppSettings(
     }
 
     companion object {
+        /** Half the row, the distance the list swiped by before it was a setting. */
+        const val DEFAULT_SWIPE_PERCENT = 50
+
+        /**
+         * The narrowest and widest a swipe threshold may be set to.
+         *
+         * Below the minimum an accidental brush across the screen deletes mail;
+         * above the maximum the gesture runs out of screen before it commits.
+         */
+        const val MIN_SWIPE_PERCENT = 10
+        const val MAX_SWIPE_PERCENT = 90
+
+        fun clampSwipePercent(percent: Int): Int =
+            percent.coerceIn(MIN_SWIPE_PERCENT, MAX_SWIPE_PERCENT)
+
         val ALL_DAYS: Set<Int> = (Calendar.SUNDAY..Calendar.SATURDAY).toSet()
 
         /** Monday first, the way the settings screen lists them. */

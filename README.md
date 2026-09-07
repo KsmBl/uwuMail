@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-308%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-325%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -265,8 +265,11 @@ have.
 - **Swipe either way**, with each direction set separately in
   *Settings → Swipe actions*: select, archive, trash, move, delete, mark
   read/unread, star, or nothing at all. Left selects and right archives to
-  begin with, and a swipe must cross **half the row** before it counts — a
-  quick flick should not be able to delete mail. Only
+  begin with, and a swipe must cross **half the screen's width** before it
+  counts — a quick flick should not be able to delete mail. That distance is a
+  setting: *Swipe distance* takes anything from 10% to 90% of the width, since
+  half a screen is a different reach on a small phone held one-handed than on a
+  tablet. Only
   the actions that empty the row carry it off the screen — the toggles spring
   back, since the row is still there — and permanent deletion asks first,
   because a swipe is far too easy to do by accident for something irreversible.
@@ -507,7 +510,7 @@ to read and to run rules against.
 
 ## Tests
 
-308 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+325 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -534,8 +537,9 @@ to read and to run rules against.
   windows and which day their small hours belong to.
 - `data/repo/BlocklistParserTest` — blocklist line parsing, including the
   entries that must be rejected because they would match everything.
-- `core/` — swipe actions and themes surviving a setting written by a version
-  that knew names this one does not, the wording of a partial attachment save,
+- `core/` — the swipe distance and the range it is held to, swipe actions and
+  themes surviving a setting written by a version that knew names this one does
+  not, the wording of a partial attachment save,
   which must not report a failure as a smaller success, and the waiting that
   keeps a search off the database until the typing stops.
 - `ui/` — day grouping of the message list, `[mailbox] folder` labelling, and

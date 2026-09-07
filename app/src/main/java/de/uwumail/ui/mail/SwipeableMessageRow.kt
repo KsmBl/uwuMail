@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import de.uwumail.core.SwipeAction
+import de.uwumail.data.settings.AppSettings
 import de.uwumail.ui.common.rememberHaptics
 
 /**
@@ -58,6 +59,8 @@ fun SwipeableMessageRow(
     seen: Boolean,
     flagged: Boolean,
     enabled: Boolean,
+    /** Fraction of the row a swipe must cross to count; see [AppSettings.swipeThresholdFraction]. */
+    commitFraction: Float,
     onAction: (SwipeAction) -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -67,6 +70,9 @@ fun SwipeableMessageRow(
     }
 
     val currentOnAction by rememberUpdatedState(onAction)
+    // Read through a holder so changing the setting takes effect on the rows
+    // already composed, rather than only on the ones scrolled into view next.
+    val currentFraction by rememberUpdatedState(commitFraction)
     val haptics = rememberHaptics()
     // The row's own width, which is the screen's. Read from the layout rather
     // than from the window so it is right whatever the row is sitting in.
@@ -80,8 +86,8 @@ fun SwipeableMessageRow(
     val acted = remember { booleanArrayOf(false) }
 
     val state = rememberSwipeToDismissBoxState(
-        // Half the row, and nothing less.
-        positionalThreshold = { distance -> distance * COMMIT_FRACTION },
+        // Whatever the setting says, and nothing less.
+        positionalThreshold = { distance -> distance * currentFraction },
         confirmValueChange = { value ->
             val action = when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> rightAction
@@ -95,11 +101,12 @@ fun SwipeableMessageRow(
             // The positional threshold alone is not enough: a quick flick
             // commits on velocity however short it was, and something that
             // deletes mail should not be reachable by a flick. So how far the
-            // finger actually went is checked as well, and it must be half.
+            // finger actually went is checked as well, against the same
+            // fraction of the row.
             val travelled = settled[0]
                 ?.let { box -> runCatching { abs(box.requireOffset()) }.getOrNull() }
                 ?: 0f
-            if (rowWidth <= 0 || travelled < rowWidth * COMMIT_FRACTION) {
+            if (rowWidth <= 0 || travelled < rowWidth * currentFraction) {
                 return@rememberSwipeToDismissBoxState false
             }
 
@@ -227,7 +234,10 @@ private fun swipeInk(action: SwipeAction): Color = when (action) {
 /**
  * How far across the row a swipe must go before it counts.
  *
- * Half is deliberately a long way. These actions move or delete mail, and the
- * cost of one done by accident is far higher than the cost of having to mean it.
+ * Half is deliberately a long way, and it is the default rather than the rule:
+ * these actions move or delete mail, and the cost of one done by accident is
+ * far higher than the cost of having to mean it — but how far half a screen is
+ * depends on the screen and on the hand holding it, so the distance is set in
+ * *Settings → Swipe actions* and arrives here as [SwipeableMessageRow]'s
+ * `commitFraction`.
  */
-private const val COMMIT_FRACTION = 0.5f

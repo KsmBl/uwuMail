@@ -544,6 +544,7 @@ fun MailScreen(
                                         seen = message.seen,
                                         flagged = message.flagged,
                                         enabled = true,
+                                        commitFraction = state.swipeThreshold,
                                         onAction = { action ->
                                             when (action) {
                                                 SwipeAction.MOVE -> swipeMoveFor = message.id
