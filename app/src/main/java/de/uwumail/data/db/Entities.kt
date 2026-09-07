@@ -95,7 +95,19 @@ data class FolderEntity(
     val path: String,
     val displayName: String,
     val delimiter: String = "/",
+    /** What the server said this folder is, per [de.uwumail.mail.FolderClassifier]. */
     val type: String = "CUSTOM",
+    /**
+     * What the user says it is, which wins.
+     *
+     * Kept apart from [type] so re-reading the folder list from the server
+     * cannot stamp on a decision somebody made by hand. Several folders may
+     * carry the same override — three folders marked as inboxes are three
+     * inboxes, and "All inboxes" shows all of them. Where mail is *moved* to
+     * stays a single choice on the account, since a message can only go to one
+     * of them.
+     */
+    val roleOverride: String? = null,
     val isLocal: Boolean = false,
     val selectable: Boolean = true,
     val subscribed: Boolean = true,

@@ -343,11 +343,19 @@ have.
 
 ## Accounts and sending
 
-- **Configure folders** per account: which folder is archive, sent, drafts and
-  trash. These are guessed from what the server advertises when an account is
-  first seen, which is right for most and wrong for the rest — a server with no
-  SPECIAL-USE attributes, or folders named in another language, leaves them
-  pointing nowhere.
+- **Configure folders** per account, in two parts.
+  - *Where mail goes*: which single folder is archive, sent, drafts and trash.
+    One each, because a message being moved can only go to one place. These are
+    guessed from what the server advertises when an account is first seen, which
+    is right for most and wrong for the rest — a server with no SPECIAL-USE
+    attributes, or folders named in another language, leaves them pointing
+    nowhere.
+  - *What each folder counts as*: *several* folders may play the same part. Mark
+    two folders as inboxes and **All inboxes** gathers both; mark a second folder
+    as the bin and **All deleted mails** shows both. A folder the server
+    mislabelled can be marked as an ordinary one to keep it out. Markings are
+    kept apart from what the server said, so re-reading the folder list cannot
+    stamp on them.
 
 **Accounts**
 - Any number of IMAP/SMTP accounts, each with its own colour and notification

@@ -13,6 +13,7 @@ import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.AppDatabase
 import de.uwumail.data.db.AttachmentEntity
 import de.uwumail.data.db.FolderEntity
+import de.uwumail.data.db.effectiveType
 import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.db.OutboxEntity
 import de.uwumail.data.db.RuleLogEntity
@@ -123,7 +124,7 @@ class SyncManager(
             val folders = db.folderDao().forAccount(accountId)
                 .filter { !it.isLocal && it.syncEnabled && it.selectable }
             // Inbox first so new mail shows up before the long tail of folders.
-            folders.sortedBy { if (it.type == FolderType.INBOX.name) 0 else 1 }
+            folders.sortedBy { if (it.effectiveType == FolderType.INBOX.name) 0 else 1 }
                 .forEach { folder -> runCatching { syncFolder(folder) } }
             db.folderDao().refreshAllCounts()
             _state.update { it.copy(lastCompletedAt = System.currentTimeMillis()) }
@@ -212,7 +213,10 @@ class SyncManager(
             runCatching {
                 refreshFolders(account.id)
                 db.folderDao().forAccount(account.id)
-                    .filter { !it.isLocal && it.selectable && !it.hidden && it.type == type.name }
+                    .filter {
+                        !it.isLocal && it.selectable && !it.hidden &&
+                            it.effectiveType == type.name
+                    }
                     .forEach { folder -> runCatching { syncFolder(folder) } }
             }.onFailure { error -> _state.update { it.copy(lastError = error.message) } }
         }

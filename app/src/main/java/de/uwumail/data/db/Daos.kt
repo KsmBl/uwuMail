@@ -150,7 +150,10 @@ interface FolderDao {
     @Query("SELECT * FROM folders WHERE accountId = :accountId AND path = :path")
     suspend fun getByPath(accountId: Long, path: String): FolderEntity?
 
-    @Query("SELECT * FROM folders WHERE accountId = :accountId AND type = :type LIMIT 1")
+    @Query(
+        """SELECT * FROM folders
+           WHERE accountId = :accountId AND COALESCE(roleOverride, type) = :type LIMIT 1"""
+    )
     suspend fun getByType(accountId: Long, type: String): FolderEntity?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -244,19 +247,19 @@ interface MessageDao {
                $THREAD_KEY AS threadId,
                (SELECT MIN(t.seen) FROM messages t
                   WHERE t.pendingRemoval = 0
-                    AND t.folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+                    AND t.folderId IN (SELECT id FROM folders WHERE COALESCE(roleOverride, type) = :type AND hidden = 0)
                     AND COALESCE(t.threadId, 'id:' || t.id) = $THREAD_KEY) AS seen,
                (SELECT COUNT(*) FROM messages t
                   WHERE t.pendingRemoval = 0
-                    AND t.folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+                    AND t.folderId IN (SELECT id FROM folders WHERE COALESCE(roleOverride, type) = :type AND hidden = 0)
                     AND COALESCE(t.threadId, 'id:' || t.id) = $THREAD_KEY) AS threadCount
         FROM messages
         WHERE pendingRemoval = 0
-          AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+          AND folderId IN (SELECT id FROM folders WHERE COALESCE(roleOverride, type) = :type AND hidden = 0)
           AND messages.id = (
               SELECT n.id FROM messages n
                WHERE n.pendingRemoval = 0
-                 AND n.folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+                 AND n.folderId IN (SELECT id FROM folders WHERE COALESCE(roleOverride, type) = :type AND hidden = 0)
                  AND COALESCE(n.threadId, 'id:' || n.id) = $THREAD_KEY
                ORDER BY n.receivedAt DESC, n.id DESC LIMIT 1)
         ORDER BY receivedAt DESC LIMIT :limit
@@ -281,7 +284,7 @@ interface MessageDao {
         """
         SELECT $SUMMARY_COLUMNS FROM messages
         WHERE pendingRemoval = 0
-          AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+          AND folderId IN (SELECT id FROM folders WHERE COALESCE(roleOverride, type) = :type AND hidden = 0)
         ORDER BY receivedAt DESC LIMIT :limit
         """
     )
@@ -305,7 +308,7 @@ interface MessageDao {
         """
         SELECT $SUMMARY_COLUMNS FROM messages
         WHERE pendingRemoval = 0
-          AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+          AND folderId IN (SELECT id FROM folders WHERE COALESCE(roleOverride, type) = :type AND hidden = 0)
           AND $TEXT_MATCH
         ORDER BY receivedAt DESC LIMIT :limit
         """
@@ -358,7 +361,7 @@ interface MessageDao {
     @Query(
         """SELECT id FROM messages
            WHERE seen = 0 AND bodyDownloaded = 0 AND isLocal = 0 AND pendingRemoval = 0
-             AND folderId IN (SELECT id FROM folders WHERE type = :type AND hidden = 0)
+             AND folderId IN (SELECT id FROM folders WHERE COALESCE(roleOverride, type) = :type AND hidden = 0)
            ORDER BY receivedAt DESC LIMIT :limit"""
     )
     suspend fun unreadWithoutBodyUnified(type: String, limit: Int): List<Long>

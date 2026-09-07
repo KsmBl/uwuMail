@@ -695,4 +695,11 @@
         <item quantity="one">Jede Stunde</item>
         <item quantity="other">Alle %1$d Stunden</item>
     </plurals>
+    <string name="counts_as_header">Wofür jeder Ordner zählt</string>
+    <string name="counts_as_intro">Welche Ordner eine zusammengefasste Ansicht sammelt. Mehrere dürfen dieselbe Rolle spielen — zwei Ordner als Posteingang markieren, und „Alle Posteingänge“ zeigt beide. Wohin Mail verschoben wird, ändert das nicht; das ist die einzelne Auswahl oben.</string>
+    <string name="counts_as_automatic">Automatisch · %1$s</string>
+    <string name="counts_as_follow_server">Automatisch (dem Server folgen)</string>
+    <string name="role_inbox">Posteingang</string>
+    <string name="role_spam">Spam</string>
+    <string name="role_none">Ein gewöhnlicher Ordner</string>
 </resources>

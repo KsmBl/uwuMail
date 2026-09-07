@@ -697,4 +697,11 @@
         <item quantity="one">Every hour</item>
         <item quantity="other">Every %1$d hours</item>
     </plurals>
+    <string name="counts_as_header">What each folder counts as</string>
+    <string name="counts_as_intro">Which folders a unified view gathers. Several may play the same part — mark two folders as inboxes and All inboxes shows both. This does not change where mail is moved to, which is the single choice above.</string>
+    <string name="counts_as_automatic">Automatic · %1$s</string>
+    <string name="counts_as_follow_server">Automatic (follow the server)</string>
+    <string name="role_inbox">Inbox</string>
+    <string name="role_spam">Spam</string>
+    <string name="role_none">An ordinary folder</string>
 </resources>

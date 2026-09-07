@@ -12,6 +12,7 @@ import de.uwumail.data.settings.AppSettings
 import de.uwumail.data.db.AccountEntity
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.MessageSummary
+import de.uwumail.data.db.effectiveType
 import de.uwumail.data.db.isBinFor
 import de.uwumail.di.AppContainer
 import de.uwumail.sync.SyncManager
@@ -103,7 +104,7 @@ data class MailUiState(
 
     /** Whether this list is the Drafts folder, where a tap means "carry on writing". */
     val showsDrafts: Boolean
-        get() = currentFolder?.type == FolderType.DRAFTS.name
+        get() = currentFolder?.effectiveType == FolderType.DRAFTS.name
 
     /** Folders the drawer shows; hidden ones are kept out of every list. */
     val visibleFolders: List<FolderEntity> get() = folders.filter { !it.hidden }
@@ -396,7 +397,7 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         val folders = when (val destination = target.value) {
             is MailTarget.Folder -> listOfNotNull(destination.id)
             is MailTarget.Unified -> state.value.visibleFolders
-                .filter { it.type == destination.type.name && !it.isLocal }.map { it.id }
+                .filter { it.effectiveType == destination.type.name && !it.isLocal }.map { it.id }
             MailTarget.Search, is MailTarget.Thread -> state.value.visibleFolders
                 .filter { !it.isLocal && it.selectable }.map { it.id }
         }

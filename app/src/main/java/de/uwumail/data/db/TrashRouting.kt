@@ -17,5 +17,11 @@ import de.uwumail.core.FolderType
  */
 fun FolderEntity.isBinFor(account: AccountEntity?): Boolean {
     if (isLocal) return false
-    return path == account?.trashFolder || type == FolderType.TRASH.name
+    return path == account?.trashFolder || effectiveType == FolderType.TRASH.name
 }
+
+/**
+ * The role this folder actually plays: what the user marked it as, or what the
+ * server said if they have not marked it.
+ */
+val FolderEntity.effectiveType: String get() = roleOverride ?: type

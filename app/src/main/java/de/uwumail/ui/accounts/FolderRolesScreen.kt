@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Archive
@@ -36,6 +37,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.uwumail.R
 import de.uwumail.data.db.AccountEntity
+import androidx.compose.material.icons.filled.Check
+import de.uwumail.core.FolderType
+import de.uwumail.ui.common.SectionHeader
 import de.uwumail.data.db.FolderEntity
 import de.uwumail.ui.LocalAppContainer
 import kotlinx.coroutines.flow.map
@@ -135,8 +139,88 @@ fun FolderRolesScreen(accountId: Long, onBack: () -> Unit) {
                 )
                 HorizontalDivider()
             }
+
+            item {
+                SectionHeader(stringResource(R.string.counts_as_header))
+                Text(
+                    stringResource(R.string.counts_as_intro),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+            items(folders.filter { !it.isLocal }, key = { it.id }) { folder ->
+                CountsAsRow(
+                    folder = folder,
+                    onPick = { role ->
+                        scope.launch {
+                            container.db.folderDao().update(folder.copy(roleOverride = role))
+                        }
+                    }
+                )
+            }
         }
     }
+}
+
+/**
+ * What one folder counts as, whatever the server called it.
+ *
+ * Several folders may be marked the same, which is the point: a mailbox with
+ * two inboxes has both of them shown under "All inboxes". Where mail is moved
+ * to is the single choice above, since a message can only go to one folder.
+ */
+@Composable
+private fun CountsAsRow(folder: FolderEntity, onPick: (String?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val marked = folder.roleOverride != null
+    Box {
+        ListItem(
+            modifier = Modifier.clickable { open = true },
+            headlineContent = { Text(folder.displayName) },
+            supportingContent = {
+                Text(
+                    if (marked) stringResource(roleLabel(folder.roleOverride))
+                    else stringResource(R.string.counts_as_automatic, stringResource(roleLabel(folder.type))),
+                    color = if (marked) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.counts_as_follow_server)) },
+                trailingIcon = { if (!marked) Icon(Icons.Default.Check, null) },
+                onClick = { open = false; onPick(null) }
+            )
+            HorizontalDivider()
+            MARKABLE.forEach { role ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(roleLabel(role.name))) },
+                    trailingIcon = {
+                        if (folder.roleOverride == role.name) Icon(Icons.Default.Check, null)
+                    },
+                    onClick = { open = false; onPick(role.name) }
+                )
+            }
+        }
+    }
+}
+
+/** The roles a folder can be marked as; CUSTOM is how it is marked as none. */
+private val MARKABLE = listOf(
+    FolderType.INBOX, FolderType.SENT, FolderType.TRASH,
+    FolderType.ARCHIVE, FolderType.DRAFTS, FolderType.SPAM, FolderType.CUSTOM
+)
+
+private fun roleLabel(type: String?): Int = when (type) {
+    FolderType.INBOX.name -> R.string.role_inbox
+    FolderType.SENT.name -> R.string.role_sent
+    FolderType.TRASH.name -> R.string.role_trash
+    FolderType.ARCHIVE.name -> R.string.role_archive
+    FolderType.DRAFTS.name -> R.string.role_drafts
+    FolderType.SPAM.name -> R.string.role_spam
+    else -> R.string.role_none
 }
 
 @Composable
