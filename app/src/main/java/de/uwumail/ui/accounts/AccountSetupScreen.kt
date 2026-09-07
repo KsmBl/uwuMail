@@ -249,11 +249,8 @@ fun AccountSetupScreen(
             SwitchRow(stringResource(R.string.background_sync), state.syncEnabled) { v ->
                 viewModel.update { it.copy(syncEnabled = v) }
             }
-            LabeledField(
-                stringResource(R.string.sync_interval), state.syncIntervalMinutes,
-                { v -> viewModel.update { it.copy(syncIntervalMinutes = v.filter(Char::isDigit)) } },
-                supportingText = stringResource(R.string.sync_interval_hint)
-            )
+            // How often is set in Settings, beside the hours checking is
+            // allowed in: both answer the same question and belong together.
             SwitchRow(
                 stringResource(R.string.push_idle),
                 state.pushEnabled

@@ -310,8 +310,6 @@
     <string name="outgoing_smtp">Ausgang (SMTP)</string>
     <string name="sync_and_notifications">Abgleich &amp; Benachrichtigungen</string>
     <string name="background_sync">Abgleich im Hintergrund</string>
-    <string name="sync_interval">Abgleichintervall (Minuten)</string>
-    <string name="sync_interval_hint">Android erzwingt mindestens 15 Minuten</string>
     <string name="push_idle">Push (IMAP IDLE offen halten)</string>
     <string name="notifications">Benachrichtigungen</string>
     <string name="sending_as">Senden als</string>
@@ -690,4 +688,11 @@
     <string name="folder_notifies"> · benachrichtigt</string>
     <string name="status_folder_created">\"%1$s\" erstellt</string>
     <string name="status_folder_deleted">\"%1$s\" gelöscht</string>
+    <string name="interval_minutes">Alle %1$d Minuten</string>
+    <string name="interval_with_push">%1$s, als Absicherung unter Push</string>
+    <string name="interval_alone">%1$s</string>
+    <plurals name="interval_hours">
+        <item quantity="one">Jede Stunde</item>
+        <item quantity="other">Alle %1$d Stunden</item>
+    </plurals>
 </resources>

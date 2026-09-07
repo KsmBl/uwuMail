@@ -26,6 +26,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Update
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import de.uwumail.data.db.AccountEntity
+import de.uwumail.sync.SyncScheduler
+import kotlinx.coroutines.launch
 import de.uwumail.R
 import de.uwumail.data.settings.AppSettings
 import de.uwumail.ui.LocalAppContainer
@@ -35,8 +49,32 @@ import de.uwumail.ui.LocalAppContainer
 @Composable
 fun SyncWindowSection() {
     val container = LocalAppContainer.current
+    val context = LocalContext.current
     val settings by container.settings.state.collectAsState()
+    val accounts by container.db.accountDao().observeAll().collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
     var editing by remember { mutableStateOf<Boundary?>(null) }
+
+    // How often each account is checked, beside the hours it may be checked in:
+    // both answer "when is mail fetched", and having them on separate screens
+    // meant reasoning about background mail in two places at once.
+    accounts.forEach { account ->
+        IntervalRow(
+            account = account,
+            onPick = { minutes ->
+                scope.launch {
+                    container.db.accountDao().update(
+                        account.copy(syncIntervalMinutes = minutes)
+                    )
+                    // The worker is already scheduled at the old cadence.
+                    SyncScheduler.schedule(
+                        context,
+                        account.copy(syncIntervalMinutes = minutes)
+                    )
+                }
+            }
+        )
+    }
 
     SettingSwitch(
         title = stringResource(R.string.window_only_at),
@@ -159,3 +197,63 @@ private fun TimeDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
+
+/**
+ * How often one account is checked unattended.
+ *
+ * WorkManager will not run periodic work more often than every quarter of an
+ * hour whatever it is asked for, so the shortest offered is the shortest that
+ * means anything. An account on push is checked continuously anyway and this is
+ * the safety net underneath it, which the subtitle says.
+ */
+@Composable
+private fun IntervalRow(account: AccountEntity, onPick: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        ListItem(
+            modifier = Modifier.clickable { open = true },
+            leadingContent = { Icon(Icons.Default.Update, null) },
+            headlineContent = { Text(account.email) },
+            supportingContent = {
+                Text(
+                    if (account.pushEnabled) {
+                        stringResource(
+                            R.string.interval_with_push,
+                            intervalLabel(account.syncIntervalMinutes)
+                        )
+                    } else {
+                        stringResource(
+                            R.string.interval_alone,
+                            intervalLabel(account.syncIntervalMinutes)
+                        )
+                    }
+                )
+            }
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            INTERVALS.forEach { minutes ->
+                DropdownMenuItem(
+                    text = { Text(intervalLabel(minutes)) },
+                    trailingIcon = {
+                        if (minutes == account.syncIntervalMinutes) {
+                            Icon(Icons.Default.Check, null)
+                        }
+                    },
+                    onClick = { open = false; onPick(minutes) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun intervalLabel(minutes: Int): String = when {
+    minutes < 60 -> stringResource(R.string.interval_minutes, minutes)
+    minutes % 60 == 0 -> pluralStringResource(
+        R.plurals.interval_hours, minutes / 60, minutes / 60
+    )
+    else -> stringResource(R.string.interval_minutes, minutes)
+}
+
+/** WorkManager clamps anything under a quarter of an hour, so that is the floor. */
+private val INTERVALS = listOf(15, 30, 60, 120, 240, 480, 1440)

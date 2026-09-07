@@ -312,8 +312,6 @@
     <string name="outgoing_smtp">Outgoing (SMTP)</string>
     <string name="sync_and_notifications">Sync &amp; notifications</string>
     <string name="background_sync">Background sync</string>
-    <string name="sync_interval">Sync interval (minutes)</string>
-    <string name="sync_interval_hint">Android enforces a 15 minute minimum</string>
     <string name="push_idle">Push (keep IMAP IDLE open)</string>
     <string name="notifications">Notifications</string>
     <string name="sending_as">Sending as</string>
@@ -692,4 +690,11 @@
     <string name="folder_notifies"> · notifies</string>
     <string name="status_folder_created">Created \"%1$s\"</string>
     <string name="status_folder_deleted">Deleted \"%1$s\"</string>
+    <string name="interval_minutes">Every %1$d minutes</string>
+    <string name="interval_with_push">%1$s, as a safety net under push</string>
+    <string name="interval_alone">%1$s</string>
+    <plurals name="interval_hours">
+        <item quantity="one">Every hour</item>
+        <item quantity="other">Every %1$d hours</item>
+    </plurals>
 </resources>

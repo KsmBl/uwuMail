@@ -350,8 +350,10 @@ have.
   pointing nowhere.
 
 **Accounts**
-- Any number of IMAP/SMTP accounts, each with its own sync interval, colour and
-  notification channels.
+- Any number of IMAP/SMTP accounts, each with its own colour and notification
+  channels. How often each is checked is set in *Settings → When to check for
+  mail*, beside the hours checking is allowed in: both answer the same question
+  and used to be two screens apart.
 - Password or **OAuth2 (XOAUTH2)** authentication per account. Gmail no longer
   accepts account passwords over IMAP, so Google accounts sign in through the
   browser — see [Google sign-in](#google-sign-in) below.
