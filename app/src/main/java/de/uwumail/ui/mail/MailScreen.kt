@@ -2,6 +2,12 @@ package de.uwumail.ui.mail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -159,6 +165,12 @@ private fun undoMessage(offer: Undoable): String = pluralStringResource(
 /** How long the list gets to itself before the browser engine is started. */
 private const val WARM_UP_DELAY = 1_200L
 
+/** How close to an edge a drag has to be before the list starts scrolling. */
+private const val EDGE_PIXELS = 120f
+
+/** The fastest the list scrolls under a drag, in pixels per frame. */
+private const val MAX_SCROLL_PIXELS = 28f
+
 private const val DAY_HEADER = "day-header"
 private const val MESSAGE_ROW = "message-row"
 
@@ -257,6 +269,42 @@ fun MailScreen(
     // Which folders are a bin, so a row can say whether trashing it again
     // would be a permanent deletion. Recomputed only when the folders do.
     val binFolders = remember(state.folders, state.accounts) { state.binFolderIds() }
+
+    // A long press that turns into a drag picks out everything it passes over.
+    // The anchor is where it started; the base is what was already picked out,
+    // which the drag adds to rather than replaces.
+    val listHaptics = rememberHaptics()
+    var dragAnchor by remember { mutableStateOf<Long?>(null) }
+    var dragBase by remember { mutableStateOf(emptySet<Long>()) }
+    var pointerY by remember { mutableFloatStateOf(0f) }
+    var listHeight by remember { mutableFloatStateOf(0f) }
+
+    /** The message rows on screen, with where each one currently sits. */
+    fun visibleRows(): List<RowBounds> = listState.layoutInfo.visibleItemsInfo
+        .filter { it.contentType == MESSAGE_ROW }
+        .mapNotNull { info ->
+            (info.key as? Long)?.let { RowBounds(it, info.offset, info.offset + info.size) }
+        }
+
+    /** Extends the selection to whatever the finger is over now. */
+    fun reachTo(y: Float) {
+        val anchor = dragAnchor ?: return
+        rowAt(visibleRows(), y)?.let { viewModel.selectRange(dragBase, anchor, it) }
+    }
+
+    // Held against an edge the list carries on scrolling, and the selection
+    // carries on growing even though the finger is no longer moving.
+    LaunchedEffect(dragAnchor) {
+        if (dragAnchor == null) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+            val speed = autoScrollSpeed(pointerY, listHeight, EDGE_PIXELS, MAX_SCROLL_PIXELS)
+            if (speed != 0f) {
+                listState.scrollBy(speed)
+                reachTo(pointerY)
+            }
+        }
+    }
 
     // Pull the next page in once the user nears the end of the cached list.
     val nearEnd by remember {
@@ -524,7 +572,40 @@ fun MailScreen(
                             }
                         }
                     }
-                    else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    else -> LazyColumn(
+                        state = listState,
+                        // While a drag is picking mail out, the list must not
+                        // also read it as a scroll: the inner scroller sees a
+                        // gesture before the detector wrapped around it does,
+                        // and would swallow every drag after the long press.
+                        // Scrolling still happens here, driven by the edge
+                        // below rather than by the finger.
+                        userScrollEnabled = dragAnchor == null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onSizeChanged { listHeight = it.height.toFloat() }
+                            .pointerInput(Unit) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { start ->
+                                        val id = rowAt(visibleRows(), start.y)
+                                        if (id != null) {
+                                            listHaptics.longPress()
+                                            pointerY = start.y
+                                            dragBase = viewModel.currentSelection()
+                                            dragAnchor = id
+                                            viewModel.selectRange(dragBase, id, id)
+                                        }
+                                    },
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        pointerY = change.position.y
+                                        reachTo(pointerY)
+                                    },
+                                    onDragEnd = { dragAnchor = null },
+                                    onDragCancel = { dragAnchor = null }
+                                )
+                            }
+                    ) {
                         sections.forEach { section ->
                             stickyHeader(
                                 key = section.dayStart,
@@ -585,7 +666,8 @@ fun MailScreen(
                                                     else -> onOpenMessage(message.id)
                                                 }
                                             },
-                                            onLongClick = { viewModel.toggleSelection(message.id) },
+
+                                            onPick = { viewModel.toggleSelection(message.id) },
                                             onStar = { viewModel.toggleStar(message.id, !message.flagged) }
                                         )
                                     }
@@ -787,7 +869,8 @@ private fun MessageRow(
     selectionMode: Boolean,
     accountColor: Int?,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    /** Tapping the avatar picks the row out, the way a long press used to. */
+    onPick: () -> Unit,
     onStar: () -> Unit
 ) {
     val background = when {
@@ -802,14 +885,17 @@ private fun MessageRow(
         if (message.spam) MaterialTheme.colorScheme.error else Color.Unspecified
     val haptics = rememberHaptics()
     // Selection begins under the finger and nothing moves when it does, so the
-    // knock is the only thing that says the press was long enough.
-    val pick = { haptics.longPress(); onLongClick() }
+    // knock is the only thing that says the press registered.
+    val pick = { haptics.longPress(); onPick() }
     Row(
         verticalAlignment = Alignment.Top,
         modifier = Modifier
             .fillMaxWidth()
             .background(background)
-            .combinedClickable(onClick = onClick, onLongClick = pick)
+            // No long press here on purpose: the list itself detects it, so
+            // that the drag which follows keeps arriving. A child consuming
+            // the press would end the gesture where it starts.
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Box(

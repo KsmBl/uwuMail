@@ -375,6 +375,23 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         selection.update { if (id in it) it - id else it + id }
     }
 
+    /** What is picked out right now, for a drag that is about to add to it. */
+    fun currentSelection(): Set<Long> = selection.value
+
+    /**
+     * Picks out everything between [anchor] and [through], on top of whatever
+     * [base] was already picked out when the drag began.
+     *
+     * Set rather than toggled, so the same drag position arriving twice — from
+     * the finger and again from the list scrolling underneath it — lands on the
+     * same answer. Dragging back towards the anchor gives up what was reached,
+     * without disturbing anything selected before the drag started.
+     */
+    fun selectRange(base: Set<Long>, anchor: Long, through: Long) {
+        val ids = state.value.messages.map { it.id }
+        selection.value = base + rangeBetween(ids, anchor, through)
+    }
+
     fun selectAll() {
         selection.value = state.value.messages.map { it.id }.toSet()
     }

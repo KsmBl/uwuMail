@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-349%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-371%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -281,6 +281,13 @@ have.
   the actions that empty the row carry it off the screen — the toggles spring
   back, since the row is still there — and permanent deletion asks first,
   because a swipe is far too easy to do by accident for something irreversible.
+- **Hold and drag to pick out many.** A long press starts the selection and
+  keeps it under the finger: everything dragged over joins it, dragging back
+  towards where it started gives those up again, and anything picked out before
+  the drag is left alone. Held near the top or bottom edge the list scrolls
+  along under the finger, faster the closer to the edge it is, so a selection
+  can run past the end of the screen. Tapping a sender's initial still picks a
+  single message out on its own.
 - **Grouped by day.** Every run of mail from one day sits under a heading like
   *Tuesday, 01.09.2026*, pinned to the top of the list while that day is on
   screen, so a long scroll always says how much time it has covered. The
@@ -518,7 +525,7 @@ to read and to run rules against.
 
 ## Tests
 
-349 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+371 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -552,7 +559,9 @@ to read and to run rules against.
   keeps a search off the database until the typing stops.
 - `ui/` — day grouping of the message list, `[mailbox] folder` labelling, the
   order swiping between messages follows, what counts as a message already being
-  in the bin, and how a bin-bound swipe and a mixed selection are each resolved.
+  in the bin, how a bin-bound swipe and a mixed selection are each resolved, and
+  the three sums behind dragging a selection: which row is under the finger,
+  which range that reaches, and how fast an edge scrolls.
 - `ui/NavigationGuardTest` — runs a real NavHost under Robolectric and asserts
   the back stack can never be emptied by a second tap on a screen already left.
   A blank, unresponsive window is not something a test over pure functions can
