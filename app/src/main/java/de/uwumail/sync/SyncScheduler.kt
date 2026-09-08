@@ -36,7 +36,7 @@ object SyncScheduler {
         val interval = account.syncIntervalMinutes.coerceAtLeast(15).toLong()
         val request = PeriodicWorkRequestBuilder<SyncWorker>(interval, TimeUnit.MINUTES)
             .setConstraints(constraints)
-            .setInputData(Data.Builder().putLong(SyncWorker.KEY_ACCOUNT_ID, account.id).build())
+            .setInputData(periodicInput(account.id))
             .build()
         manager.enqueueUniquePeriodicWork(
             PERIODIC_PREFIX + account.id,
@@ -53,11 +53,28 @@ object SyncScheduler {
         WorkManager.getInstance(context).cancelUniqueWork(PERIODIC_PREFIX + accountId)
     }
 
-    /** Fire-and-forget sync used by pull-to-refresh and after sending. */
+    /** What the app checks on its own, which the hours set for checking govern. */
+    fun periodicInput(accountId: Long): Data =
+        Data.Builder().putLong(SyncWorker.KEY_ACCOUNT_ID, accountId).build()
+
+    /** What somebody asked for, which they do not. */
+    fun askedForInput(accountId: Long): Data = Data.Builder()
+        .putLong(SyncWorker.KEY_ACCOUNT_ID, accountId)
+        .putBoolean(SyncWorker.KEY_USER_ASKED, true)
+        .build()
+
+    /**
+     * Fetches mail because somebody asked for it — Sync now, or a freshly added
+     * account.
+     *
+     * Marked as asked for, so the hours set for checking do not apply: those
+     * govern what the app does on its own, and this is not that. Still routed
+     * through WorkManager so it survives the screen it was started from.
+     */
     fun syncNow(context: Context, accountId: Long = -1L) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(constraints)
-            .setInputData(Data.Builder().putLong(SyncWorker.KEY_ACCOUNT_ID, accountId).build())
+            .setInputData(askedForInput(accountId))
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             ONE_SHOT_PREFIX + accountId,

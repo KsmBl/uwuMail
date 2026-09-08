@@ -555,7 +555,7 @@
     <string name="applying">Wird angewendet…</string>
     <string name="wizard_nothing_body">Diese Nachrichten haben kein gemeinsames Muster bei Absender, Kopfzeile oder Betreff. Wähle ähnlichere Mails oder baue die Regel von Hand.</string>
     <string name="rules_none_hint">Wähle in der Nachrichtenliste ein paar ähnliche Mails aus und tippe auf das Label-Symbol — uwuMail findet die Gemeinsamkeiten für dich.</string>
-    <string name="window_applies">Gilt für Hintergrundabgleich und Push. Das Öffnen der App, Ziehen zum Aktualisieren und Senden werden nie zurückgehalten.</string>
+    <string name="window_applies">Gilt für Hintergrundabgleich und Push. Das Öffnen der App, Ziehen zum Aktualisieren, Jetzt abgleichen, Konto hinzufügen und Senden werden nie zurückgehalten.</string>
 
     <!-- Remaining text -->
     <string name="images_blocked_one">%1$d externes Bild blockiert. Es zu laden verrät dem Absender, dass du die Mail geöffnet hast.</string>
@@ -733,4 +733,18 @@
         <item quantity="one">%1$d Nachricht ausgewählt</item>
         <item quantity="other">%1$d Nachrichten ausgewählt</item>
     </plurals>
+    <string name="error_no_folder_for_view">Kein Ordner ist für diese Ansicht markiert. Markiere einen unter Kontoeinstellungen → Ordner.</string>
+    <string name="bg_log_title">Synchronisierungsprotokoll</string>
+    <string name="bg_log_empty">Noch nichts aufgezeichnet.</string>
+    <string name="bg_log_lines">%1$d Zeilen. Was jede Prüfung angesehen hat und was der Server sagte.</string>
+    <string name="bg_log_show">Anzeigen</string>
+    <string name="bg_log_hide">Ausblenden</string>
+    <string name="bg_log_share">Protokoll teilen</string>
+    <plurals name="bg_push_watching">
+        <item quantity="one">%1$d Konto wird auf neue Mail überwacht</item>
+        <item quantity="other">%1$d Konten werden auf neue Mail überwacht</item>
+    </plurals>
+    <string name="push_paused">Pausiert bis %1$s — außerhalb der eingestellten Zeiten</string>
+    <string name="bg_push_paused">Pausiert bis %1$s</string>
+    <string name="bg_push_paused_why">Außerhalb der eingestellten Prüfzeiten, daher kommt bis dahin nichts von allein an. Die App öffnen und nach unten ziehen holt Mail weiterhin sofort.</string>
 </resources>

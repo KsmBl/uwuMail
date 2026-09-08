@@ -424,6 +424,10 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE id IN (:ids)")
     suspend fun deleteAll(ids: List<Long>)
 
+    /** The rows behind a set of uids, so what is about to be forgotten can be found. */
+    @Query("SELECT id FROM messages WHERE folderId = :folderId AND uid IN (:uids)")
+    suspend fun idsForUids(folderId: Long, uids: List<Long>): List<Long>
+
     @Query("DELETE FROM messages WHERE folderId = :folderId AND uid IN (:uids)")
     suspend fun deleteUids(folderId: Long, uids: List<Long>)
 

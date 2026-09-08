@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-512%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-552%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -511,6 +511,14 @@ have.
   is not suspended half-way.
 - Periodic WorkManager sync per account runs alongside it as a safety net
   (Android enforces a 15 minute floor) and restarts the service if it died.
+- **A sync log**, in *Settings → Background mail*, records what each check
+  actually did: whether it ran at all, which folders it looked at, how much the
+  server offered above the newest message already held, and what it said when it
+  refused. Mail that does not arrive is the one fault that leaves nothing behind
+  to look at — the screen shows what it showed before — and this is the evidence.
+  It keeps going across app starts and background checks, drops its oldest half
+  when it gets large rather than emptying itself, and can be shared straight out
+  of the app.
 - **Settings → Background mail** reports whether the connection is up and offers
   the battery-optimisation exemption. Without that exemption Doze suspends the
   connection while the screen is off, which is the usual reason background mail
@@ -518,7 +526,14 @@ have.
   on top of Android's and may need the app marked unrestricted there too.
 - **Only check at set times** (off by default). Pick the weekdays and a start
   and stop time — 06:00 to 18:00, say — and unattended checking is confined to
-  them. It governs both the periodic worker and the IDLE connection, since
+  them. **Asking for mail is never held back by it** — pulling down in the list,
+  *Sync now*, adding an account and sending all fetch straight away at any hour;
+  the setting governs what the app does on its own and nothing else. While it is
+  closed, *Background mail* says **Paused until 06:00** and the standing
+  notification says the same, rather than both claiming to be watching:
+  the service is up the whole time and every watcher inside it is parked, which
+  is true and not honest, and the hours you set are the last thing anyone
+  remembers when wondering where their mail went. It governs both the periodic worker and the IDLE connection, since
   holding a socket open outside the window would be checking for mail; the
   watcher drops the connection and waits for the window to come round. A window
   whose end is at or before its start reads as spanning midnight, so 22:00-06:00
@@ -629,7 +644,7 @@ to read and to run rules against.
 
 ## Tests
 
-512 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+552 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -696,6 +711,25 @@ to read and to run rules against.
   that the folder comes back as a path.
 - `ui/rules/RuleScopeTest` — which folders a rule's account scope leaves to
   browse, and that widening the scope leaves the actions already picked alone.
+- `sync/ForgottenMailTest` — that a message dropped because it is no longer in
+  the folder takes its notification with it, that mail still there keeps its
+  own, and that the line gathering an account's notifications goes when the last
+  message under it does.
+- `sync/AskedForSyncTest` — that the hours set for checking govern only what
+  the app does on its own: **Sync now** and a freshly added account's first
+  fetch run whatever the clock says, while the periodic check still waits.
+- `data/settings/PausedWindowTest` — that a daytime window reads as closed just
+  after midnight, open again in the morning, exclusive of its end, ignored while
+  switched off, and — the case where saying "paused" would be wrong — open in the
+  small hours when the window is an overnight one.
+- `core/TraceLogTest` — the sync log: that it keeps going across app starts,
+  stops growing, and — the part a naive cap gets wrong — that reaching its
+  limit drops the oldest half rather than emptying the file, since a log that
+  clears itself is empty exactly when somebody finally goes to look at it.
+- `sync/SyncReportingTest` — that a sync which could not reach the server says
+  so rather than turning the spinner and putting back what was already there:
+  the unified views throw, every account that failed is named, the reason is
+  never blank, and a background check leaves its reason where the list finds it.
 - `sync/RuleIngestVisibilityTest` — that mail a rule is filing elsewhere is in
   no list, no unified list and no badge while it is on its way, is still
   reachable by uid for the notification and the local copy that need it, and

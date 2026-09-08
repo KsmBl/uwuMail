@@ -17,6 +17,8 @@ import androidx.lifecycle.lifecycleScope
 import de.uwumail.R
 import de.uwumail.UwuMailApp
 import de.uwumail.core.FolderType
+import de.uwumail.core.SyncLog
+import de.uwumail.data.settings.AppSettings
 import de.uwumail.data.settings.SettingsStore
 import de.uwumail.mail.ImapClient
 import de.uwumail.notify.Notifier
@@ -41,6 +43,9 @@ class PushService : LifecycleService() {
     private val jobs = mutableMapOf<Long, Job>()
     private var connectivityCallback: ConnectivityManager.NetworkCallback? = null
 
+    /** What the standing notification currently claims, so it is only rewritten on a change. */
+    @Volatile private var showing: String? = null
+
     /** Bumped when the network returns, so parked watchers stop waiting out a backoff. */
     private val networkGeneration = AtomicBoolean(false)
 
@@ -60,23 +65,41 @@ class PushService : LifecycleService() {
     }
 
     private fun startForeground() {
-        val notification: Notification =
-            NotificationCompat.Builder(this, Notifier.CHANNEL_SERVICE)
-                .setSmallIcon(R.drawable.ic_stat_mail)
-                .setContentTitle(getString(R.string.app_name))
-                .setContentText(getString(R.string.push_watching))
-                .setOngoing(true)
-                .setShowWhen(false)
-                .setPriority(NotificationCompat.PRIORITY_MIN)
-                .build()
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
-            notification,
+            ongoing(getString(R.string.push_watching)),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             } else 0
         )
+    }
+
+    private fun ongoing(text: String): Notification =
+        NotificationCompat.Builder(this, Notifier.CHANNEL_SERVICE)
+            .setSmallIcon(R.drawable.ic_stat_mail)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(text)
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .build()
+
+    /**
+     * Keeps the standing notification honest.
+     *
+     * It said "Watching for new mail" from the moment the service started until
+     * the moment it stopped, including the hours the user has told it not to
+     * check in — which is the one time somebody wondering where their mail is
+     * would go and read it.
+     */
+    private fun say(text: String) {
+        if (text == showing) return
+        showing = text
+        runCatching {
+            androidx.core.app.NotificationManagerCompat.from(this)
+                .notify(NOTIFICATION_ID, ongoing(text))
+        }
     }
 
     /**
@@ -101,7 +124,9 @@ class PushService : LifecycleService() {
     private suspend fun startWatchers() {
         val container = (application as UwuMailApp).container
         val accounts = container.db.accountDao().getAll().filter { it.pushEnabled }
+        SyncLog.write("push: watching ${accounts.size} accounts")
         if (accounts.isEmpty()) {
+            SyncLog.write("push: no account has push switched on, stopping")
             stopSelf()
             return
         }
@@ -122,6 +147,7 @@ class PushService : LifecycleService() {
                             .firstOrNull { it.type == FolderType.INBOX.name }
                         if (inbox == null) {
                             // Folders are not known yet; a sync will discover them.
+                            SyncLog.write("push: ${account.email} has no inbox yet, asking the server")
                             runCatching { container.syncManager.refreshFolders(account.id) }
                             delay(30_000)
                             continue
@@ -129,12 +155,15 @@ class PushService : LifecycleService() {
 
                         client = container.imapPool.newClient(account.id, forIdle = true)
                         backoffSeconds = INITIAL_BACKOFF_SECONDS
+                        say(getString(R.string.push_watching))
+                        SyncLog.write("push: ${account.email} connected, holding ${inbox.path} open")
 
                         while (isActive && container.settings.current
                                 .syncAllowedAt(System.currentTimeMillis())
                         ) {
                             // Blocks until the server reports a change on the mailbox.
                             client.idle(inbox.path)
+                            SyncLog.write("push: ${account.email} was told something changed")
                             // Hold the CPU across the fetch: IDLE can return while the
                             // device is dozing, and the sync must not be suspended
                             // half way through.
@@ -146,6 +175,14 @@ class PushService : LifecycleService() {
                         throw e
                     } catch (e: Throwable) {
                         if (!isActive) return@launch
+                        // A watcher that keeps failing waits longer each time,
+                        // which is how "mail arrives instantly" quietly becomes
+                        // "mail arrives half an hour later". Both halves of that
+                        // are written down.
+                        SyncLog.write(
+                            "push: ${account.email} dropped (${e::class.java.simpleName}: " +
+                                "${e.message}), waiting ${backoffSeconds}s"
+                        )
                         waitBeforeRetry(backoffSeconds)
                         backoffSeconds = (backoffSeconds * 2).coerceAtMost(MAX_BACKOFF_SECONDS)
                     } finally {
@@ -163,7 +200,22 @@ class PushService : LifecycleService() {
      * the clock can move under us across a DST change or a time-zone change.
      */
     private suspend fun waitForSyncWindow(settings: SettingsStore) {
+        var said = false
         while (!settings.current.syncAllowedAt(System.currentTimeMillis())) {
+            if (!said) {
+                SyncLog.write(
+                    "push: outside the hours set for checking " +
+                        "(${AppSettings.formatTime(settings.current.syncStartMinutes)}" +
+                        "-${AppSettings.formatTime(settings.current.syncEndMinutes)}), waiting"
+                )
+                say(
+                    getString(
+                        R.string.push_paused,
+                        AppSettings.formatTime(settings.current.syncStartMinutes)
+                    )
+                )
+                said = true
+            }
             delay(WINDOW_POLL_MILLIS)
         }
     }
@@ -191,6 +243,7 @@ class PushService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        SyncLog.write("push: service stopped")
         running = false
         connectivityCallback?.let { callback ->
             runCatching {

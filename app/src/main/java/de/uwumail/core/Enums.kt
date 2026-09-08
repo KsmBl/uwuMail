@@ -85,6 +85,19 @@ enum class ActionType(@StringRes val label: Int, val needsTargetFolder: Boolean 
     val removesFromFolder: Boolean
         get() = this == ARCHIVE || this == MOVE_TO_TRASH || this == DELETE_PERMANENTLY ||
                 this == MOVE_TO_FOLDER || this == MOVE_TO_LOCAL
+
+    /**
+     * Whether announcing a message this action has already dealt with would be
+     * honest.
+     *
+     * Mail moved onto the device is still a row somebody can open. Everything
+     * else here takes the message out of the folder it arrived in, and a
+     * notification posted from that folder points at a mailbox which, by the
+     * time it is tapped, does not contain the message. The folder it went to
+     * announces it instead, if it is set to.
+     */
+    val worthAnnouncing: Boolean
+        get() = !removesFromFolder || this == MOVE_TO_LOCAL
 }
 
 /**

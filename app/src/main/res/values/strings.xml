@@ -557,7 +557,7 @@
     <string name="applying">Applying…</string>
     <string name="wizard_nothing_body">These messages have no sender, header or subject pattern in common. Try picking mails that are more alike, or build the rule by hand.</string>
     <string name="rules_none_hint">Select a few similar mails in the message list and tap the label icon — uwuMail works out what they have in common for you.</string>
-    <string name="window_applies">Applies to background checks and to push. Opening the app, pulling to refresh and sending are never held back.</string>
+    <string name="window_applies">Applies to background checks and to push. Opening the app, pulling to refresh, Sync now, adding an account and sending are never held back.</string>
 
     <!-- Remaining text -->
     <string name="images_blocked_one">%1$d remote image blocked. Loading it tells the sender you opened this.</string>
@@ -735,4 +735,18 @@
         <item quantity="one">%1$d message selected</item>
         <item quantity="other">%1$d messages selected</item>
     </plurals>
+    <string name="error_no_folder_for_view">No folder is marked for this view. Mark one in the account settings.</string>
+    <string name="bg_log_title">Sync log</string>
+    <string name="bg_log_empty">Nothing recorded yet.</string>
+    <string name="bg_log_lines">%1$d lines. What each check looked at and what the server said.</string>
+    <string name="bg_log_show">Show</string>
+    <string name="bg_log_hide">Hide</string>
+    <string name="bg_log_share">Share sync log</string>
+    <plurals name="bg_push_watching">
+        <item quantity="one">Watching %1$d account for new mail</item>
+        <item quantity="other">Watching %1$d accounts for new mail</item>
+    </plurals>
+    <string name="push_paused">Paused until %1$s — outside the hours you set</string>
+    <string name="bg_push_paused">Paused until %1$s</string>
+    <string name="bg_push_paused_why">Outside the hours you set for checking, so nothing arrives on its own until then. Opening the app and pulling down still fetches straight away.</string>
 </resources>

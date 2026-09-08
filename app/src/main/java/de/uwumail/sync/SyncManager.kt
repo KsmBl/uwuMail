@@ -29,6 +29,7 @@ import de.uwumail.mail.oauth.TokenStore
 import de.uwumail.notify.NotificationPriority
 import de.uwumail.notify.Notifier
 import de.uwumail.rules.MatchContext
+import de.uwumail.core.SyncLog
 import de.uwumail.rules.RuleEngine
 import de.uwumail.rules.RulePlan
 import kotlinx.coroutines.CoroutineScope
@@ -110,10 +111,15 @@ class SyncManager(
     // ------------------------------------------------------------------ sync
 
     suspend fun syncAll() {
-        db.accountDao().getAll().filter { it.syncEnabled }.forEach { account ->
+        val failures = mutableListOf<String>()
+        val all = db.accountDao().getAll()
+        val accounts = all.filter { it.syncEnabled }
+        SyncLog.write("syncAll: ${accounts.size} of ${all.size} accounts have sync switched on")
+        accounts.forEach { account ->
             runCatching { syncAccount(account.id) }
-                .onFailure { error -> _state.update { it.copy(lastError = error.message) } }
+                .onFailure { failures += "${account.email}: ${reasonFor(it)}" }
         }
+        report(failures)
         sendOutbox()
     }
 
@@ -121,14 +127,24 @@ class SyncManager(
         _state.update { it.copy(running = it.running + accountId, lastError = null) }
         try {
             refreshFolders(accountId)
-            val folders = db.folderDao().forAccount(accountId)
-                .filter { !it.isLocal && it.syncEnabled && it.selectable }
+            val known = db.folderDao().forAccount(accountId)
+            val folders = known.filter { !it.isLocal && it.syncEnabled && it.selectable }
+            SyncLog.write(
+                "account $accountId: ${folders.size} of ${known.size} folders are set to sync" +
+                    if (folders.isEmpty()) " — nothing will be fetched" else ""
+            )
             // Inbox first so new mail shows up before the long tail of folders.
+            val failures = mutableListOf<String>()
             folders.sortedBy { if (it.effectiveType == FolderType.INBOX.name) 0 else 1 }
-                .forEach { folder -> runCatching { syncFolder(folder) } }
+                .forEach { folder ->
+                    runCatching { syncFolder(folder) }
+                        .onFailure { failures += "${folder.displayName}: ${reasonFor(it)}" }
+                }
             db.folderDao().refreshAllCounts()
+            report(failures)
             _state.update { it.copy(lastCompletedAt = System.currentTimeMillis()) }
         } catch (e: Throwable) {
+            SyncLog.failure("syncAccount($accountId)", e)
             _state.update { it.copy(lastError = e.message ?: e.toString()) }
             throw e
         } finally {
@@ -206,22 +222,59 @@ class SyncManager(
      * background sync, and a pull-to-refresh is an explicit request for these
      * folders right now. Sent and Trash are not background-synced by default, so
      * honouring the flag here would leave those views permanently empty.
+     *
+     * Every failure here used to be caught and dropped, at three separate
+     * depths, so a unified view that could not reach the server was
+     * indistinguishable from one with no new mail: the spinner turned and the
+     * screen came back exactly as it was. What went wrong is now carried out,
+     * and a view that fetched nothing at all says why.
      */
     suspend fun syncUnified(type: FolderType) {
         val accounts = db.accountDao().getAll()
+        val failures = mutableListOf<String>()
+        var fetched = 0
+        SyncLog.write("unified ${type.name}: ${accounts.size} accounts")
         accounts.forEach { account ->
             runCatching {
                 refreshFolders(account.id)
-                db.folderDao().forAccount(account.id)
+                val playing = db.folderDao().forAccount(account.id)
                     .filter {
                         !it.isLocal && it.selectable && !it.hidden &&
                             it.effectiveType == type.name
                     }
-                    .forEach { folder -> runCatching { syncFolder(folder) } }
-            }.onFailure { error -> _state.update { it.copy(lastError = error.message) } }
+                SyncLog.write(
+                    "unified ${type.name}: ${account.email} has ${playing.size} folders " +
+                        "playing that part${playing.joinToString(prefix = " (", postfix = ")") { it.path }}"
+                )
+                playing
+                    .forEach { folder ->
+                        runCatching { syncFolder(folder) }
+                            .onSuccess { fetched++ }
+                            .onFailure {
+                                failures += "${account.email}/${folder.displayName}: ${reasonFor(it)}"
+                            }
+                    }
+            }.onFailure { failures += "${account.email}: ${reasonFor(it)}" }
         }
         db.folderDao().refreshAllCounts()
         runCatching { sendOutbox() }
+        SyncLog.write(
+            "unified ${type.name}: $fetched folders fetched, ${failures.size} failed" +
+                failures.joinToString(prefix = " — ").ifBlank { "" }
+        )
+
+        if (fetched > 0) {
+            // Some of it worked. The view has something in it, so the rest is
+            // said quietly rather than thrown over the top of it.
+            report(failures)
+            return
+        }
+        if (failures.isNotEmpty()) throw MailException(failures.joinToString("; "))
+        // Nothing failed and nothing was fetched: no folder is playing this
+        // part, which a spinner returning to an empty screen does not say.
+        if (accounts.isNotEmpty()) {
+            throw MailException(context.getString(R.string.error_no_folder_for_view))
+        }
     }
 
     suspend fun syncFolder(folderId: Long) {
@@ -230,13 +283,37 @@ class SyncManager(
         syncFolder(folder)
     }
 
+    /**
+     * What to put in front of the user when something did not work.
+     *
+     * An exception with no message — a bare socket timeout is the common one —
+     * reads as "Error: null", which is worse than saying nothing. The class
+     * name is not pretty, but it names the thing that went wrong.
+     */
+    private fun reasonFor(error: Throwable): String =
+        error.message?.takeIf { it.isNotBlank() }
+            ?: generateSequence(error) { it.cause }.mapNotNull { it.message }
+                .firstOrNull { it.isNotBlank() }
+            ?: error::class.java.simpleName
+
+    /** Keeps what went wrong where the list can pick it up, or clears it. */
+    private fun report(failures: List<String>) = _state.update {
+        it.copy(lastError = failures.takeIf { f -> f.isNotEmpty() }?.joinToString("; "))
+    }
+
     private suspend fun syncFolder(folder: FolderEntity) {
-        val account = db.accountDao().get(folder.accountId) ?: return
+        val account = db.accountDao().get(folder.accountId)
+            ?: return SyncLog.write("folder ${folder.path}: its account is gone, skipping")
         val status = pool.use(account.id) { it.status(folder.path) }
 
         var tracked = folder
         if (tracked.uidValidity != 0L && tracked.uidValidity != status.uidValidity) {
             // The server renumbered the folder; everything we cached is stale.
+            SyncLog.write(
+                "${account.email}/${folder.path}: uid validity changed from " +
+                    "${tracked.uidValidity} to ${status.uidValidity}, dropping the whole cache"
+            )
+            db.messageDao().idsIn(tracked.id).forEach { notifier.cancel(it) }
             db.messageDao().clearFolder(tracked.id)
             tracked = tracked.copy(highestUid = 0)
         }
@@ -247,6 +324,13 @@ class SyncManager(
         val firstRun = tracked.highestUid == 0L
         val limit = if (firstRun) INITIAL_FETCH else INCREMENTAL_FETCH
         val fetched = pool.use(account.id) { it.fetchNewer(tracked.path, tracked.highestUid, limit) }
+        // The high-water mark is the whole reason a folder can connect happily
+        // and return nothing, so it is written down either side of the fetch.
+        SyncLog.write(
+            "${account.email}/${folder.path}: uidvalidity ${status.uidValidity}, " +
+                "above uid ${tracked.highestUid} the server offered ${fetched.size} " +
+                "(asked for at most $limit)"
+        )
 
         if (fetched.isNotEmpty()) {
             processNewMessages(account, tracked, fetched, notify = !firstRun)
@@ -455,9 +539,7 @@ class SyncManager(
 
         // Rows for mail the server moved belong to the folder it went to, which
         // will pick them up on its next sync; drop the copies sitting here.
-        if (departed.isNotEmpty()) {
-            db.messageDao().deleteUids(folder.id, departed.toList())
-        }
+        forget(folder, departed.toList(), "a rule filed it elsewhere")
 
         // Anything still in this folder that was hidden on the way in never got
         // where it was going — a move the server refused, or a download that
@@ -481,9 +563,12 @@ class SyncManager(
             if (message.seen) continue
             val plan = plans[message.uid] ?: RulePlan.EMPTY
             if (plan.suppressNotification) continue
-            // Trashed or deleted mail should not announce itself.
-            val relocation = plan.relocation?.type
-            if (relocation == ActionType.MOVE_TO_TRASH || relocation == ActionType.DELETE_PERMANENTLY) continue
+            // Mail a rule has filed elsewhere does not announce itself from
+            // here. Trash and a permanent delete never did; a move to another
+            // folder did, and the row was dropped from this one seconds later,
+            // so the notification named an inbox that no longer held the
+            // message and opened nothing when tapped.
+            if (plan.relocation?.type?.worthAnnouncing == false) continue
             if (plan.markRead) continue
 
             val entity = db.messageDao().getByUid(folder.id, message.uid) ?: continue
@@ -527,7 +612,44 @@ class SyncManager(
         val serverUids = runCatching { pool.use(account.id) { it.listUids(folder.path, since) } }
             .getOrNull() ?: return
         val gone = localUids.filter { it !in serverUids }
-        if (gone.isNotEmpty()) db.messageDao().deleteUids(folder.id, gone)
+        forget(folder, gone, "no longer in this folder on the server")
+    }
+
+    /**
+     * Drops local rows for mail that is not in this folder any more, and takes
+     * any notification for it down with them.
+     *
+     * A notification outlived its message: the server's own spam filter moving
+     * a message out of the inbox a moment after it arrived left the shade
+     * announcing mail that the next sync had correctly removed, so the only
+     * copy of it anybody could find was a notification that opened nothing.
+     * Whatever the reason a message stops being here, the announcement of it
+     * stops with it.
+     */
+    internal suspend fun forget(folder: FolderEntity, uids: List<Long>, why: String) {
+        if (uids.isEmpty()) return
+        val ids = db.messageDao().idsForUids(folder.id, uids)
+        ids.forEach { notifier.cancel(it) }
+        db.messageDao().deleteUids(folder.id, uids)
+        reconcileSummary(folder.accountId)
+        SyncLog.write(
+            "${folder.path}: dropped ${uids.size} of its messages — $why " +
+                "(uids ${uids.sorted().joinToString(", ")})"
+        )
+    }
+
+    /**
+     * Brings the group line in line with what is still under it.
+     *
+     * Cancelling the messages one by one leaves the line that gathers them
+     * behind, still counting mail that is not in the shade any more — and the
+     * function written to take it away had never been called from anywhere.
+     */
+    private suspend fun reconcileSummary(accountId: Long) {
+        val account = db.accountDao().get(accountId) ?: return
+        val standing = db.messageDao().standingNotifications(accountId)
+        if (Notifier.shouldPostSummary(standing)) notifier.postSummary(account, standing)
+        else notifier.cancelSummary(accountId)
     }
 
     // --------------------------------------------------------- user actions
@@ -665,6 +787,8 @@ class SyncManager(
         }
         db.messageDao().setSeen(messageIds, seen)
         messageIds.forEach { notifier.cancel(it) }
+        db.messageDao().getAll(messageIds).map { it.accountId }.distinct()
+            .forEach { reconcileSummary(it) }
         refreshCountsFor(messageIds)
     }
 
@@ -978,6 +1102,7 @@ class SyncManager(
         removed.mapNotNull { it.rawFilePath }.forEach { runCatching { File(it).delete() } }
         db.messageDao().deleteAll(removed.map { it.id })
         removed.forEach { notifier.cancel(it.id) }
+        removed.map { it.accountId }.distinct().forEach { reconcileSummary(it) }
         refreshCountsFor(messageIds)
 
         if (failures.isNotEmpty()) {

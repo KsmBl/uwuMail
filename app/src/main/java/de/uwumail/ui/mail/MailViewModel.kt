@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
@@ -258,6 +259,18 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             container.syncManager.alerts.collect { alert ->
                 transient.update { it.copy(error = alert) }
             }
+        }
+
+        // A background check has no screen of its own to fail on, and what it
+        // recorded was written and never read by anything: an account that had
+        // stopped fetching said so nowhere at all. Shown once per change, so a
+        // failure that persists is not a message that keeps reappearing.
+        viewModelScope.launch {
+            container.syncManager.state
+                .map { it.lastError }
+                .distinctUntilChanged()
+                .filterNotNull()
+                .collect { failure -> transient.update { it.copy(error = failure) } }
         }
 
         // Removals wait a few seconds before they happen, and this is the offer

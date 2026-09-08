@@ -171,21 +171,38 @@ class ImapClient(
     /**
      * Fetches envelopes for UIDs greater than [afterUid], newest [limit] first.
      * Returns an empty list when the folder has nothing newer.
+     *
+     * This used to ask the folder for its UIDNEXT first and return early when
+     * [afterUid] had already reached it. UIDNEXT is only sent with the SELECT
+     * response, and these folders are held open and reused across syncs, so the
+     * value JavaMail hands back is whatever it was when the folder was opened —
+     * which is exactly one less than the UID of the next message to arrive.
+     * Once the cache had caught up with that stale figure the check was true
+     * for ever: every sync returned nothing, in milliseconds, without asking
+     * the server, while other clients on the same mailbox saw the new mail. The
+     * server is asked every time now.
      */
     fun fetchNewer(path: String, afterUid: Long, limit: Int): List<FetchedMessage> {
         val folder = open(path, Folder.READ_ONLY)
-        val uidNext = runCatching { folder.uidNext }.getOrDefault(0L)
-        if (uidNext > 0 && afterUid >= uidNext - 1) return emptyList()
         val start = if (afterUid <= 0) 1L else afterUid + 1
         val messages = runCatching {
             folder.getMessagesByUID(start, UIDFolder.LASTUID)
         }.getOrElse { emptyArray() }.filterNotNull()
+            // A range whose start is past the end of the mailbox comes back as
+            // the newest message rather than as nothing, which is the server
+            // reading "start:*" the other way round. Dropping it on UID alone
+            // means no envelope is fetched for a message already held.
+            .filter { uidOf(folder, it) > afterUid }
         val window = if (messages.size > limit) messages.takeLast(limit) else messages
         if (window.isEmpty()) return emptyList()
         fetchEnvelopes(folder, window.toTypedArray())
         return window.mapNotNull { toFetched(folder, it) }
             .filter { it.uid > afterUid }
     }
+
+    /** The UID already known from the fetch that returned this message. */
+    private fun uidOf(folder: IMAPFolder, message: javax.mail.Message): Long =
+        runCatching { folder.getUID(message) }.getOrDefault(-1L)
 
     /** Fetches the [limit] envelopes immediately older than [beforeUid], for paging back. */
     fun fetchOlder(path: String, beforeUid: Long, limit: Int): List<FetchedMessage> {

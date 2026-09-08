@@ -1,6 +1,7 @@
 package de.uwumail
 
 import android.app.Application
+import de.uwumail.core.SyncLog
 import de.uwumail.core.WizardLog
 import de.uwumail.di.AppContainer
 import de.uwumail.sync.PushService
@@ -23,6 +24,8 @@ class UwuMailApp : Application() {
         super.onCreate()
         registerMailHandlers()
         WizardLog.attach(this)
+        SyncLog.attach(this)
+        SyncLog.write("app started — ${SyncLog.device()}")
         container = AppContainer(this)
 
         appScope.launch(Dispatchers.IO) {
