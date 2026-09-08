@@ -166,6 +166,12 @@ class MessageViewModel(
 
     init {
         viewModelScope.launch {
+            // First, and on its own: it is being read, so it has no business
+            // still announcing itself. Nothing here may wait on the server, and
+            // nothing may skip it — a body that would not download, or a
+            // message another client had already flagged read, both used to
+            // leave the notification standing over the mail on screen.
+            runCatching { container.syncManager.dismissNotifications(listOf(messageId)) }
             runCatching {
                 container.syncManager.ensureBody(messageId)
                 // Opening a message is the natural point to clear its unread state.

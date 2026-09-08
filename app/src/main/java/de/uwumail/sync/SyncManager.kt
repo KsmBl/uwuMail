@@ -593,6 +593,7 @@ class SyncManager(
         if (uids.isEmpty()) return
         val flags = runCatching { pool.use(account.id) { it.fetchFlags(folder.path, uids) } }
             .getOrNull() ?: return
+        val readElsewhere = mutableListOf<Long>()
         flags.forEach { (uid, state) ->
             val local = db.messageDao().getByUid(folder.id, uid) ?: return@forEach
             if (local.seen != state.seen || local.flagged != state.flagged ||
@@ -601,8 +602,12 @@ class SyncManager(
                 db.messageDao().update(
                     local.copy(seen = state.seen, flagged = state.flagged, answered = state.answered)
                 )
+                if (state.seen && !local.seen) readElsewhere += local.id
             }
         }
+        // Read on another client. The notification here is announcing mail that
+        // has already been dealt with, and tapping it opens something read.
+        dismissNotifications(readElsewhere)
     }
 
     private suspend fun pruneVanished(account: AccountEntity, folder: FolderEntity) {
@@ -786,10 +791,27 @@ class SyncManager(
             pool.use(account.id) { it.setFlags(folder.path, uids, Flags.Flag.SEEN, seen) }
         }
         db.messageDao().setSeen(messageIds, seen)
-        messageIds.forEach { notifier.cancel(it) }
-        db.messageDao().getAll(messageIds).map { it.accountId }.distinct()
-            .forEach { reconcileSummary(it) }
+        dismissNotifications(messageIds)
         refreshCountsFor(messageIds)
+    }
+
+    /**
+     * Takes messages out of the shade because they have been dealt with.
+     *
+     * Kept apart from marking them read, and safe to call on its own, because
+     * the two are not the same event and must not share a failure. Opening a
+     * message used to clear its notification only as a side effect of marking
+     * it read — which happened after the body had been fetched, and only if the
+     * message was not already marked read. A body fetch that failed, or a
+     * message the server had already flagged read from another client, left the
+     * notification standing over a mail that was being read on screen.
+     */
+    suspend fun dismissNotifications(messageIds: List<Long>) {
+        if (messageIds.isEmpty()) return
+        val accounts = db.messageDao().getAll(messageIds).map { it.accountId }.distinct()
+        messageIds.forEach { notifier.cancel(it) }
+        db.messageDao().clearNotified(messageIds)
+        accounts.forEach { reconcileSummary(it) }
     }
 
     /**

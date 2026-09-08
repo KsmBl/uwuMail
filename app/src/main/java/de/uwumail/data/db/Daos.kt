@@ -446,6 +446,10 @@ interface MessageDao {
     @Query("UPDATE messages SET notified = 1 WHERE id IN (:ids)")
     suspend fun markNotified(ids: List<Long>)
 
+    /** No longer standing in the shade, so no longer counted by the line above it. */
+    @Query("UPDATE messages SET notified = 0 WHERE id IN (:ids)")
+    suspend fun clearNotified(ids: List<Long>)
+
     /** Hides or restores rows while a server-side removal is in flight. */
     @Query("UPDATE messages SET pendingRemoval = :pending WHERE id IN (:ids)")
     suspend fun setPendingRemoval(ids: List<Long>, pending: Boolean)
