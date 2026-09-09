@@ -12,6 +12,8 @@ import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.RuleActionEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
+import de.uwumail.data.db.folderPaths
+import de.uwumail.data.db.folderScopeOf
 import de.uwumail.di.AppContainer
 import de.uwumail.ui.common.folderLabel
 import de.uwumail.rules.MatchContext
@@ -29,7 +31,8 @@ data class RuleEditState(
     val enabled: Boolean = true,
     val priority: String = "100",
     val accountId: Long? = null,
-    val folderPath: String? = null,
+    /** The folders the rule is limited to; empty means every folder. */
+    val folderPaths: Set<String> = emptySet(),
     val matchMode: MatchMode = MatchMode.ALL,
     val stopProcessing: Boolean = false,
     val conditions: List<RuleConditionEntity> = emptyList(),
@@ -52,6 +55,10 @@ data class RuleEditState(
 
     fun foldersForScope(): List<FolderEntity> =
         folders.filter { accountId == null || it.accountId == accountId }
+
+    /** True when this rule may run in [path]; nothing ticked means everywhere. */
+    fun coversFolder(path: String): Boolean =
+        folderPaths.isEmpty() || folderPaths.any { it.equals(path, true) }
 }
 
 class RuleEditViewModel(
@@ -76,7 +83,7 @@ class RuleEditViewModel(
                             enabled = entry.rule.enabled,
                             priority = entry.rule.priority.toString(),
                             accountId = entry.rule.accountId,
-                            folderPath = entry.rule.folderPath,
+                            folderPaths = entry.rule.folderPaths.toSet(),
                             matchMode = runCatching { MatchMode.valueOf(entry.rule.matchMode) }
                                 .getOrDefault(MatchMode.ALL),
                             stopProcessing = entry.rule.stopProcessing,
@@ -97,6 +104,17 @@ class RuleEditViewModel(
     }
 
     fun update(transform: (RuleEditState) -> RuleEditState) = _state.update(transform)
+
+    /** Ticks or unticks one folder in the rule's scope. */
+    fun toggleFolder(path: String) = _state.update { current ->
+        current.copy(
+            folderPaths = if (path in current.folderPaths) current.folderPaths - path
+            else current.folderPaths + path
+        )
+    }
+
+    /** Back to every folder, which is what no folder ticked means. */
+    fun clearFolders() = _state.update { it.copy(folderPaths = emptySet()) }
 
     fun addCondition() = _state.update {
         it.copy(
@@ -156,9 +174,7 @@ class RuleEditViewModel(
                         return@filter false
                     }
                     val path = paths[message.folderId].orEmpty()
-                    if (current.folderPath != null && !current.folderPath.equals(path, true)) {
-                        return@filter false
-                    }
+                    if (!current.coversFolder(path)) return@filter false
                     RuleMatcher.matchesAll(
                         current.conditions.filter { it.value.isNotBlank() },
                         MatchContext.of(message, path, attachmentNames[message.id].orEmpty()),
@@ -207,7 +223,7 @@ class RuleEditViewModel(
                         enabled = current.enabled,
                         priority = current.priority.toIntOrNull() ?: 100,
                         accountId = current.accountId,
-                        folderPath = current.folderPath,
+                        folderPath = folderScopeOf(current.folderPaths),
                         matchMode = current.matchMode.name,
                         stopProcessing = current.stopProcessing,
                         createdAt = System.currentTimeMillis()

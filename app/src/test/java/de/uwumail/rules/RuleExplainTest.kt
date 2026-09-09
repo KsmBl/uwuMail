@@ -8,6 +8,7 @@ import de.uwumail.data.db.RuleActionEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
 import de.uwumail.data.db.RuleWithDetails
+import de.uwumail.data.db.folderScopeOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -146,6 +147,43 @@ class RuleExplainTest {
 
         assertEquals(RuleVerdict.OTHER_FOLDER, checks.single().verdict)
         assertEquals("Archive", checks.single().rule.folderPath)
+    }
+
+    /** Several folders is the shape people actually want: inbox and spam, nowhere else. */
+    @Test
+    fun `a rule naming several folders runs in each of them`() {
+        val rules = listOf(
+            rule(
+                folderPath = folderScopeOf(listOf("INBOX", "Spamverdacht")),
+                conditions = listOf(condition(value = "Run"))
+            )
+        )
+
+        assertEquals(RuleVerdict.MATCHED, RuleExplain.check(context(folder = "INBOX"), rules).single().verdict)
+        assertEquals(RuleVerdict.MATCHED, RuleExplain.check(context(folder = "Spamverdacht"), rules).single().verdict)
+        assertEquals(
+            RuleVerdict.OTHER_FOLDER,
+            RuleExplain.check(context(folder = "Archive"), rules).single().verdict
+        )
+    }
+
+    @Test
+    fun `and the engine agrees about every one of them`() {
+        val rules = listOf(
+            rule(
+                folderPath = folderScopeOf(listOf("INBOX", "Spamverdacht")),
+                conditions = listOf(condition(value = "Run"))
+            )
+        )
+
+        listOf("INBOX", "Spamverdacht", "Archive").forEach { folder ->
+            val ctx = context(folder = folder)
+            assertEquals(
+                "disagreed about $folder",
+                RuleEngine.evaluate(ctx, rules).matched,
+                RuleExplain.check(ctx, rules).single().matched
+            )
+        }
     }
 
     @Test

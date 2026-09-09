@@ -186,6 +186,12 @@ fun UwuMailNavHost(
             MessageScreen(
                 messageId = messageId,
                 onBack = { navController.leave(entry) },
+                // From the rule check: the answer to "why did this not match"
+                // is usually one field in the rule, and it is a long way round
+                // to the rules screen and back to change it.
+                onEditRule = { ruleId ->
+                    navController.go(entry, "${Routes.RULE_EDIT}?ruleId=$ruleId")
+                },
                 onReply = { id, all ->
                     navController.go(
                         entry,

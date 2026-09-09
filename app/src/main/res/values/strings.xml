@@ -758,7 +758,7 @@
     <string name="rule_check_acted">Acts on this message</string>
     <string name="rule_check_disabled">Switched off</string>
     <string name="rule_check_other_account">Set to a different account</string>
-    <string name="rule_check_other_folder">Set to the folder \"%1$s\" only</string>
+    <string name="rule_check_other_folder">Set to these folders only: %1$s</string>
     <string name="rule_check_no_conditions">Has no conditions, so it never matches</string>
     <string name="rule_check_not_reached">Never reached: an earlier rule matched and stops processing</string>
     <string name="rule_check_needs_all">Needs every condition to hold; the ✗ ones do not</string>
@@ -768,4 +768,11 @@
     <string name="rule_check_not">not</string>
     <string name="show_single_messages">Show single messages</string>
     <string name="show_conversations">Show conversations</string>
+    <string name="rule_in_folders">In these folders</string>
+    <string name="rule_every_folder_again">Every folder again</string>
+    <plurals name="rule_folders_chosen">
+        <item quantity="one">%1$d folder</item>
+        <item quantity="other">%1$d folders</item>
+    </plurals>
+    <string name="rule_check_edit">Edit this rule</string>
 </resources>

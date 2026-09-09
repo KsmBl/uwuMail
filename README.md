@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-578%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-590%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -139,6 +139,11 @@ operators `matches regex`, `contains`, `is exactly`, `starts with`, `ends with`,
 `domain is`, `greater/less than`. Every condition can be inverted or made case
 sensitive, and conditions combine with all/any.
 
+A rule can be limited to **any set of folders**, ticked from a list, rather
+than to one folder or to all of them — running something over the inbox and the
+spam folder and nowhere else is the commonest wish and used to need two
+identical rules. Nothing ticked still means every folder.
+
 *Actions*: mark read/unread, star/unstar, archive, move to trash, delete
 permanently, move or copy to an IMAP folder, move or copy to a device folder,
 download the full message, and the three notification outcomes — **don't
@@ -180,7 +185,8 @@ all invisible from the rule's own screen — a scope pointing at another folder,
 a value one character out, a case-sensitive test, or an earlier rule that stops
 processing so this one never ran. Every condition is shown with what it was
 looking for beside **what this message actually holds** in that field, which is
-usually the whole answer.
+usually the whole answer. Each rule carries an edit button straight into it,
+since the answer is nearly always one field that wants changing.
 
 <details>
 <summary><b>Building a rule without knowing regex</b></summary>
@@ -657,7 +663,7 @@ to read and to run rules against.
 
 ## Tests
 
-578 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+590 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -763,6 +769,10 @@ to read and to run rules against.
 - `mail/OutgoingAttachmentTest` — the name a sent attachment arrives under.
 - `mail/AttachmentHintTest` — which content types earn a paperclip in the list.
 - `rules/AttachmentRuleTest` — conditions on an attachment's filename.
+- `data/db/RuleFolderScopeTest` — a rule limited to a set of folders: that one
+  written before this still names exactly the folder it always did, that none
+  chosen means every folder rather than no folder, and that nested paths, case
+  and stray separators all survive being stored and read back.
 - `rules/RuleExplainTest` — the per-message rule check, above all that its
   verdicts agree with the engine's own on every rule including the
   stop-processing case, since an explanation that disagreed with what actually

@@ -235,7 +235,15 @@ data class RuleEntity(
     val priority: Int = 100,
     /** null means the rule applies to every account. */
     val accountId: Long? = null,
-    /** null means every folder; otherwise an IMAP path. */
+    /**
+     * Which folders the rule is limited to; null means every folder.
+     *
+     * Several paths are held newline-separated. IMAP forbids CR and LF in a
+     * mailbox name, so no path can contain the separator, and a rule naming one
+     * folder — which is every rule written before this — is still exactly that
+     * one path with nothing to migrate. Read it through [folderPaths] rather
+     * than directly.
+     */
     val folderPath: String? = null,
     val matchMode: String = "ALL",
     /** Stop evaluating later rules once this one matches. */

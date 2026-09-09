@@ -12,11 +12,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -32,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.uwumail.R
 import de.uwumail.core.RuleField
+import de.uwumail.data.db.folderPaths
 import de.uwumail.core.RuleOperator
 import de.uwumail.rules.ConditionCheck
 import de.uwumail.rules.RuleCheck
@@ -56,6 +59,7 @@ import de.uwumail.rules.RuleVerdict
 fun RuleCheckSheet(
     checks: List<RuleCheck>,
     loading: Boolean,
+    onEdit: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -87,7 +91,7 @@ fun RuleCheckSheet(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             items(checks, key = { it.rule.id }) { check ->
-                RuleCheckRow(check)
+                RuleCheckRow(check, onEdit = { onEdit(check.rule.id) })
                 HorizontalDivider()
             }
         }
@@ -95,8 +99,8 @@ fun RuleCheckSheet(
 }
 
 @Composable
-private fun RuleCheckRow(check: RuleCheck) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) {
+private fun RuleCheckRow(check: RuleCheck, onEdit: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp, top = 12.dp, bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 if (check.matched) Icons.Default.CheckCircle else Icons.Default.Cancel,
@@ -107,8 +111,14 @@ private fun RuleCheckRow(check: RuleCheck) {
             Text(
                 "  " + check.rule.name,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
             )
+            // The answer is usually one field in the rule, and the way round to
+            // the rules screen and back to change it is a long one.
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, stringResource(R.string.rule_check_edit))
+            }
         }
         Text(
             verdictText(check),
@@ -193,8 +203,10 @@ private fun verdictText(check: RuleCheck): String = when (check.verdict) {
     RuleVerdict.MATCHED -> stringResource(R.string.rule_check_acted)
     RuleVerdict.DISABLED -> stringResource(R.string.rule_check_disabled)
     RuleVerdict.OTHER_ACCOUNT -> stringResource(R.string.rule_check_other_account)
+    // A rule may name several folders now, and which ones is the point of
+    // saying this at all.
     RuleVerdict.OTHER_FOLDER -> stringResource(
-        R.string.rule_check_other_folder, check.rule.folderPath.orEmpty()
+        R.string.rule_check_other_folder, check.rule.folderPaths.joinToString(", ")
     )
     RuleVerdict.NO_CONDITIONS -> stringResource(R.string.rule_check_no_conditions)
     RuleVerdict.NOT_REACHED -> stringResource(R.string.rule_check_not_reached)

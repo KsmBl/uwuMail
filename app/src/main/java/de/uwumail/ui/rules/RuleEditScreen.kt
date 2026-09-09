@@ -55,6 +55,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.uwumail.R
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Checkbox
+import de.uwumail.data.db.AccountEntity
+import de.uwumail.data.db.FolderEntity
+import de.uwumail.ui.common.folderLabel
 import de.uwumail.core.ActionType
 import de.uwumail.core.MatchMode
 import de.uwumail.core.RuleField
@@ -143,26 +150,26 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
             }
 
             SectionHeader(stringResource(R.string.rule_applies_to))
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ScopeDropdown(
-                    label = state.accounts.firstOrNull { it.id == state.accountId }?.displayName
-                        ?: stringResource(R.string.rule_all_accounts),
-                    options = listOf<Pair<String, Long?>>(stringResource(R.string.rule_all_accounts) to null) +
-                        state.accounts.map { it.displayName to it.id },
-                    onPick = { value -> viewModel.update { it.copy(accountId = value, folderPath = null) } },
-                    modifier = Modifier.weight(1f)
-                )
-                ScopeDropdown(
-                    label = state.folderPath ?: stringResource(R.string.rule_all_folders),
-                    options = listOf<Pair<String, String?>>(stringResource(R.string.rule_all_folders) to null) +
-                        state.foldersForScope().map { it.displayName to it.path },
-                    onPick = { value -> viewModel.update { it.copy(folderPath = value) } },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            ScopeDropdown(
+                label = state.accounts.firstOrNull { it.id == state.accountId }?.displayName
+                    ?: stringResource(R.string.rule_all_accounts),
+                options = listOf<Pair<String, Long?>>(stringResource(R.string.rule_all_accounts) to null) +
+                    state.accounts.map { it.displayName to it.id },
+                // The folders belong to the account, so narrowing the account
+                // has to let go of folders that are no longer in it.
+                onPick = { value ->
+                    viewModel.update { it.copy(accountId = value) }
+                    viewModel.clearFolders()
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            )
+            FolderScope(
+                folders = state.foldersForScope(),
+                accounts = state.accounts,
+                ticked = state.folderPaths,
+                onToggle = viewModel::toggleFolder,
+                onClear = viewModel::clearFolders
+            )
 
             SectionHeader(stringResource(R.string.rule_conditions))
             Row(
@@ -296,6 +303,83 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
             scanned = state.previewTotal ?: 0,
             onDismiss = { showMatches = false }
         )
+    }
+}
+
+/**
+ * Which folders the rule runs in, ticked one by one.
+ *
+ * This was a dropdown offering one folder or all of them, which cannot say the
+ * commonest thing anybody wants — run this over the inbox and the spam folder,
+ * and nowhere else. Nothing ticked still means every folder, so a rule that
+ * never cared reads the same as it always did.
+ */
+@Composable
+private fun FolderScope(
+    folders: List<FolderEntity>,
+    accounts: List<AccountEntity>,
+    ticked: Set<String>,
+    onToggle: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Row(
+            Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.rule_in_folders),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    if (ticked.isEmpty()) stringResource(R.string.rule_all_folders)
+                    else pluralStringResource(
+                        R.plurals.rule_folders_chosen, ticked.size, ticked.size
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(if (open) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
+        }
+        if (!open) return@Column
+        if (ticked.isNotEmpty()) {
+            TextButton(onClick = onClear, contentPadding = PaddingValues(0.dp)) {
+                Text(stringResource(R.string.rule_every_folder_again))
+            }
+        }
+        folders.forEach { folder ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle(folder.path) }
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = folder.path in ticked,
+                    onCheckedChange = { onToggle(folder.path) }
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        // Which mailbox, since the same folder name exists on
+                        // every account and this list can span them.
+                        if (accounts.size > 1) folderLabel(folder, accounts)
+                        else folder.displayName,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (folder.path != folder.displayName) {
+                        Text(
+                            folder.path,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

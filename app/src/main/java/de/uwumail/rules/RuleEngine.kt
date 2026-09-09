@@ -4,6 +4,7 @@ import de.uwumail.core.ActionType
 import de.uwumail.core.MatchMode
 import de.uwumail.core.RuleField
 import de.uwumail.data.db.RuleDao
+import de.uwumail.data.db.appliesToFolder
 import de.uwumail.data.db.RuleEntity
 import de.uwumail.data.db.RuleWithDetails
 
@@ -104,7 +105,7 @@ class RuleEngine(private val ruleDao: RuleDao) {
                 val rule = entry.rule
                 if (!rule.enabled) continue
                 if (rule.accountId != null && rule.accountId != ctx.accountId) continue
-                if (rule.folderPath != null && !rule.folderPath.equals(ctx.folderPath, true)) continue
+                if (!rule.appliesToFolder(ctx.folderPath)) continue
                 if (entry.conditions.isEmpty()) continue
 
                 val requireAll = runCatching { MatchMode.valueOf(rule.matchMode) }

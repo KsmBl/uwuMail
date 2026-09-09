@@ -113,6 +113,8 @@ import java.io.File
 fun MessageScreen(
     messageId: Long,
     onBack: () -> Unit,
+    /** Opens one rule in the editor, from the rule check. */
+    onEditRule: (Long) -> Unit,
     onReply: (Long, Boolean) -> Unit,
     onForward: (Long) -> Unit,
     onOpenMessage: (Long) -> Unit = {}
@@ -643,6 +645,7 @@ fun MessageScreen(
         RuleCheckSheet(
             checks = state.ruleChecks,
             loading = state.checkingRules,
+            onEdit = { ruleId -> showRuleCheck = false; onEditRule(ruleId) },
             onDismiss = { showRuleCheck = false }
         )
     }

@@ -756,7 +756,7 @@
     <string name="rule_check_acted">Greift bei dieser Mail</string>
     <string name="rule_check_disabled">Ausgeschaltet</string>
     <string name="rule_check_other_account">Gilt für ein anderes Konto</string>
-    <string name="rule_check_other_folder">Gilt nur für den Ordner \"%1$s\"</string>
+    <string name="rule_check_other_folder">Gilt nur für diese Ordner: %1$s</string>
     <string name="rule_check_no_conditions">Hat keine Bedingungen und greift daher nie</string>
     <string name="rule_check_not_reached">Nie erreicht: eine frühere Regel greift und stoppt die Verarbeitung</string>
     <string name="rule_check_needs_all">Alle Bedingungen müssen zutreffen; die mit ✗ tun es nicht</string>
@@ -766,4 +766,11 @@
     <string name="rule_check_not">nicht</string>
     <string name="show_single_messages">Einzelne Nachrichten anzeigen</string>
     <string name="show_conversations">Konversationen anzeigen</string>
+    <string name="rule_in_folders">In diesen Ordnern</string>
+    <string name="rule_every_folder_again">Wieder jeder Ordner</string>
+    <plurals name="rule_folders_chosen">
+        <item quantity="one">%1$d Ordner</item>
+        <item quantity="other">%1$d Ordner</item>
+    </plurals>
+    <string name="rule_check_edit">Diese Regel bearbeiten</string>
 </resources>
