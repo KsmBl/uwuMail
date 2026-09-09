@@ -766,4 +766,6 @@
     <string name="rule_check_actual">this mail: %1$s</string>
     <string name="rule_check_empty">this mail: nothing in that field</string>
     <string name="rule_check_not">not</string>
+    <string name="show_single_messages">Show single messages</string>
+    <string name="show_conversations">Show conversations</string>
 </resources>

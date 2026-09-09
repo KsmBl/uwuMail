@@ -99,7 +99,9 @@ data class MailUiState(
     val swipeRight: SwipeAction = SwipeAction.ARCHIVE,
     val swipeLeft: SwipeAction = SwipeAction.SELECT,
     /** How far a swipe must travel to count, as a fraction of the row's width. */
-    val swipeThreshold: Float = AppSettings().swipeThresholdFraction
+    val swipeThreshold: Float = AppSettings().swipeThresholdFraction,
+    /** Whether the list is showing threads or messages, for the toggle that switches it. */
+    val conversations: Boolean = true
 ) {
     val inSelectionMode: Boolean get() = selection.isNotEmpty()
 
@@ -240,7 +242,8 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
             undos = rest.extra.undos,
             swipeRight = rest.settings.swipeRight,
             swipeLeft = rest.settings.swipeLeft,
-            swipeThreshold = rest.settings.swipeThresholdFraction
+            swipeThreshold = rest.settings.swipeThresholdFraction,
+            conversations = rest.settings.groupIntoConversations
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MailUiState())
 
@@ -618,6 +621,16 @@ class MailViewModel(private val container: AppContainer) : ViewModel() {
         launchGuarded { block(listOf(messageId)) }
 
     fun clearStatus() = transient.update { it.copy(status = null, error = null) }
+
+    /**
+     * Switches between one row per conversation and one row per message.
+     *
+     * The same setting as the one in Settings, reachable from the list it
+     * changes: wanting the flat list happens while looking at the threaded one,
+     * and a preference about how a list reads belongs within reach of it.
+     */
+    fun setConversations(on: Boolean) =
+        container.settings.update { it.copy(groupIntoConversations = on) }
 
     fun undo(token: Long) {
         dismissUndo(token)

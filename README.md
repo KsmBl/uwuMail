@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-572%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-578%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -359,7 +359,10 @@ have.
 - Searching always shows the **messages themselves**: a search is a hunt for one
   message, not a list to read through.
 - All of it is *Settings → Message list → Group into conversations*, on by
-  default. The flat list is a defensible preference, not a mistake.
+  default. The flat list is a defensible preference, not a mistake — and the
+  list's own menu switches between **Show single messages** and **Show
+  conversations** without leaving it, since wanting the flat list happens while
+  looking at the threaded one.
 
 ## The message list
 
@@ -654,7 +657,7 @@ to read and to run rules against.
 
 ## Tests
 
-572 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+578 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the

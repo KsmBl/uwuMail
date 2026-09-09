@@ -764,4 +764,6 @@
     <string name="rule_check_actual">diese Mail: %1$s</string>
     <string name="rule_check_empty">diese Mail: nichts in diesem Feld</string>
     <string name="rule_check_not">nicht</string>
+    <string name="show_single_messages">Einzelne Nachrichten anzeigen</string>
+    <string name="show_conversations">Konversationen anzeigen</string>
 </resources>

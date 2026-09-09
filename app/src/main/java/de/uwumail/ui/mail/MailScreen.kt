@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Label
@@ -538,6 +540,29 @@ fun MailScreen(
                                     )
                                     HorizontalDivider()
                                 }
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            if (state.conversations) {
+                                                stringResource(R.string.show_single_messages)
+                                            } else {
+                                                stringResource(R.string.show_conversations)
+                                            }
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (state.conversations) Icons.AutoMirrored.Filled.Message
+                                            else Icons.AutoMirrored.Filled.Chat,
+                                            null
+                                        )
+                                    },
+                                    onClick = {
+                                        overflowOpen = false
+                                        viewModel.setConversations(!state.conversations)
+                                    }
+                                )
+                                HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.rules)) },
                                     onClick = { overflowOpen = false; onManageRules() }
