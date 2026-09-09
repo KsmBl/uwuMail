@@ -754,7 +754,10 @@
     <string name="rule_check_working">Testing…</string>
     <string name="rule_check_no_rules">You have no rules yet.</string>
     <string name="rule_check_none_matched">No rule acts on this message. Each one below says why.</string>
-    <string name="rule_check_matched">%1$d rules act on this message.</string>
+    <plurals name="rule_check_matched">
+        <item quantity="one">%1$d rule acts on this message.</item>
+        <item quantity="other">%1$d rules act on this message.</item>
+    </plurals>
     <string name="rule_check_acted">Acts on this message</string>
     <string name="rule_check_disabled">Switched off</string>
     <string name="rule_check_other_account">Set to a different account</string>
@@ -769,7 +772,7 @@
     <string name="show_single_messages">Show single messages</string>
     <string name="show_conversations">Show conversations</string>
     <string name="rule_in_folders">In these folders</string>
-    <string name="rule_every_folder_again">Every folder again</string>
+    <string name="rule_every_folder_again">All folders again</string>
     <plurals name="rule_folders_chosen">
         <item quantity="one">%1$d folder</item>
         <item quantity="other">%1$d folders</item>

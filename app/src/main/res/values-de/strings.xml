@@ -752,7 +752,10 @@
     <string name="rule_check_working">Wird geprüft…</string>
     <string name="rule_check_no_rules">Du hast noch keine Regeln.</string>
     <string name="rule_check_none_matched">Keine Regel greift bei dieser Mail. Jede unten sagt warum.</string>
-    <string name="rule_check_matched">%1$d Regeln greifen bei dieser Mail.</string>
+    <plurals name="rule_check_matched">
+        <item quantity="one">%1$d Regel greift bei dieser Mail.</item>
+        <item quantity="other">%1$d Regeln greifen bei dieser Mail.</item>
+    </plurals>
     <string name="rule_check_acted">Greift bei dieser Mail</string>
     <string name="rule_check_disabled">Ausgeschaltet</string>
     <string name="rule_check_other_account">Gilt für ein anderes Konto</string>
@@ -767,7 +770,7 @@
     <string name="show_single_messages">Einzelne Nachrichten anzeigen</string>
     <string name="show_conversations">Konversationen anzeigen</string>
     <string name="rule_in_folders">In diesen Ordnern</string>
-    <string name="rule_every_folder_again">Wieder jeder Ordner</string>
+    <string name="rule_every_folder_again">Wieder alle Ordner</string>
     <plurals name="rule_folders_chosen">
         <item quantity="one">%1$d Ordner</item>
         <item quantity="other">%1$d Ordner</item>

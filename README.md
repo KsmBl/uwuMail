@@ -139,8 +139,10 @@ operators `matches regex`, `contains`, `is exactly`, `starts with`, `ends with`,
 `domain is`, `greater/less than`. Every condition can be inverted or made case
 sensitive, and conditions combine with all/any.
 
-A rule can be limited to **any set of folders**, ticked from a list, rather
-than to one folder or to all of them — running something over the inbox and the
+A rule can be limited to **any set of folders**, ticked from a list — with
+*All inboxes*, *All sent mail* and *All deleted mails* at the top of it, taken
+from the same list the drawer opens with so the names cannot drift apart —
+rather than to one folder or to all of them — running something over the inbox and the
 spam folder and nowhere else is the commonest wish and used to need two
 identical rules. Nothing ticked still means every folder.
 

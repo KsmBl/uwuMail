@@ -55,6 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.uwumail.R
+import de.uwumail.data.db.effectiveType
+import de.uwumail.ui.mail.MailTarget
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -168,6 +171,7 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
                 accounts = state.accounts,
                 ticked = state.folderPaths,
                 onToggle = viewModel::toggleFolder,
+                onToggleGroup = viewModel::setFolders,
                 onClear = viewModel::clearFolders
             )
 
@@ -320,6 +324,7 @@ private fun FolderScope(
     accounts: List<AccountEntity>,
     ticked: Set<String>,
     onToggle: (String) -> Unit,
+    onToggleGroup: (Collection<String>, Boolean) -> Unit,
     onClear: () -> Unit
 ) {
     var open by remember { mutableStateOf(false) }
@@ -350,6 +355,41 @@ private fun FolderScope(
                 Text(stringResource(R.string.rule_every_folder_again))
             }
         }
+
+        // The same rows the drawer opens with, taken from the same list so the
+        // names cannot drift apart: whichever folders are playing that part,
+        // across every account the rule covers. A part nothing is playing is
+        // not offered.
+        val groups = MailTarget.UNIFIED.mapNotNull { (target, label) ->
+            val paths = folders.filter { it.effectiveType == target.type.name }.map { it.path }
+            if (paths.isEmpty()) null else label to paths
+        }
+        groups.forEach { (label, paths) ->
+            val all = paths.all { it in ticked }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleGroup(paths, !all) }
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = all, onCheckedChange = { onToggleGroup(paths, it) })
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        pluralStringResource(
+                            R.plurals.rule_folders_chosen, paths.size, paths.size
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        if (groups.isNotEmpty()) {
+            HorizontalDivider(Modifier.padding(vertical = 6.dp))
+        }
+
         folders.forEach { folder ->
             Row(
                 Modifier

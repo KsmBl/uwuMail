@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -77,7 +78,9 @@ fun RuleCheckSheet(
                     loading -> stringResource(R.string.rule_check_working)
                     checks.isEmpty() -> stringResource(R.string.rule_check_no_rules)
                     matched == 0 -> stringResource(R.string.rule_check_none_matched)
-                    else -> stringResource(R.string.rule_check_matched, matched)
+                    else -> pluralStringResource(
+                        R.plurals.rule_check_matched, matched, matched
+                    )
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

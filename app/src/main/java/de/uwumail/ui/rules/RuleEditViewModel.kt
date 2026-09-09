@@ -113,6 +113,13 @@ class RuleEditViewModel(
         )
     }
 
+    /** Ticks or unticks a whole group at once, for the unified rows. */
+    fun setFolders(paths: Collection<String>, on: Boolean) = _state.update { current ->
+        current.copy(
+            folderPaths = if (on) current.folderPaths + paths else current.folderPaths - paths.toSet()
+        )
+    }
+
     /** Back to every folder, which is what no folder ticked means. */
     fun clearFolders() = _state.update { it.copy(folderPaths = emptySet()) }
 
