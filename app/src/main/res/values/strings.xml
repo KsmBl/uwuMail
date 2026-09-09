@@ -778,4 +778,5 @@
         <item quantity="other">%1$d folders</item>
     </plurals>
     <string name="rule_check_edit">Edit this rule</string>
+    <string name="rule_on_accounts">On these accounts</string>
 </resources>

@@ -8,6 +8,7 @@ import de.uwumail.data.db.RuleActionEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
 import de.uwumail.data.db.RuleWithDetails
+import de.uwumail.data.db.accountScopeOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -51,7 +52,7 @@ class RuleEngineTest {
             id = id,
             name = name,
             priority = priority,
-            accountId = accountId,
+            accountIds = accountScopeOf(listOfNotNull(accountId)),
             folderPath = folderPath,
             matchMode = matchMode.name,
             stopProcessing = stopProcessing

@@ -5,6 +5,7 @@ import de.uwumail.core.RuleField
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
 import de.uwumail.data.db.RuleWithDetails
+import de.uwumail.data.db.appliesToAccount
 import de.uwumail.data.db.appliesToFolder
 
 /** Why a rule did or did not act on one message. */
@@ -90,7 +91,7 @@ object RuleExplain {
 
             val verdict = when {
                 !rule.enabled -> RuleVerdict.DISABLED
-                rule.accountId != null && rule.accountId != ctx.accountId -> RuleVerdict.OTHER_ACCOUNT
+                !rule.appliesToAccount(ctx.accountId) -> RuleVerdict.OTHER_ACCOUNT
                 !rule.appliesToFolder(ctx.folderPath) -> RuleVerdict.OTHER_FOLDER
                 entry.conditions.isEmpty() -> RuleVerdict.NO_CONDITIONS
                 else -> null

@@ -47,7 +47,7 @@ class RuleScopeTest {
 
     @Test
     fun `the editor scopes its folders the same way`() {
-        val state = RuleEditState(folders = folders, accountId = 1L)
+        val state = RuleEditState(folders = folders, accountIds = setOf(1L))
 
         assertEquals(listOf(10L), state.foldersForScope().map { it.id })
     }

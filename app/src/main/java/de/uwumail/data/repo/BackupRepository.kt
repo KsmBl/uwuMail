@@ -112,7 +112,8 @@ class BackupRepository(
                 name = entry.optString("name").ifBlank { "Imported rule" },
                 enabled = entry.optBoolean("enabled", true),
                 priority = entry.optInt("priority", 100),
-                accountId = null,
+                // Account ids are local to a device; see the note where it is written.
+                accountIds = null,
                 folderPath = entry.optString("folderPath").takeIf { it.isNotBlank() },
                 matchMode = entry.optString("matchMode").ifBlank { "ALL" },
                 stopProcessing = entry.optBoolean("stopProcessing", false),

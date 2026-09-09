@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-590%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-606%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -139,7 +139,8 @@ operators `matches regex`, `contains`, `is exactly`, `starts with`, `ends with`,
 `domain is`, `greater/less than`. Every condition can be inverted or made case
 sensitive, and conditions combine with all/any.
 
-A rule can be limited to **any set of folders**, ticked from a list — with
+A rule can be limited to **any set of accounts and any set of folders**, both
+ticked from a list — with
 *All inboxes*, *All sent mail* and *All deleted mails* at the top of it, taken
 from the same list the drawer opens with so the names cannot drift apart —
 rather than to one folder or to all of them — running something over the inbox and the
@@ -665,7 +666,7 @@ to read and to run rules against.
 
 ## Tests
 
-590 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+606 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -771,7 +772,15 @@ to read and to run rules against.
 - `mail/OutgoingAttachmentTest` — the name a sent attachment arrives under.
 - `mail/AttachmentHintTest` — which content types earn a paperclip in the list.
 - `rules/AttachmentRuleTest` — conditions on an attachment's filename.
-- `data/db/RuleFolderScopeTest` — a rule limited to a set of folders: that one
+- `data/db/RuleAccountMigrationTest` — the version 11 migration, run over a
+  real version 10 database: that the account scope arrives, and that each rule
+  still has its conditions and actions — dropping a parent table cascades
+  through their foreign keys, so the obvious rebuild migrates every rule and
+  silently throws away everything each one does. It also compares the rebuilt
+  tables against the same tables in a database Room has just created, since a
+  schema one index out would not fail loudly but wipe the mailbox and start
+  again.
+- `data/db/RuleFolderScopeTest` — a rule limited to a set of accounts and folders: that one
   written before this still names exactly the folder it always did, that none
   chosen means every folder rather than no folder, and that nested paths, case
   and stray separators all survive being stored and read back.

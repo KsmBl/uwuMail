@@ -11,6 +11,7 @@ import de.uwumail.data.db.MessageEntity
 import de.uwumail.data.db.RuleActionEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
+import de.uwumail.data.db.accountScopeOf
 import de.uwumail.ui.common.folderLabel
 import de.uwumail.di.AppContainer
 import de.uwumail.rules.MatchContext
@@ -240,7 +241,7 @@ class RuleWizardViewModel(
                     RuleEntity(
                         name = current.name.trim(),
                         enabled = true,
-                        accountId = current.accountId,
+                        accountIds = accountScopeOf(listOfNotNull(current.accountId)),
                         matchMode = MatchMode.ALL.name,
                         createdAt = System.currentTimeMillis()
                     ),

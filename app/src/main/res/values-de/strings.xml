@@ -776,4 +776,5 @@
         <item quantity="other">%1$d Ordner</item>
     </plurals>
     <string name="rule_check_edit">Diese Regel bearbeiten</string>
+    <string name="rule_on_accounts">Für diese Konten</string>
 </resources>

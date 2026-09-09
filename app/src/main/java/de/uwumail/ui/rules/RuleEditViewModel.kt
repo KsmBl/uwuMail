@@ -12,6 +12,8 @@ import de.uwumail.data.db.FolderEntity
 import de.uwumail.data.db.RuleActionEntity
 import de.uwumail.data.db.RuleConditionEntity
 import de.uwumail.data.db.RuleEntity
+import de.uwumail.data.db.accountIdsIn
+import de.uwumail.data.db.accountScopeOf
 import de.uwumail.data.db.folderPaths
 import de.uwumail.data.db.folderScopeOf
 import de.uwumail.di.AppContainer
@@ -30,7 +32,8 @@ data class RuleEditState(
     val name: String = "",
     val enabled: Boolean = true,
     val priority: String = "100",
-    val accountId: Long? = null,
+    /** The accounts the rule is limited to; empty means every account. */
+    val accountIds: Set<Long> = emptySet(),
     /** The folders the rule is limited to; empty means every folder. */
     val folderPaths: Set<String> = emptySet(),
     val matchMode: MatchMode = MatchMode.ALL,
@@ -54,7 +57,10 @@ data class RuleEditState(
         get() = name.isNotBlank() && conditions.isNotEmpty() && actions.isNotEmpty()
 
     fun foldersForScope(): List<FolderEntity> =
-        folders.filter { accountId == null || it.accountId == accountId }
+        folders.filter { accountIds.isEmpty() || it.accountId in accountIds }
+
+    /** True when this rule may run on [id]; nothing ticked means every account. */
+    fun coversAccount(id: Long): Boolean = accountIds.isEmpty() || id in accountIds
 
     /** True when this rule may run in [path]; nothing ticked means everywhere. */
     fun coversFolder(path: String): Boolean =
@@ -82,7 +88,7 @@ class RuleEditViewModel(
                             name = entry.rule.name,
                             enabled = entry.rule.enabled,
                             priority = entry.rule.priority.toString(),
-                            accountId = entry.rule.accountId,
+                            accountIds = entry.rule.accountIdsIn.toSet(),
                             folderPaths = entry.rule.folderPaths.toSet(),
                             matchMode = runCatching { MatchMode.valueOf(entry.rule.matchMode) }
                                 .getOrDefault(MatchMode.ALL),
@@ -111,6 +117,19 @@ class RuleEditViewModel(
             folderPaths = if (path in current.folderPaths) current.folderPaths - path
             else current.folderPaths + path
         )
+    }
+
+    /** Ticks or unticks one account in the rule's scope. */
+    fun toggleAccount(id: Long) = _state.update { current ->
+        val next = if (id in current.accountIds) current.accountIds - id
+        else current.accountIds + id
+        // The folders belong to the accounts, so narrowing which accounts the
+        // rule covers has to let go of folders that are no longer among them.
+        val reachable = current.folders
+            .filter { next.isEmpty() || it.accountId in next }
+            .map { it.path }
+            .toSet()
+        current.copy(accountIds = next, folderPaths = current.folderPaths intersect reachable)
     }
 
     /** Ticks or unticks a whole group at once, for the unified rows. */
@@ -177,9 +196,7 @@ class RuleEditViewModel(
                 // names actually held rather than against nothing at all.
                 val attachmentNames = attachmentRows.groupBy({ it.messageId }, { it.fileName })
                 val matched = corpus.filter { message ->
-                    if (current.accountId != null && message.accountId != current.accountId) {
-                        return@filter false
-                    }
+                    if (!current.coversAccount(message.accountId)) return@filter false
                     val path = paths[message.folderId].orEmpty()
                     if (!current.coversFolder(path)) return@filter false
                     RuleMatcher.matchesAll(
@@ -229,7 +246,7 @@ class RuleEditViewModel(
                         name = current.name.trim(),
                         enabled = current.enabled,
                         priority = current.priority.toIntOrNull() ?: 100,
-                        accountId = current.accountId,
+                        accountIds = accountScopeOf(current.accountIds),
                         folderPath = folderScopeOf(current.folderPaths),
                         matchMode = current.matchMode.name,
                         stopProcessing = current.stopProcessing,

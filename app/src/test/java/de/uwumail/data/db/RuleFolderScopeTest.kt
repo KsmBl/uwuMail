@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Which folders a rule runs in.
+ * Which folders and which accounts a rule runs in.
  *
  * It used to be one folder or all of them, which cannot say the commonest
  * thing anybody wants: run this over the inbox and the spam folder and nowhere
@@ -96,4 +96,60 @@ class RuleFolderScopeTest {
         assertEquals(listOf("INBOX"), rule("INBOX\n").folderPaths)
         assertEquals(listOf("INBOX", "Archive"), rule("INBOX\n\nArchive").folderPaths)
     }
+    // ---------------------------------------------------------------- accounts
+
+    private fun onAccounts(vararg ids: Long) =
+        RuleEntity(name = "rule", accountIds = accountScopeOf(ids.toList()))
+
+    @Test
+    fun `a rule naming no account runs on every account`() {
+        val rule = RuleEntity(name = "rule")
+
+        assertTrue(rule.accountIdsIn.isEmpty())
+        assertTrue(rule.appliesToAccount(1))
+        assertTrue(rule.appliesToAccount(99))
+    }
+
+    @Test
+    fun `a rule naming one account runs only on it`() {
+        val rule = onAccounts(7)
+
+        assertTrue(rule.appliesToAccount(7))
+        assertFalse(rule.appliesToAccount(8))
+    }
+
+    @Test
+    fun `a rule naming several accounts runs on each of them`() {
+        val rule = onAccounts(7, 9)
+
+        assertEquals(listOf(7L, 9L), rule.accountIdsIn)
+        assertTrue(rule.appliesToAccount(7))
+        assertTrue(rule.appliesToAccount(9))
+        assertFalse(rule.appliesToAccount(8))
+    }
+
+    @Test
+    fun `choosing no account is every account rather than none`() {
+        assertNull(accountScopeOf(emptyList()))
+        assertTrue(RuleEntity(name = "r", accountIds = accountScopeOf(emptyList())).appliesToAccount(1))
+    }
+
+    @Test
+    fun `an account chosen twice is stored once`() {
+        assertEquals(listOf(7L), onAccounts(7, 7).accountIdsIn)
+    }
+
+    /**
+     * A row written by hand, or left by something that did not know the shape,
+     * must not become an account id of zero — which would scope the rule to a
+     * mailbox that does not exist and quietly stop it doing anything.
+     */
+    @Test
+    fun `unreadable ids are dropped rather than becoming account zero`() {
+        val rule = RuleEntity(name = "rule", accountIds = "7\nnonsense\n\n9")
+
+        assertEquals(listOf(7L, 9L), rule.accountIdsIn)
+    }
+
+
 }

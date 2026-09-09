@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleLogEntity::class,
         OutboxEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -199,13 +199,145 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Lets a rule name several accounts instead of one.
+         *
+         * The folders beside it are text and could hold a list already; the
+         * account was an integer, so the column has to change type, which
+         * SQLite can only do by rebuilding the table. All three tables are
+         * rebuilt, and the reason is worth writing down.
+         *
+         * The conditions and actions have foreign keys onto the rules table
+         * with ON DELETE CASCADE. Dropping a parent table performs an implicit
+         * delete that fires them, so rebuilding the rules table the obvious way
+         * migrates every rule and silently throws away everything each one
+         * does. Renaming the old table out of the way first does not help
+         * either: this SQLite rewrites the children to follow the rename, even
+         * with legacy_alter_table on, so they end up pointing at the table
+         * about to be dropped — which is exactly the same cascade by a longer
+         * route, and the reason there is a test that fills a version 10
+         * database and counts what is left afterwards.
+         *
+         * So the children are rebuilt too, pointed back at the new rules table,
+         * and the old copies are dropped before their parent — a child can be
+         * dropped freely, since nothing cascades from it.
+         *
+         * A rule scoped to one account keeps exactly that account, and one
+         * scoped to none keeps none, which has always meant all of them.
+         */
+        internal val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("PRAGMA defer_foreign_keys = ON")
+                db.execSQL("ALTER TABLE rules RENAME TO rules_old")
+                db.execSQL("ALTER TABLE rule_conditions RENAME TO rule_conditions_old")
+                db.execSQL("ALTER TABLE rule_actions RENAME TO rule_actions_old")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE rules (
+                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        priority INTEGER NOT NULL,
+                        accountIds TEXT,
+                        folderPath TEXT,
+                        matchMode TEXT NOT NULL,
+                        stopProcessing INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        lastMatchedAt INTEGER,
+                        matchCount INTEGER NOT NULL
+                    )
+                    """
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO rules (
+                        id, name, enabled, priority, accountIds, folderPath,
+                        matchMode, stopProcessing, createdAt, lastMatchedAt, matchCount
+                    )
+                    SELECT id, name, enabled, priority,
+                           CASE WHEN accountId IS NULL THEN NULL ELSE CAST(accountId AS TEXT) END,
+                           folderPath, matchMode, stopProcessing, createdAt, lastMatchedAt, matchCount
+                    FROM rules_old
+                    """
+                )
+
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rules_priority ON rules (priority)"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE rule_conditions (
+                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        ruleId INTEGER NOT NULL,
+                        field TEXT NOT NULL,
+                        headerName TEXT,
+                        operator TEXT NOT NULL,
+                        value TEXT NOT NULL,
+                        caseSensitive INTEGER NOT NULL,
+                        negate INTEGER NOT NULL,
+                        FOREIGN KEY(ruleId) REFERENCES rules(id)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO rule_conditions (
+                        id, ruleId, field, headerName, operator, value, caseSensitive, negate
+                    )
+                    SELECT id, ruleId, field, headerName, operator, value, caseSensitive, negate
+                    FROM rule_conditions_old
+                    """
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rule_conditions_ruleId" +
+                        " ON rule_conditions (ruleId)"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE rule_actions (
+                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        ruleId INTEGER NOT NULL,
+                        type TEXT NOT NULL,
+                        stringArg TEXT,
+                        orderIndex INTEGER NOT NULL,
+                        FOREIGN KEY(ruleId) REFERENCES rules(id)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO rule_actions (id, ruleId, type, stringArg, orderIndex)
+                    SELECT id, ruleId, type, stringArg, orderIndex FROM rule_actions_old
+                    """
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_rule_actions_ruleId" +
+                        " ON rule_actions (ruleId)"
+                )
+
+                // Children first: dropping one cascades nothing, while dropping
+                // the parent while they still point at it is the whole problem.
+                db.execSQL("DROP TABLE rule_conditions_old")
+                db.execSQL("DROP TABLE rule_actions_old")
+                db.execSQL("DROP TABLE rules_old")
+            }
+        }
+
+        /** Every migration, in order, so a test can open a database through them. */
+        internal val MIGRATIONS = arrayOf(
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
+            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
+        )
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "uwumail.db")
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
-                .addMigrations(
-                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                    MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
-                )
+                .addMigrations(*MIGRATIONS)
                 .fallbackToDestructiveMigration()
                 .build()
     }

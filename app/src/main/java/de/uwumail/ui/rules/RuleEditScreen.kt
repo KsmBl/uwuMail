@@ -153,18 +153,10 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
             }
 
             SectionHeader(stringResource(R.string.rule_applies_to))
-            ScopeDropdown(
-                label = state.accounts.firstOrNull { it.id == state.accountId }?.displayName
-                    ?: stringResource(R.string.rule_all_accounts),
-                options = listOf<Pair<String, Long?>>(stringResource(R.string.rule_all_accounts) to null) +
-                    state.accounts.map { it.displayName to it.id },
-                // The folders belong to the account, so narrowing the account
-                // has to let go of folders that are no longer in it.
-                onPick = { value ->
-                    viewModel.update { it.copy(accountId = value) }
-                    viewModel.clearFolders()
-                },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            AccountScope(
+                accounts = state.accounts,
+                ticked = state.accountIds,
+                onToggle = viewModel::toggleAccount
             )
             FolderScope(
                 folders = state.foldersForScope(),
@@ -307,6 +299,60 @@ fun RuleEditScreen(ruleId: Long, onBack: () -> Unit) {
             scanned = state.previewTotal ?: 0,
             onDismiss = { showMatches = false }
         )
+    }
+}
+
+/**
+ * Which accounts the rule runs on, ticked one by one.
+ *
+ * The same shape as the folders below it, and for the same reason: a rule over
+ * two of four mailboxes needed two identical rules before. Nothing ticked means
+ * every account, which is what an unscoped rule has always meant — and what a
+ * single-account phone always shows, so the list is not offered there at all.
+ */
+@Composable
+private fun AccountScope(
+    accounts: List<AccountEntity>,
+    ticked: Set<Long>,
+    onToggle: (Long) -> Unit
+) {
+    if (accounts.size < 2) return
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Row(
+            Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.rule_on_accounts),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    if (ticked.isEmpty()) stringResource(R.string.rule_all_accounts)
+                    else accounts.filter { it.id in ticked }.joinToString(", ") { it.email },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(if (open) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
+        }
+        if (!open) return@Column
+        accounts.forEach { account ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle(account.id) }
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = account.id in ticked,
+                    onCheckedChange = { onToggle(account.id) }
+                )
+                Text(account.email, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }
 

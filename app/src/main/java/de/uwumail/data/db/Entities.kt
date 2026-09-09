@@ -233,8 +233,14 @@ data class RuleEntity(
     val enabled: Boolean = true,
     /** Lower runs first. */
     val priority: Int = 100,
-    /** null means the rule applies to every account. */
-    val accountId: Long? = null,
+    /**
+     * Which accounts the rule runs on; null means every account.
+     *
+     * Ids newline-separated, the same shape as [folderPath] and for the same
+     * reason: a rule over two of four mailboxes is a thing people want, and
+     * needed two identical rules before. Read it through [accountIdsIn].
+     */
+    val accountIds: String? = null,
     /**
      * Which folders the rule is limited to; null means every folder.
      *
