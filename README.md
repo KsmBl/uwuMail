@@ -12,7 +12,7 @@ pixels that are never requested · folders that live only on your phone.
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-31-3DDC84">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-559%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-572%20passing-brightgreen">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
 
@@ -171,6 +171,16 @@ rather than a thing to be checked. *Show what this catches* lists the actual
 messages, from every folder, with the mailbox each sits in — and in the wizard
 the ones you picked are marked, so it is clear which of the list was asked for
 and which the rule went and found on its own.
+
+**Why didn't my rule catch this?** A message's own menu has *Check against my
+rules*, which runs every rule over that one message and says what each of them
+did. The rule screens answer "how much does this catch", which is the question
+about a rule that is too broad; this is the opposite one, and the reasons are
+all invisible from the rule's own screen — a scope pointing at another folder,
+a value one character out, a case-sensitive test, or an earlier rule that stops
+processing so this one never ran. Every condition is shown with what it was
+looking for beside **what this message actually holds** in that field, which is
+usually the whole answer.
 
 <details>
 <summary><b>Building a rule without knowing regex</b></summary>
@@ -644,7 +654,7 @@ to read and to run rules against.
 
 ## Tests
 
-559 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
+572 JVM unit tests, run with `./gradlew :app:testDebugUnitTest`:
 
 - `rules/` — the rule engine (scoping, priority, stop-processing, negation,
   invalid regex, copies alongside a move), the regex builder, and the
@@ -750,6 +760,10 @@ to read and to run rules against.
 - `mail/OutgoingAttachmentTest` — the name a sent attachment arrives under.
 - `mail/AttachmentHintTest` — which content types earn a paperclip in the list.
 - `rules/AttachmentRuleTest` — conditions on an attachment's filename.
+- `rules/RuleExplainTest` — the per-message rule check, above all that its
+  verdicts agree with the engine's own on every rule including the
+  stop-processing case, since an explanation that disagreed with what actually
+  happened would send you looking in the wrong place.
 - `core/TranslationTest` — every string present in both languages, walked out of
   the two resource files.
 - `ui/mail/ScriptingWindowTest` — scripting and the network both restored after

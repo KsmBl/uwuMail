@@ -59,7 +59,7 @@ object RuleMatcher {
         val operator = runCatching { RuleOperator.valueOf(condition.operator) }.getOrNull() ?: return false
         val hit = when (field) {
             RuleField.SIZE_BYTES -> compareNumeric(operator, ctx.sizeBytes, condition.value)
-            else -> valuesFor(field, condition, ctx).any { compare(operator, it, condition) }
+            else -> actualValues(field, condition, ctx).any { compare(operator, it, condition) }
         }
         return hit != condition.negate
     }
@@ -74,7 +74,15 @@ object RuleMatcher {
         else conditions.any { matches(it, ctx) }
     }
 
-    private fun valuesFor(
+    /**
+     * What the message actually holds in the field a condition tests.
+     *
+     * Public because the answer to "why did this rule not catch it" is almost
+     * always this value sitting next to the one the condition was looking for.
+     * A list because several fields hold more than one — every recipient, every
+     * value of a repeated header, every attachment name.
+     */
+    fun actualValues(
         field: RuleField,
         condition: RuleConditionEntity,
         ctx: MatchContext

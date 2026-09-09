@@ -747,4 +747,21 @@
     <string name="push_paused">Pausiert bis %1$s — außerhalb der eingestellten Zeiten</string>
     <string name="bg_push_paused">Pausiert bis %1$s</string>
     <string name="bg_push_paused_why">Außerhalb der eingestellten Prüfzeiten, daher kommt bis dahin nichts von allein an. Die App öffnen und nach unten ziehen holt Mail weiterhin sofort.</string>
+    <string name="rule_check">Gegen meine Regeln prüfen</string>
+    <string name="rule_check_title">Regeln für diese Mail</string>
+    <string name="rule_check_working">Wird geprüft…</string>
+    <string name="rule_check_no_rules">Du hast noch keine Regeln.</string>
+    <string name="rule_check_none_matched">Keine Regel greift bei dieser Mail. Jede unten sagt warum.</string>
+    <string name="rule_check_matched">%1$d Regeln greifen bei dieser Mail.</string>
+    <string name="rule_check_acted">Greift bei dieser Mail</string>
+    <string name="rule_check_disabled">Ausgeschaltet</string>
+    <string name="rule_check_other_account">Gilt für ein anderes Konto</string>
+    <string name="rule_check_other_folder">Gilt nur für den Ordner \"%1$s\"</string>
+    <string name="rule_check_no_conditions">Hat keine Bedingungen und greift daher nie</string>
+    <string name="rule_check_not_reached">Nie erreicht: eine frühere Regel greift und stoppt die Verarbeitung</string>
+    <string name="rule_check_needs_all">Alle Bedingungen müssen zutreffen; die mit ✗ tun es nicht</string>
+    <string name="rule_check_needs_any">Eine Bedingung muss zutreffen; keine tut es</string>
+    <string name="rule_check_actual">diese Mail: %1$s</string>
+    <string name="rule_check_empty">diese Mail: nichts in diesem Feld</string>
+    <string name="rule_check_not">nicht</string>
 </resources>

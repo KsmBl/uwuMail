@@ -20,6 +20,9 @@ import de.uwumail.mail.RemoteImagePolicy
 import de.uwumail.mail.Unsubscribe
 import de.uwumail.mail.UnsubscribeTarget
 import kotlinx.coroutines.Dispatchers
+import de.uwumail.rules.MatchContext
+import de.uwumail.rules.RuleCheck
+import de.uwumail.rules.RuleExplain
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -61,7 +64,10 @@ data class MessageUiState(
     val error: String? = null,
     val closed: Boolean = false,
     /** Set once the message has been seen at least once, so a later null means gone. */
-    val everLoaded: Boolean = false
+    val everLoaded: Boolean = false,
+    /** What each rule did with this message, and why; see [RuleExplain]. */
+    val ruleChecks: List<RuleCheck> = emptyList(),
+    val checkingRules: Boolean = false
 ) {
     /** The unsubscribe link this message advertises, when the banner is enabled. */
     val unsubscribe: UnsubscribeTarget?
@@ -254,6 +260,36 @@ class MessageViewModel(
     }
 
     fun setSeen(seen: Boolean) = guarded { container.syncManager.setSeen(listOf(messageId), seen) }
+
+    /**
+     * Runs the rules over this message and keeps what each of them did.
+     *
+     * Attachment names are read from the database rather than fetched: a rule
+     * matching on them needs the structure, which is cached once a message has
+     * been opened — and this only runs from an open message.
+     */
+    fun checkRules() {
+        if (local.value.checkingRules) return
+        local.update { it.copy(checkingRules = true) }
+        viewModelScope.launch {
+            runCatching {
+                val message = container.db.messageDao().get(messageId)
+                    ?: return@runCatching emptyList()
+                val folder = container.db.folderDao().get(message.folderId)
+                val names = container.db.attachmentDao().forMessage(messageId)
+                    .filter { !it.isInline && it.fileName.isNotBlank() }
+                    .map { it.fileName }
+                val ctx = MatchContext.of(message, folder?.path.orEmpty(), names)
+                withContext(Dispatchers.Default) {
+                    RuleExplain.check(ctx, container.db.ruleDao().allRules())
+                }
+            }.onSuccess { checks ->
+                local.update { it.copy(ruleChecks = checks, checkingRules = false) }
+            }.onFailure { e ->
+                local.update { it.copy(checkingRules = false, error = e.message ?: e.toString()) }
+            }
+        }
+    }
     fun setFlagged(flagged: Boolean) = guarded {
         container.syncManager.setFlagged(listOf(messageId), flagged)
     }

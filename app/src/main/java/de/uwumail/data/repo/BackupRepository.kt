@@ -29,7 +29,7 @@ class BackupRepository(
 
     suspend fun export(): String {
         val rules = JSONArray()
-        for (entry in db.ruleDao().enabledRulesForBackup()) {
+        for (entry in db.ruleDao().allRules()) {
             val conditions = JSONArray()
             entry.conditions.forEach { condition ->
                 conditions.put(

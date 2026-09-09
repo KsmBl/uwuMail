@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Rule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AssistChip
@@ -101,6 +102,7 @@ import de.uwumail.ui.mail.gravity.MAX_GRAVITY_LETTERS
 import de.uwumail.ui.LocalAppContainer
 import de.uwumail.ui.common.ConfirmDialog
 import de.uwumail.ui.common.FolderPickerSheet
+import de.uwumail.ui.rules.RuleCheckSheet
 import de.uwumail.ui.common.formatFullDate
 import de.uwumail.ui.common.formatSize
 import de.uwumail.ui.containerViewModel
@@ -128,6 +130,7 @@ fun MessageScreen(
     val previousMessage = remember(siblings, messageId) { order.previousOf(messageId) }
     val nextMessage = remember(siblings, messageId) { order.nextOf(messageId) }
     var overflow by remember { mutableStateOf(false) }
+    var showRuleCheck by remember { mutableStateOf(false) }
     var showMove by remember { mutableStateOf(false) }
     var showCopy by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -314,6 +317,15 @@ fun MessageScreen(
                         DropdownMenuItem(
                             text = { Text(if (state.showHeaders) stringResource(R.string.hide_headers) else stringResource(R.string.show_headers)) },
                             onClick = { overflow = false; viewModel.toggleHeaders() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.rule_check)) },
+                            leadingIcon = { Icon(Icons.Default.Rule, null) },
+                            onClick = {
+                                overflow = false
+                                viewModel.checkRules()
+                                showRuleCheck = true
+                            }
                         )
                         if (state.settings.gravityUnlocked) {
                             DropdownMenuItem(
@@ -624,6 +636,14 @@ fun MessageScreen(
             url = url,
             onOpen = { openLink(context, it) },
             onDismiss = { trackingLink = null }
+        )
+    }
+
+    if (showRuleCheck) {
+        RuleCheckSheet(
+            checks = state.ruleChecks,
+            loading = state.checkingRules,
+            onDismiss = { showRuleCheck = false }
         )
     }
 

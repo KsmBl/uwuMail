@@ -518,10 +518,17 @@ interface RuleDao {
     @Query("SELECT * FROM rules WHERE enabled = 1 ORDER BY priority, id")
     suspend fun enabledRules(): List<RuleWithDetails>
 
-    /** Every rule, enabled or not — a backup that dropped the disabled ones would lie. */
+    /**
+     * Every rule, enabled or not, in the order they run.
+     *
+     * Used by a backup, which would lie if it dropped the disabled ones, and by
+     * the check that explains what the rules did to one message, where "this
+     * one is switched off" is an answer rather than a reason to hide it. It was
+     * called enabledRulesForBackup, which was wrong about both halves.
+     */
     @Transaction
     @Query("SELECT * FROM rules ORDER BY priority, id")
-    suspend fun enabledRulesForBackup(): List<RuleWithDetails>
+    suspend fun allRules(): List<RuleWithDetails>
 
     @Transaction
     @Query("SELECT * FROM rules WHERE id = :id")

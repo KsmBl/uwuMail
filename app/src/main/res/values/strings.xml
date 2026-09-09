@@ -749,4 +749,21 @@
     <string name="push_paused">Paused until %1$s — outside the hours you set</string>
     <string name="bg_push_paused">Paused until %1$s</string>
     <string name="bg_push_paused_why">Outside the hours you set for checking, so nothing arrives on its own until then. Opening the app and pulling down still fetches straight away.</string>
+    <string name="rule_check">Check against my rules</string>
+    <string name="rule_check_title">Rules on this message</string>
+    <string name="rule_check_working">Testing…</string>
+    <string name="rule_check_no_rules">You have no rules yet.</string>
+    <string name="rule_check_none_matched">No rule acts on this message. Each one below says why.</string>
+    <string name="rule_check_matched">%1$d rules act on this message.</string>
+    <string name="rule_check_acted">Acts on this message</string>
+    <string name="rule_check_disabled">Switched off</string>
+    <string name="rule_check_other_account">Set to a different account</string>
+    <string name="rule_check_other_folder">Set to the folder \"%1$s\" only</string>
+    <string name="rule_check_no_conditions">Has no conditions, so it never matches</string>
+    <string name="rule_check_not_reached">Never reached: an earlier rule matched and stops processing</string>
+    <string name="rule_check_needs_all">Needs every condition to hold; the ✗ ones do not</string>
+    <string name="rule_check_needs_any">Needs one condition to hold; none does</string>
+    <string name="rule_check_actual">this mail: %1$s</string>
+    <string name="rule_check_empty">this mail: nothing in that field</string>
+    <string name="rule_check_not">not</string>
 </resources>
